@@ -1,0 +1,1 @@
+using ConditionContract as service from '../../srv/conditioncontract-service';

@@ -17,14 +17,21 @@
     "@cap-js/sqlite": "^1",
     "@sap/cds-dk": "^8",
     "@types/node": "^22.0.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "cds-plugin-ui5": "^0.9.3",
+    "rimraf": "^5.0.5",
+    "mbt": "^1.2.29"
   },
   "scripts": {
     "start": "cds-serve",
     "before:cds-watch": "cds-typer \"*\"",
     "watch": "cds-tsx w",
-    "watch:ts:mv": "cds bind --exec npm run watch:ts --profile mandar",
-    "deploy:hana:mv": "cds bind --exec cds deploy --to hana --profile mandar"
+    "watch:ts:mv": "cds bind --exec npm run watch --profile mandar",
+    "deploy:hana:mv": "cds bind --exec cds deploy --to hana --profile mandar",
+    "watch-ccma": "cds watch --open com.bayer.tender.ccma/index.html?sap-ui-xx-viewCache=false --livereload false",
+    "undeploy": "cf undeploy F_TNDR_CAG_FAST_CCMA_BACKEND --delete-services --delete-service-keys --delete-service-brokers",
+    "build": "rimraf resources mta_archives && mbt build --mtar archive",
+    "deploy": "cf deploy mta_archives/archive.mtar --retries 1"
   },
   "imports": {
     "#cds-models/*": "./@cds-models/*/index.js"
@@ -37,5 +44,8 @@
     "sql": {
       "native_hana_associations": false
     }
-  }
+  },
+  "workspaces": [
+    "app/*"
+  ]
 }

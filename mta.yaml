@@ -1,71 +1,98 @@
 _schema-version: 3.3.0
 ID: F_TNDR_CAG_FAST_CCMA_BACKEND
+description: A simple CAP project.
 version: 1.0.0
-description: "A simple CAP project."
+modules:
+- name: F_TNDR_CAG_FAST_CCMA_BACKEND-srv
+  type: nodejs
+  path: gen/srv
+  requires:
+  - name: F_TNDR_CAG_FAST_CCMA_BACKEND-auth
+  - name: F_TNDR_CAG_FAST_CCMA_BACKEND-db
+  provides:
+  - name: srv-api
+    properties:
+      srv-url: ${default-url}
+  parameters:
+    buildpack: nodejs_buildpack
+    instances: 1
+  build-parameters:
+    builder: npm-ci
+- name: F_TNDR_CAG_FAST_CCMA_BACKEND-db-deployer
+  type: hdb
+  path: gen/db
+  requires:
+  - name: F_TNDR_CAG_FAST_CCMA_BACKEND-db
+  parameters:
+    buildpack: nodejs_buildpack
+- name: F_TNDR_CAG_FAST_CCMA_BACKEND-app-deployer
+  type: com.sap.application.content
+  path: gen
+  requires:
+  - name: F_TNDR_CAG_FAST_CCMA_BACKEND-html5-repo-host
+    parameters:
+      content-target: true
+  build-parameters:
+    build-result: app/
+    requires:
+    - artifacts:
+      - combayertenderccma.zip
+      name: combayertenderccma
+      target-path: app//
+- name: combayertenderccma
+  type: html5
+  path: app/ccma
+  build-parameters:
+    build-result: dist
+    builder: custom
+    commands:
+    - npm install
+    - npm run build:cf
+    supported-platforms: []
+resources:
+- name: F_TNDR_CAG_FAST_CCMA_BACKEND-auth
+  type: org.cloudfoundry.managed-service
+  parameters:
+    config:
+      tenant-mode: dedicated
+      xsappname: F_TNDR_CAG_FAST_CCMA_BACKEND-${org}-${space}
+    path: ./xs-security.json
+    service: xsuaa
+    service-plan: application
+- name: F_TNDR_CAG_FAST_CCMA_BACKEND-db
+  type: com.sap.xs.hdi-container
+  parameters:
+    service: hana
+    service-plan: hdi-shared
+- name: F_TNDR_CAG_FAST_CCMA_BACKEND-html5-repo-host
+  type: org.cloudfoundry.managed-service
+  parameters:
+    service: html5-apps-repo
+    service-plan: app-host
+- name: F_TNDR_CAG_FAST_CCMA_BACKEND-destination-service
+  type: org.cloudfoundry.managed-service
+  parameters:
+    config:
+      HTML5Runtime_enabled: false
+      init_data:
+        instance:
+          destinations:
+          - Authentication: NoAuthentication
+            Name: ui5
+            ProxyType: Internet
+            Type: HTTP
+            URL: https://ui5.sap.com
+          existing_destinations_policy: update
+      version: 1.0.0
+    service: destination
+    service-name: F_TNDR_CAG_FAST_CCMA_BACKEND-destination-service
+    service-plan: lite
 parameters:
-  enable-parallel-deployments: true
   deploy_mode: html5-repo
+  enable-parallel-deployments: true
 build-parameters:
   before-all:
-    - builder: custom
-      commands:
-        - npm ci
-        - npx cds build --production
-modules:
-  - name: F_TNDR_CAG_FAST_CCMA_BACKEND-srv
-    type: nodejs
-    path: gen/srv
-    parameters:
-      instances: 1
-      buildpack: nodejs_buildpack
-    build-parameters:
-      builder: npm-ci
-    provides:
-      - name: srv-api # required by consumers of CAP services (e.g. approuter)
-        properties:
-          srv-url: ${default-url}
-    requires:
-      - name: F_TNDR_CAG_FAST_CCMA_BACKEND-auth
-      - name: F_TNDR_CAG_FAST_CCMA_BACKEND-db
-
-  - name: F_TNDR_CAG_FAST_CCMA_BACKEND-db-deployer
-    type: hdb
-    path: gen/db
-    parameters:
-      buildpack: nodejs_buildpack
-    requires:
-      - name: F_TNDR_CAG_FAST_CCMA_BACKEND-db
-
-  - name: F_TNDR_CAG_FAST_CCMA_BACKEND-app-deployer
-    type: com.sap.application.content
-    path: gen
-    requires:
-      - name: F_TNDR_CAG_FAST_CCMA_BACKEND-html5-repo-host
-        parameters:
-          content-target: true
-    build-parameters:
-      build-result: app/
-      requires:
-
-
-resources:
-  - name: F_TNDR_CAG_FAST_CCMA_BACKEND-auth
-    type: org.cloudfoundry.managed-service
-    parameters:
-      service: xsuaa
-      service-plan: application
-      path: ./xs-security.json
-      config:
-        xsappname: F_TNDR_CAG_FAST_CCMA_BACKEND-${org}-${space}
-        tenant-mode: dedicated
-  - name: F_TNDR_CAG_FAST_CCMA_BACKEND-db
-    type: com.sap.xs.hdi-container
-    parameters:
-      service: hana
-      service-plan: hdi-shared
-
-  - name: F_TNDR_CAG_FAST_CCMA_BACKEND-html5-repo-host
-    type: org.cloudfoundry.managed-service
-    parameters:
-      service: html5-apps-repo
-      service-plan: app-host
+  - builder: custom
+    commands:
+    - npm ci
+    - npx cds build --production
