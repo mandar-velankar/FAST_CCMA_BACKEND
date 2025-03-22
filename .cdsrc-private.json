@@ -1,0 +1,115 @@
+{
+    "requires": {
+      "[hybrid]": {
+        "db": {
+          "binding": {
+            "type": "cf",
+            "apiEndpoint": "https://api.cf.eu20.hana.ondemand.com",
+            "org": "Bayer-FAST-DEV",
+            "space": "FAST",
+            "instance": "F_TNDR_CAG_FAST_CCMA_BACKEND-db",
+            "key": "F_TNDR_CAG_FAST_CCMA_BACKEND-db-key",
+            "resolved": false
+          },
+          "kind": "hana",
+          "vcap": {
+            "name": "db"
+          }
+        },
+        "auth": {
+          "binding": {
+            "type": "cf",
+            "apiEndpoint": "https://api.cf.eu20.hana.ondemand.com",
+            "org": "Bayer-FAST-DEV",
+            "space": "FAST",
+            "instance": "uaa_FAST",
+            "key": "key",
+            "resolved": false
+          },
+          "kind": "basic",
+          "users": {
+            "admin": {
+              "password": "admin",
+              "ID": "admin",
+              "roles": []
+            },
+            "*": true
+          }
+        }
+      },
+      "[mandar]": {
+        "db": {
+          "binding": {
+            "type": "cf",
+            "apiEndpoint": "https://api.cf.eu20.hana.ondemand.com",
+            "org": "Bayer-FAST-DEV",
+            "space": "FAST",
+            "instance": "F_TNDR_CAG_FAST_CCMA_BACKEND-db-MV",
+            "key": "FAST_CCMA_BACKEND-db-MV-key",
+            "resolved": false
+          },
+          "kind": "hana",
+          "vcap": {
+            "name": "db"
+          }
+        },
+        "auth": {
+          "binding": {
+            "type": "cf",
+            "apiEndpoint": "https://api.cf.eu20.hana.ondemand.com",
+            "org": "Bayer-FAST-DEV",
+            "space": "FAST",
+            "instance": "uaa_FAST",
+            "key": "key",
+            "resolved": false
+          },
+          "kind": "basic",
+          "users": {
+            "admin": {
+              "password": "admin",
+              "ID": "admin",
+              "roles": []
+            },
+            "*": true
+          }
+        }
+      },
+      "[jorj]": {
+        "db": {
+          "binding": {
+            "type": "cf",
+            "apiEndpoint": "https://api.cf.eu20.hana.ondemand.com",
+            "org": "Bayer-FAST-DEV",
+            "space": "FAST",
+            "instance": "F_TNDR_CAG_FAST_CCMA_BACKEND-db-JP",
+            "key": "FAST_CCMA_BACKEND-db-JP-key",
+            "resolved": false
+          },
+          "kind": "hana",
+          "vcap": {
+            "name": "db"
+          }
+        },
+        "auth": {
+          "binding": {
+            "type": "cf",
+            "apiEndpoint": "https://api.cf.eu20.hana.ondemand.com",
+            "org": "Bayer-FAST-DEV",
+            "space": "FAST",
+            "instance": "uaa_FAST",
+            "key": "key",
+            "resolved": false
+          },
+          "kind": "basic",
+          "users": {
+            "admin": {
+              "password": "admin",
+              "ID": "admin",
+              "roles": []
+            },
+            "*": true
+          }
+        }
+      }
+    }
+  }
