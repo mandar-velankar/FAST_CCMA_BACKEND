@@ -1,0 +1,75 @@
+<core:FragmentDefinition 
+	xmlns="sap.m" 
+	xmlns:core="sap.ui.core" 
+	xmlns:up="sap.uxap" 
+	xmlns:form="sap.ui.layout.form" 
+	xmlns:u="sap.uxap"
+	xmlns:t="sap.ui.table" 
+	xmlns:l="sap.ui.layout"
+	xmlns:mvc="sap.ui.core.mvc">
+
+    <Panel
+        expandable="true"
+        expanded="true"
+        headerText="{i18n>CustomersFragment.Customers}"
+    >   
+        <form:Form
+		    id="idCustomers"
+		    editable="true"       
+	    >
+		<!-- <form:toolbar>
+			<Toolbar>
+			</Toolbar>
+		</form:toolbar> -->
+		<form:layout>
+			<form:ResponsiveGridLayout
+				labelSpanXL="5"
+				labelSpanL="5"
+				labelSpanM="5"
+				labelSpanS="9"
+				adjustLabelSpan="false"
+				emptySpanXL="0"
+				emptySpanL="0"
+				emptySpanM="0"
+				emptySpanS="0"
+				columnsXL="3"
+				columnsL="3"
+				columnsM="3"
+				singleContainerFullSize="false" />
+		</form:layout>
+		<form:formContainers>
+			<form:FormContainer>
+				<form:formElements>
+					<form:FormElement label="{i18n>CustomersFragment.InstituteType}">
+						<form:fields>
+							<Input id="idInstituteType" value="Public" enabled="false"/>
+						</form:fields>
+					</form:FormElement>
+
+                    <form:FormElement label="{i18n>CustomersFragment.Institute}" >
+						<form:fields>
+							<Input id="idInstitute" value="KRAKÓW MEDICINA SPECJALISTYCZN" enabled="false"/>
+						</form:fields>
+					</form:FormElement>
+
+                    <form:FormElement label="{i18n>CustomersFragment.Regions}" >
+						<form:fields>
+							<Input id="idRegions" value="KRAKÓW" enabled="false"/>
+						</form:fields>
+					</form:FormElement>
+				</form:formElements>
+			</form:FormContainer>
+			<form:FormContainer >
+				<form:formElements>
+					<form:FormElement >
+						<form:fields>
+							<Button width="2rem" icon="sap-icon://list"/>
+						</form:fields>
+					</form:FormElement>
+				</form:formElements>
+			</form:FormContainer>
+		</form:formContainers>
+	</form:Form>
+    </Panel>
+
+</core:FragmentDefinition>

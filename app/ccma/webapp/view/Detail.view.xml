@@ -1,0 +1,62 @@
+<mvc:View xmlns:core="sap.ui.core" controllerName="com.bayer.tender.ccma.controller.Detail"
+    xmlns:mvc="sap.ui.core.mvc" displayBlock="true"
+    xmlns="sap.m"
+    xmlns:f="sap.f">
+    <f:DynamicPage
+        id='detailPage'
+        preserveHeaderStateOnScroll="true"
+		toggleHeaderOnTitleClick="false"
+    >
+       <!-- DynamicPage Title -->
+		<f:title>
+			<f:DynamicPageTitle
+                id="detaildynamicPageTitle"
+            >
+            <f:navigationActions>
+					<!--<Button
+							text="Edit"
+							icon="sap-icon://{= ${appView>/editmode}?'display':'edit'}"
+							type="{= ${appView>/editmode}?'Transparent':'Emphasized'}"
+							press=".onEdit" />-->
+					<Button
+							icon="sap-icon://full-screen"
+							type="Transparent"
+							visible="{= !${device>/system/phone} &amp;&amp; !${appView>/actionButtonsInfo/midColumn/fullScreen}}"
+							press=".toggleFullScreen" />
+					<Button
+							icon="sap-icon://exit-full-screen"
+							type="Transparent"
+							visible="{= !${device>/system/phone} &amp;&amp; ${appView>/actionButtonsInfo/midColumn/fullScreen}}"
+							press=".toggleFullScreen" />
+					<Button
+							icon="sap-icon://decline"
+							type="Transparent" 
+							press=".onCloseDetailPress"/>
+				</f:navigationActions>
+			</f:DynamicPageTitle>
+		</f:title>
+        <f:content>
+			<VBox>
+				<OverflowToolbar class="sapFDynamicPageAlignContent">
+					
+					<ToolbarSpacer/>
+					<Button text="Sync"/>
+				</OverflowToolbar>
+                <VBox>
+                    <VBox>
+                        <core:Fragment fragmentName="com.bayer.tender.ccma.view.fragments.detail.ContractInformation" type="XML"/>
+                    </VBox>
+                    <VBox>
+                        <core:Fragment fragmentName="com.bayer.tender.ccma.view.fragments.detail.Customers" type="XML"/>
+                    </VBox>
+                    <VBox>
+                        <core:Fragment fragmentName="com.bayer.tender.ccma.view.fragments.detail.ProductsList" type="XML"/>
+                    </VBox>
+                </VBox>
+			</VBox>
+		</f:content>
+    </f:DynamicPage>
+    <!-- <Page id="page" >
+        
+    </Page> -->
+</mvc:View>

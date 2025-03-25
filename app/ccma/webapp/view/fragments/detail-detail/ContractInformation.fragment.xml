@@ -1,0 +1,73 @@
+<core:FragmentDefinition 
+	xmlns="sap.m" 
+	xmlns:core="sap.ui.core" 
+	xmlns:up="sap.uxap" 
+	xmlns:form="sap.ui.layout.form" 
+	xmlns:u="sap.uxap"
+	xmlns:t="sap.ui.table" 
+	xmlns:l="sap.ui.layout"
+	xmlns:mvc="sap.ui.core.mvc">
+
+    <Panel
+        expandable="true"
+        expanded="true"
+        headerText="{i18n>ContractInformationFragment.ContractInformation}"
+    >   
+    <form:Form
+		    id="idDetailDetailContractInformation"
+		    editable="true"       
+	    >
+		<!-- <form:toolbar>
+			<Toolbar>
+			</Toolbar>
+		</form:toolbar> -->
+		<form:layout>
+			<form:ResponsiveGridLayout
+				labelSpanXL="5"
+				labelSpanL="5"
+				labelSpanM="5"
+				labelSpanS="9"
+				adjustLabelSpan="false"
+				emptySpanXL="0"
+				emptySpanL="0"
+				emptySpanM="0"
+				emptySpanS="0"
+				columnsXL="3"
+				columnsL="3"
+				columnsM="3"
+				singleContainerFullSize="false" />
+		</form:layout>
+		<form:formContainers>
+			<form:FormContainer>
+				<form:formElements>
+					<form:FormElement label="{i18n>ContractInformationFragment.StartDate}">
+						<form:fields>
+							<Text id="idStartDate" text="2025-02-13"/>
+						</form:fields>
+					</form:FormElement>
+
+                    <form:FormElement label="{i18n>ContractInformationFragment.EndtDate}" >
+						<form:fields>
+							<Text id="idEndDate" text="2025-02-15"/>
+						</form:fields>
+					</form:FormElement>
+
+                    <form:FormElement label="{i18n>ContractInformationFragment.Extension}" >
+						<form:fields>
+							<Text id="idExtension" text=""/>
+						</form:fields>
+					</form:FormElement>
+
+                    <form:FormElement label="{i18n>ContractInformationFragment.ExtensionPeriod}" >
+						<form:fields>
+							<Text id="idExtensionPeriod" text=""/>
+						</form:fields>
+					</form:FormElement>
+					
+				</form:formElements>
+			</form:FormContainer>
+		</form:formContainers>
+	</form:Form>
+    </Panel>
+
+</core:FragmentDefinition>

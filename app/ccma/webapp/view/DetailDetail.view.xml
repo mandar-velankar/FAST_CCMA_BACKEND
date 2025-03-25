@@ -1,0 +1,72 @@
+<mvc:View xmlns:core="sap.ui.core" controllerName="com.bayer.tender.ccma.controller.DetailDetail"
+    xmlns:mvc="sap.ui.core.mvc" displayBlock="true"
+    xmlns="sap.m"
+    xmlns:f="sap.f">
+    <f:DynamicPage
+        id='detailDetailPage'
+        preserveHeaderStateOnScroll="true"
+		toggleHeaderOnTitleClick="false"
+    >
+       <!-- DynamicPage Title -->
+		<f:title>
+			<f:DynamicPageTitle
+                id="detailDetaildynamicPageTitle"
+            >
+            <f:navigationActions>
+					<!--<Button
+							text="Edit"
+							icon="sap-icon://{= ${appView>/editmode}?'display':'edit'}"
+							type="{= ${appView>/editmode}?'Transparent':'Emphasized'}"
+							press=".onEdit" />-->
+					<Button
+							icon="sap-icon://full-screen"
+							type="Transparent"
+							visible="{= !${device>/system/phone} &amp;&amp; !${appView>/actionButtonsInfo/midColumn/fullScreen}}"
+							press=".toggleFullScreen" />
+					<Button
+							icon="sap-icon://exit-full-screen"
+							type="Transparent"
+							visible="{= !${device>/system/phone} &amp;&amp; ${appView>/actionButtonsInfo/midColumn/fullScreen}}"
+							press=".toggleFullScreen" />
+					<Button
+							icon="sap-icon://decline"
+							type="Transparent" 
+							press=".onCloseDetailPress"/>
+				</f:navigationActions>
+			</f:DynamicPageTitle>
+		</f:title>
+        <f:content>
+			<VBox>
+				<OverflowToolbar class="sapFDynamicPageAlignContent">
+					
+					<ToolbarSpacer/>
+					<Button text="Sync"/>
+				</OverflowToolbar>
+                <VBox>
+                    <VBox>
+                        <core:Fragment fragmentName="com.bayer.tender.ccma.view.fragments.detail-detail.ContractInformation" type="XML"/>
+                    </VBox>
+                    <VBox>
+                        <core:Fragment fragmentName="com.bayer.tender.ccma.view.fragments.detail-detail.Customers" type="XML"/>
+                    </VBox>
+					<VBox>
+						<Panel
+							expandable="true"
+							expanded="true"
+							headerText="{i18n>MaterialNumbers}"
+						>
+							<TextArea value="15551515 - Active,
+							5115151 - Inactive" enabled="false"/>
+						</Panel>
+					</VBox>
+                    <VBox>
+                        <core:Fragment fragmentName="com.bayer.tender.ccma.view.fragments.detail-detail.Pricing" type="XML"/>
+                    </VBox>
+                </VBox>
+			</VBox>
+		</f:content>
+    </f:DynamicPage>
+    <!-- <Page id="page" >
+        
+    </Page> -->
+</mvc:View>

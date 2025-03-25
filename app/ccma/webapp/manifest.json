@@ -23,6 +23,14 @@
           "annotations": [],
           "odataVersion": "4.0"
         }
+      },
+      "accessService": {
+        "uri": "/v2/access/",
+        "type": "OData",
+        "settings": {
+          "odataVersion": "2.0",
+          "localUri": "localService/metadata.xml"
+        }
       }
     }
   },
@@ -55,6 +63,9 @@
       "compact": true,
       "cozy": true
     },
+    "resourceRoots": {
+      "com.bayer.tender.uilib": "./libraries/uilib/src/com/bayer/tender/uilib"
+    },
     "models": {
       "i18n": {
         "type": "sap.ui.model.resource.ResourceModel",
@@ -70,6 +81,10 @@
           "autoExpandSelect": true,
           "earlyRequests": true
         }
+      },
+      "access": {
+        "dataSource": "accessService",
+        "preload": true
       }
     },
     "resources": {
@@ -82,28 +97,57 @@
     "routing": {
       "config": {
         "routerClass": "sap.m.routing.Router",
-        "controlAggregation": "pages",
-        "controlId": "app",
         "transition": "slide",
         "type": "View",
         "viewType": "XML",
         "path": "com.bayer.tender.ccma.view",
         "async": true,
-        "viewPath": "com.bayer.tender.ccma.view"
+        "viewPath": "com.bayer.tender.ccma.view",
+        "controlAggregation": "beginColumnPages",
+        "controlId": "layout",
+        "clearControlAggregation": false
       },
       "routes": [
         {
-          "name": "RouteMain",
-          "pattern": ":?query:",
+          "pattern": "",
+          "name": "master",
+          "target": "master"
+        },
+        {
+          "name": "detail",
+          "pattern": "detail/{id}/{layout}",
           "target": [
-            "Main"
+            "master",
+            "detail"
+          ]
+        },
+        {
+          "name": "detail-detail",
+          "pattern": "detail/{id}/detail-detail/{productPackId}/{layout}",
+          "target": [
+            "master",
+            "detail",
+            "detailDetail"
           ]
         }
       ],
       "targets": {
-        "Main": {
-          "id": "Main",
-          "name": "Main"
+        "master": {
+          "viewName": "Master",
+          "viewLevel": 1,
+          "viewId": "master"
+        },
+        "detail": {
+          "viewName": "Detail",
+          "viewId": "detail",
+          "viewLevel": 1,
+          "controlAggregation": "midColumnPages"
+        },
+        "detailDetail": {
+          "viewName": "DetailDetail",
+          "viewId": "detailDetail",
+          "viewLevel": 1,
+          "controlAggregation": "endColumnPages"
         }
       }
     },
