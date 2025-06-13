@@ -1,4 +1,4 @@
-using (com.bayer.SXTENDER.ccma} from '../db/schema';
+using {com.bayer.SXTENDER.ccma} from '../db/schema';
 
 service ConditionContract {
     
@@ -13,4 +13,5 @@ service ConditionContract {
     entity APIDefinition as projection on ccma.APIDefinition;
     entity APIBody as projection on ccma.APIBody;
 
+    function getBackendData()returns String;
 }

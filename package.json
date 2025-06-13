@@ -6,6 +6,7 @@
   "license": "UNLICENSED",
   "private": true,
   "dependencies": {
+    "@sap-cloud-sdk/http-client": "^3.15.0",
     "@sap/cds": "^8",
     "express": "^4",
     "@sap/xssec": "^4",
@@ -39,7 +40,13 @@
   "cds": {
     "requires": {
       "auth": "xsuaa",
-      "html5-runtime": true
+      "html5-runtime": true,
+      "FASTBACKEND_API": {
+        "kind": "rest",
+        "credentials": {
+          "destination": "FAST_API_OAUTH"
+        }
+      }
     },
     "sql": {
       "native_hana_associations": false

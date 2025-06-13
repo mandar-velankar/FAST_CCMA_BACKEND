@@ -22,8 +22,7 @@ entity FastConditionContracts: cuid, managed {
   hasCancelledContracts: Boolean;
   hasContractsToBeSynchronized: Boolean;
   hasNewContracts: Boolean;
-  CCMContract: Association to many CCMContract on CCMContract.FastConditionContracts = $self;
-
+  CCMContract: Composition of many CCMContract on CCMContract.FastConditionContracts = $self;
 }
 
 entity CCMContract: cuid, managed, temporal {
@@ -36,8 +35,8 @@ entity CCMContract: cuid, managed, temporal {
   Extension: Boolean;
   ExtensionPeriod: String;
   CreationDate: Date;
-  CCMCustomer: Association to CCMCustomer on CCMCustomer.CCMContract = $self;
-  CCMMaterial: Association to CCMMaterial on CCMMaterial.CCMContract = $self;
+  CCMCustomer: Composition of CCMCustomer on CCMCustomer.CCMContract = $self;
+  CCMMaterial: Composition of many CCMMaterial on CCMMaterial.CCMContract = $self;
   FastConditionContracts: Association to FastConditionContracts
 }
 
@@ -55,9 +54,9 @@ entity CCMMaterial: cuid, managed, temporal{
   MaterialNumber: String;
   FOCMaterialNumber: String;
   CCMContract: Association to CCMContract;
-  CurrentInvoicePrice: Association to CurrentInvoicePrice on CurrentInvoicePrice.CCMMaterial = $self;
-  PriceConditionInvoice: Association to PriceConditionInvoice on PriceConditionInvoice.CCMMaterial = $self;
-  PriceConditionRebate:  Association to PriceConditionRebate on PriceConditionRebate.CCMMaterial = $self;
+  CurrentInvoicePrice: Composition of many CurrentInvoicePrice on CurrentInvoicePrice.CCMMaterial = $self;
+  PriceConditionInvoice: Composition of many PriceConditionInvoice on PriceConditionInvoice.CCMMaterial = $self;
+  PriceConditionRebate:  Composition of many PriceConditionRebate on PriceConditionRebate.CCMMaterial = $self;
   PriceConditionFOC: Association to PriceConditionFOC on PriceConditionFOC.CCMMaterial = $self;
 }
 entity CurrentInvoicePrice: cuid, managed{
@@ -112,7 +111,7 @@ entity PriceConditionRebate: cuid, managed, temporal{
   RefundDate                          : Date;
   PriceConditionCode                  : String;
   CCMMaterial: Association to CCMMaterial;
-  PriceConditionDiscountCondition: Association to many PriceConditionDiscountCondition on PriceConditionDiscountCondition.PriceConditionRebate = $self;
+  PriceConditionDiscountCondition: Composition of many PriceConditionDiscountCondition on PriceConditionDiscountCondition.PriceConditionRebate = $self;
 }
 
 entity PriceConditionDiscountCondition: cuid, managed{
@@ -150,6 +149,6 @@ entity APIBody: cuid, managed{
   Type: String;
   Value: String;
   Children      : Association to many APIBody on Children.Parent = $self;
-  Parent        : Association to APIBody;
+  Parent: Association to APIBody;
   APIDefinition: Association to APIDefinition;
 }
