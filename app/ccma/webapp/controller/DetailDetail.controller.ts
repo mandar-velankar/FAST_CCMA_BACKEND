@@ -13,8 +13,8 @@ export type TDetailDetailRouteParameters = {
  * @namespace com.bayer.tender.ccma.controller
  */
 export default class Detail extends BaseController {
-    id: String;
-    productPackID: String;
+    private id: String;
+    private productPackID: String;
 
     public onInit() {
         this.getRouter().getRoute("detail-detail")?.attachPatternMatched(this.onMatched, this);
