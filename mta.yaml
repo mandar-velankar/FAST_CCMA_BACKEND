@@ -27,18 +27,18 @@ modules:
     buildpack: nodejs_buildpack
 - name: F_TNDR_CAG_FAST_CCMA_BACKEND-app-deployer
   type: com.sap.application.content
-  path: gen
+  path: .
   requires:
   - name: F_TNDR_CAG_FAST_CCMA_BACKEND-html5-repo-host
     parameters:
       content-target: true
   build-parameters:
-    build-result: app/
+    build-result: resources
     requires:
     - artifacts:
       - combayertenderccma.zip
       name: combayertenderccma
-      target-path: app//
+      target-path: resources/
 - name: combayertenderccma
   type: html5
   path: app/ccma
