@@ -7,7 +7,7 @@ modules:
   type: nodejs
   path: gen/srv
   requires:
-  - name: F_TNDR_CAG_FAST_CCMA_BACKEND-auth
+  - name: uaa_FAST
   - name: F_TNDR_CAG_FAST_CCMA_BACKEND-db
   provides:
   - name: srv-api
@@ -50,15 +50,12 @@ modules:
     - npm run build:cf
     supported-platforms: []
 resources:
-- name: F_TNDR_CAG_FAST_CCMA_BACKEND-auth
-  type: org.cloudfoundry.managed-service
+- name: uaa_FAST
   parameters:
-    config:
-      tenant-mode: dedicated
-      xsappname: F_TNDR_CAG_FAST_CCMA_BACKEND-${org}-${space}
     path: ./xs-security.json
-    service: xsuaa
     service-plan: application
+    service: xsuaa
+  type: org.cloudfoundry.managed-service
 - name: F_TNDR_CAG_FAST_CCMA_BACKEND-db
   type: com.sap.xs.hdi-container
   parameters:
