@@ -71,6 +71,8 @@ resources:
     service-plan: app-host
 - name: F_TNDR_CAG_FAST_CCMA_BACKEND-destination-service
   type: org.cloudfoundry.managed-service
+  requires:
+    - name: srv-api
   parameters:
     config:
       HTML5Runtime_enabled: false
@@ -82,6 +84,13 @@ resources:
             ProxyType: Internet
             Type: HTTP
             URL: https://ui5.sap.com
+          - Authentication: NoAuthentication
+            Name: fast-ccma-api
+            ProxyType: Internet
+            Type: HTTP
+            URL: ~{srv-api/srv-url}
+            HTML5.DynamicDestination: true
+            HTML5.ForwardAuthToken: true
           existing_destinations_policy: update
       version: 1.0.0
     service: destination
