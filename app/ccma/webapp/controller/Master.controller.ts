@@ -17,14 +17,6 @@ export default class Master extends BaseController {
     public onInit() {
         // TODO: Remove after binding implementation
         const model = new JSONModel({
-            contract: [
-                {
-                    ID: "ES-25-1001-1",
-                },
-                {
-                    ID: "ES-25-1001-2",
-                }
-            ]
         })
 
         this.setModel(model, "masterModel");

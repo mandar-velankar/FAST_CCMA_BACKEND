@@ -61,7 +61,7 @@
                 <tree:Table 
                     id="idContractsMasterTable"
                     rows="{
-                        path: 'masterModel>/contract'
+                        path: 'FastConditionContracts'
                     }"
                     selectionMode="Single"
                     rowActionCount="1"
@@ -76,61 +76,61 @@
                         <tree:Column sortProperty="ID" filterProperty="ID">
                             <Label text="{i18n>id}" />
                             <tree:template>
-                                <Text text="{masterModel>ID}" />
+                                <Text text="{TenderID}" />
                             </tree:template>
                         </tree:Column>
                         <tree:Column sortProperty="Owner" filterProperty="Owner">
                             <Label text="{i18n>owner}" />
                             <tree:template>
-                                <Text text=""/>
+                                <Text text="{Owner}"/>
                             </tree:template>
                         </tree:Column>
                         <tree:Column sortProperty="Classification" filterProperty="Classification">
                             <Label text="{i18n>classification}" />
                             <tree:template>
-                                <Text text=""/>
+                                <Text text="{Classification}"/>
                             </tree:template>
                         </tree:Column>
                         <tree:Column sortProperty="Reference" filterProperty="Reference">
                             <Label text="{i18n>reference}" />
                             <tree:template>
-                                <Text text=""/>
+                                <Text text="{Reference}"/>
                             </tree:template>
                         </tree:Column>
                         <tree:Column sortProperty="Division" filterProperty="Division">
                             <Label text="{i18n>division}" />
                             <tree:template>
-                                <Text text=""/>
+                                <Text text="{Division}"/>
                             </tree:template>
                         </tree:Column>
                         <tree:Column sortProperty="CustomerCode" filterProperty="CustomerCode">
                             <Label text="{i18n>customerCode}" />
                             <tree:template>
-                                <Text text=""/>
+                                <Text text="{CustomerCode}"/>
                             </tree:template>
                         </tree:Column>
                         <tree:Column sortProperty="Institute" filterProperty="Institute">
                             <Label text="{i18n>institute}" />
                             <tree:template>
-                                <Text text=""/>
+                                <Text text="{InstituteName}"/>
                             </tree:template>
                         </tree:Column>
                         <tree:Column sortProperty="EffectiveDate" filterProperty="EffectiveDate">
                             <Label text="{i18n>effectiveDate}" />
                             <tree:template>
-                                <Text text=""/>
+                                <Text text="{ContractStartDate}"/>
                             </tree:template>
                         </tree:Column>
                         <tree:Column sortProperty="ExpiryDate" filterProperty="ExpiryDate">
                             <Label text="{i18n>expiryDate}" />
                             <tree:template>
-                                <Text text=""/>
+                                <Text text="{ContractEndDate}"/>
                             </tree:template>
                         </tree:Column>
                         <tree:Column sortProperty="Status" filterProperty="Status">
                             <Label text="{i18n>status}" />
                             <tree:template>
-                                <Text text=""/>
+                                <Text text="{Status}"/>
                             </tree:template>
                         </tree:Column>
                     </tree:columns>
