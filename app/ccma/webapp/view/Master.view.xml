@@ -76,7 +76,7 @@
                         <tree:Column sortProperty="ID" filterProperty="ID">
                             <Label text="{i18n>id}" />
                             <tree:template>
-                                <Text text="{TenderID}" />
+                                <Text text="{OfferID}" />
                             </tree:template>
                         </tree:Column>
                         <tree:Column sortProperty="Owner" filterProperty="Owner">

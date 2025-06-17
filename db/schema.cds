@@ -2,7 +2,7 @@ namespace com.bayer.SXTENDER.ccma;
 using { Currency, User, Country, managed, cuid, temporal } from '@sap/cds/common';
 
 entity FastConditionContracts: cuid, managed {
-  TenderID : Integer;
+  TenderID : String;
   OfferID  : String;
   CountryCode : String;
   InstituteID  : Integer;
