@@ -21,8 +21,8 @@
   },
   "scripts": {
     "start": "cds-serve",
-    "before:cds-watch": "cds-typer \"*\"",
-    "watch": "cds-tsx w",
+    "watch": "cds-ts w",
+    "watch:ts:hybrid": "cds bind --exec npm run watch:ts --profile hybrid",
     "watch:ts:mv": "cds bind --exec npm run watch --profile mandar",
     "deploy:hana:mv": "cds bind --exec cds deploy --to hana --profile mandar",
     "watch-ccma": "cds watch --open com.bayer.tender.ccma/index.html?sap-ui-xx-viewCache=false --livereload false",

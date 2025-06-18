@@ -12,6 +12,7 @@ entity FastConditionContracts: cuid, managed {
   ContractEndDate: Date;
   ContractType: String;
   CustomerCode: Integer;
+  Classification: String;
   Division: String;
   Reference: String;
   Status: String;

@@ -13,5 +13,10 @@ service ConditionContract {
     entity APIDefinition as projection on ccma.APIDefinition;
     entity APIBody as projection on ccma.APIBody;
 
+
+    entity FastConditionContractsView as Select from FastConditionContracts{
+        *
+    }
+    
     function getBackendData()returns String;
 }

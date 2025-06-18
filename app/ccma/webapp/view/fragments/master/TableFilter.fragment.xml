@@ -1,0 +1,8 @@
+<!-- fragment for use in table column filtering/sorting, see TenderMaster.view -->
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core" class="sapUiSizeCompact" xmlns:u="sap.ui.unified">
+	<u:Menu>
+		<u:MenuItem id="sortAscID" text="Sort Ascending" select="handleMenuItemAsPress" icon="sap-icon://sort-ascending"/>
+		<u:MenuItem id="sortDescID" text="Sort Descending" select="handleMenuDesItemPress" icon="sap-icon://sort-descending"/>
+		<u:MenuTextFieldItem id="filterFieldID" label="Find" enabled="true" startsSection="true" icon="sap-icon://filter" select="handleColumnFilterTextPress"/>
+	</u:Menu>
+</core:FragmentDefinition>

@@ -3,6 +3,7 @@ import BaseController from "./BaseController";
 import JSONModel from "sap/ui/model/json/JSONModel";
 import { RowActionItem$PressEvent } from "sap/ui/table/RowActionItem";
 import { Route$PatternMatchedEvent } from "sap/ui/core/routing/Route";
+import {} from "sap/m/Button"
 export type TDetailDetailRouteParameters = {
     id:string;
     productPackId:string;
