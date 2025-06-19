@@ -14,7 +14,7 @@
         headerText="{i18n>CustomersFragment.Customers}"
     >   
         <form:Form
-		    id="idCustomers"
+		    id="idCCMCustomers"
 		    editable="true"       
 	    >
 		<!-- <form:toolbar>
@@ -42,19 +42,13 @@
 				<form:formElements>
 					<form:FormElement label="{i18n>CustomersFragment.InstituteType}">
 						<form:fields>
-							<Text id="idInstituteType" text="Public"/>
+							<Text id="idInstituteType" text="{InstituteType}"/>
 						</form:fields>
 					</form:FormElement>
 
                     <form:FormElement label="{i18n>CustomersFragment.Institute}" >
 						<form:fields>
-							<Text id="idInstitute" text="KRAKÓW MEDICINA SPECJALISTYCZN"/>
-						</form:fields>
-					</form:FormElement>
-
-                    <form:FormElement label="{i18n>CustomersFragment.Regions}" >
-						<form:fields>
-							<Text id="idRegions" text="KRAKÓW"/>
+							<Text id="idInstitute" text="{InstituteName}"/>
 						</form:fields>
 					</form:FormElement>
 				</form:formElements>

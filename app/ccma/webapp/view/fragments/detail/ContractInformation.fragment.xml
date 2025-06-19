@@ -14,7 +14,7 @@
         headerText="{i18n>ContractInformationFragment.ContractInformation}"
     >   
     <form:Form
-		    id="idContractInformation"
+		    id="idCCMContractInformation"
 		    editable="true"       
 	    >
 		<!-- <form:toolbar>
@@ -42,25 +42,38 @@
 				<form:formElements>
 					<form:FormElement label="{i18n>ContractInformationFragment.StartDate}">
 						<form:fields>
-							<Text id="idStartDate" text="2025-02-13"/>
+							<Text id="idStartDate" text="{
+										path: 'CCMContractStartDate',
+										type: 'sap.ui.model.odata.type.Date',
+										formatOptions: {
+											pattern: 'yyyy-MM-dd'
+										}
+									}" 
+							/>
 						</form:fields>
 					</form:FormElement>
 
                     <form:FormElement label="{i18n>ContractInformationFragment.EndtDate}" >
 						<form:fields>
-							<Text id="idEndDate" text="2025-02-15"/>
+							<Text id="idEndDate" text="{
+										path: 'CCMContractEndDate',
+										type: 'sap.ui.model.odata.type.Date',
+										formatOptions: {
+											pattern: 'yyyy-MM-dd'
+										}
+									}"/>
 						</form:fields>
 					</form:FormElement>
 
                     <form:FormElement label="{i18n>ContractInformationFragment.Extension}" >
 						<form:fields>
-							<Text id="idExtension" text=""/>
+							<Text id="idExtension" text="{Extension}"/>
 						</form:fields>
 					</form:FormElement>
 
                     <form:FormElement label="{i18n>ContractInformationFragment.ExtensionPeriod}" >
 						<form:fields>
-							<Text id="idExtensionPeriod" text=""/>
+							<Text id="idExtensionPeriod" text="{ExtensionPeriod}"/>
 						</form:fields>
 					</form:FormElement>
 					

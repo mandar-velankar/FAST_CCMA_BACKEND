@@ -163,10 +163,10 @@
                             <cells>
                                 <Text text="{OfferID}" />
                                 <Text text="{Owner}" />
-                                <Text text="{Classification}" />
+                                <Text text="{ContractType}" />
                                 <Text text="{Reference}" />
                                 <Text text="{Division}" />
-                                <Text text="{CustomerCode}" />   
+                                <Text text="{CustomerID}" />   
                                 <Text text="{InstituteName}" />
                                 <Text text="{
 										path: 'ContractStartDate',
