@@ -11,8 +11,7 @@ entity FastConditionContracts: cuid, managed {
   ContractStartDate: Date;
   ContractEndDate: Date;
   ContractType: String;
-  CustomerCode: Integer;
-  Classification: String;
+  CustomerID: Integer;
   Division: String;
   Reference: String;
   Status: String;
@@ -60,6 +59,7 @@ entity CCMContract: cuid, managed, temporal {
 
 entity CCMCustomer: cuid, managed, temporal{
   InstituteID: String;
+  CustomerID: Integer;
   CountryCode: String;
   InstituteType: String;
   InstituteName: Date;

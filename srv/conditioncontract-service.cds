@@ -18,5 +18,11 @@ service ConditionContract {
         *
     }
     
+    entity CCMContractView as Select from CCMContract{
+        *,
+        CCMContract.CCMCustomer.InstituteName,
+        CCMContract.CCMCustomer.InstituteType
+    }
+    
     function getBackendData()returns String;
 }
