@@ -62,7 +62,7 @@ entity CCMCustomer: cuid, managed, temporal{
   CustomerID: Integer;
   CountryCode: String;
   InstituteType: String;
-  InstituteName: Date;
+  InstituteName: String;
   CCMContract: Association to CCMContract;
 }
 
