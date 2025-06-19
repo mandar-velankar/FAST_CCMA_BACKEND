@@ -13,6 +13,8 @@ import ListBinding from "sap/ui/model/ListBinding";
 import Event from "sap/ui/base/Event";
 import Popup from "sap/ui/core/Popup";
 import * as formatter from "com/bayer/tender/ccma/model/formatter";
+import Sorter from "sap/ui/model/Sorter";
+import Select from "sap/m/Select";
 type TContract = {
 	ID: string;
 }
@@ -27,7 +29,7 @@ export default class Master extends BaseController {
 	_oListFilterState: { aFilter: [], aSearch: [] };
 	orFilters: [];
 	andFilters: [];
-    oSelCol?: string;
+    oSelCol: string = "ID";
     _oPopover?: any;
     _bKeyboard?: boolean;
 
@@ -102,10 +104,13 @@ export default class Master extends BaseController {
 		let orFilters = [];
 		let andFilters = [];
 
-		const contractsMasterTable = this.byId('idContractsMasterTable');
-		const binding = contractsMasterTable?.getBinding('items');
+		const contractsMasterTable = this.byId("idContractsMasterTable");
+		const binding = contractsMasterTable?.getBinding("items");
 
 		let sSearch = this.byId("idSearch")?.getProperty("value");
+		let countryCode = (this.byId("idSlctCountry") as Select)?.getSelectedKey();
+		let brandID = (this.byId("idSlctBrand") as Select)?.getSelectedKey();
+		let productCode = (this.byId("idSelectProduct") as Select)?.getSelectedKey();
 
 		if (sSearch.length > 0) {
 
@@ -160,21 +165,208 @@ export default class Master extends BaseController {
 				}));
 			}
 
+			// Date filters
+			if (isNaN(Number(sSearch))) {
+				let reg = /[0-9]+[-][0-9]{2}[-][0-9]{2}/g;
+				if (sSearch.search(reg) == 0) {
+
+					orFilters.push(new Filter({
+						path: "ContractStartDate",
+						operator: FilterOperator.EQ,
+						value1: sSearch,
+						caseSensitive: false
+					}));
+
+					orFilters.push(new Filter({
+						path: "ContractEndDate",
+						operator: FilterOperator.EQ,
+						value1: sSearch,
+						caseSensitive: false
+					}));
+				}
+			}
+
 			andFilters.push(new Filter(orFilters, false));
+		}
+
+		//Country filter
+		if (countryCode) {
+			andFilters.push(new Filter({
+				path: "CountryCode",
+				operator: FilterOperator.EQ,
+				value1: countryCode,
+				caseSensitive: false
+			}));
+		}
+
+		//Brand filter
+		if (brandID && brandID !== "All_Brands") {
+			andFilters.push(new Filter({
+				path: "CCMContract/BrandID",
+				operator: FilterOperator.EQ,
+				value1: brandID,
+				caseSensitive: false
+			}));
+		}
+
+		//Product filter
+		if (productCode && productCode !== "All_Products") {
+			andFilters.push(new Filter({
+				path: "CCMContract/ProductCode",
+				operator: FilterOperator.EQ,
+				value1: productCode,
+				caseSensitive: false
+			}));
 		}
 
 		if (andFilters.length > 0) {
 			var oFilters = new Filter(andFilters, true);
 
 			//Binding to table with the filters and the sorters
-			(this.getView()?.byId("list")?.getBinding("items") as ListBinding)?.filter(oFilters, FilterType.Application);
+			(this.getView()?.byId("idContractsMasterTable")?.getBinding("items") as ListBinding)?.filter(oFilters, FilterType.Application);
 		} else {
 			(binding as ListBinding)?.filter();
 
 		}
 
-		if (this.getView()?.byId("list")?.getBinding("items")?.isSuspended()) {
-			this.getView()?.byId("list")?.getBinding("items")?.resume();
+		if (this.getView()?.byId("idContractsMasterTable")?.getBinding("items")?.isSuspended()) {
+			this.getView()?.byId("idContractsMasterTable")?.getBinding("items")?.resume();
+		}
+
+	}
+
+    public handleMenuItemAsPress (): void {
+        let oSel;
+
+        const sorters = {
+            "ID": "OfferID",
+            "Owner": "Owner",
+            "Classification": "Classification",
+            "Reference": "Reference",
+            "Division": "Division",
+            "Customer Code": "CustomerCode",
+            "Institute": "InstituteName",
+            "Effective Date": "ContractStartDate",
+            "Expiry Date": "ContractEndDate"
+        };
+
+        oSel = sorters[this.oSelCol as keyof typeof sorters];
+        
+        const oBinding = this._oList.getBinding("items");
+        const sPath = oSel;
+        const bDescending = false;
+        const aSorters = [];
+
+        aSorters.push(new Sorter(sPath, bDescending));
+
+		if (oBinding instanceof ListBinding) {
+        	// apply the selected sort and group settings
+			oBinding.sort(aSorters);
+		}
+    }
+
+    public handleMenuDesItemPress (): void {
+        let oSel;
+
+        const sorters = {
+            "ID": "OfferID",
+            "Owner": "Owner",
+            "Classification": "Classification",
+            "Reference": "Reference",
+            "Division": "Division",
+            "Customer Code": "CustomerCode",
+            "Institute": "InstituteName",
+            "Effective Date": "ContractStartDate",
+            "Expiry Date": "ContractEndDate"
+        };
+
+        oSel = sorters[this.oSelCol as keyof typeof sorters];
+        
+        const oBinding = this._oList.getBinding("items");
+        const sPath = oSel;
+        const bDescending = true;
+        const aSorters = [];
+
+        aSorters.push(new Sorter(sPath, bDescending));
+
+		if (oBinding instanceof ListBinding) {
+        	// apply the selected sort and group settings
+			oBinding.sort(aSorters);
+		}
+    }
+
+	handleColumnFilterTextPress (event: Event): void {
+
+		const oSource = event.getSource();
+		const table = this._oList;
+		const binding = table.getBinding("items") as ListBinding;
+		const aExistingFilters = binding instanceof ListBinding && binding.aApplicationFilters;
+
+		let oSel;
+
+		const filters = {
+            "ID": "OfferID",
+            "Owner": "Owner",
+            "Classification": "Classification",
+            "Reference": "Reference",
+            "Division": "Division",
+            "Customer Code": "CustomerCode",
+            "Institute": "InstituteName",
+            "Effective Date": "ContractStartDate",
+            "Expiry Date": "ContractEndDate"
+        };
+
+		oSel = filters[this.oSelCol as keyof typeof filters];
+
+		let oTableSearchStatus = [];
+		let	query = oSource.getValue(); //get value from filter field in popover
+		
+
+		if (query && query.length > 0) {
+			
+
+			// Date filters
+			let reg = /[0-9]+[-][0-9]{2}[-][0-9]{2}/g;
+			if (query.search(reg) == 0) {
+				oTableSearchStatus = [new Filter({
+					path: oSel, 
+					operator: FilterOperator.EQ, 
+					value1: query,
+					caseSensitive: false
+				})];
+			}else {
+				oTableSearchStatus = [new Filter({
+					path: oSel, 
+					operator: FilterOperator.Contains, 
+					value1: query,
+					caseSensitive: false
+				})];
+			}
+			const aNewFilters = aExistingFilters ? [...aExistingFilters] : [];
+			aNewFilters.push(oTableSearchStatus[0]);
+
+			// Apply the new filter set properly
+			binding.filter(aNewFilters, FilterType.Application); 
+			// update filter bar
+			// this.byId("vsdFilterBar").setVisible(aExistingFilters.length > 0);
+			// this.byId("vsdFilterLabel").setText("Latest search for: " + query);
+		} else {
+			//remove the filter
+			let aKeepFilters = [];
+
+			binding.aApplicationFilters.forEach(function (oFilter: any) {
+				//remove filter
+				if (oFilter.sPath !== oSel) {
+					var oFilterKeep = $.extend(true, {}, oFilter);
+					aKeepFilters.push(oFilterKeep);
+				}
+			});
+			//set default filtering
+			this.setFilter();
+			//this.oProductsTable.getBinding("items").filter(aKeepFilters, "Application");
+			table?.getModel()?.refresh(true);
+			//update filter bar
+			// this.byId("vsdFilterBar").setVisible(false);
 		}
 
 	}

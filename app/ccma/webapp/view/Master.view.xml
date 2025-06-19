@@ -30,7 +30,7 @@
                         text="Country"
                         labelFor="idSlctCountry"
                     />
-                    <Select id="idSlctCountry">
+                    <Select id="idSlctCountry" change=".setFilter">
                         <core:Item
                             key="ES"
                             text="Spain"
@@ -40,20 +40,40 @@
                         text="Brand"
                         labelFor="idSlctBrand"
                     />
-                    <Select id="idSlctBrand">
+                    <Select id="idSlctBrand" change=".setFilter">
                         <core:Item
-                            key=""
-                            text=""
+                            key="All_Brands"
+                            text="All"
+                        />
+                        <core:Item
+                            key="0810A10050"
+                            text="Ciprofloxacin"
+                        />
+                         <core:Item
+                            key="6573550D46"
+                            text="Gadovist"
+                        />
+                        <core:Item
+                            key="0871D20A02"
+                            text="Mirena"
                         />
                     </Select>
                     <Label
                         text="Product"
                         labelFor="idSelectProduct"
                     />
-                    <Select id="idSelectProduct">
+                    <Select id="idSelectProduct" change=".setFilter">
                         <core:Item
-                            key=""
-                            text=""
+                            key="All_Products"
+                            text="All"
+                        />
+                        <core:Item
+                            key="204235"
+                            text="GADOVIST 1.0 SOLU VIAL 1X30ML IT MS NRR"
+                        />
+                        <core:Item
+                            key="205423"
+                            text="MIRENA 1x1 EVO ES"
                         />
                     </Select>
 
@@ -70,7 +90,7 @@
                     items="{
 							path: '/FastConditionContractsView',
 							sorter: {
-								path: 'ID',
+								path: 'OfferID',
 								descending: false
 							}
                     }"
@@ -86,39 +106,39 @@
                     <columns>
                         <Column>
                             <header>
-                                <ObjectIdentifier title="{i18n>OfferID}" titleActive="true" titlePress="onClick"/>
+                                <ObjectIdentifier title="{i18n>id}" titleActive="true" titlePress="onClick"/>
                             </header>
                         </Column>
                         <Column>
                             <header>
-                                <ObjectIdentifier title="{i18n>Owner}" titleActive="true" titlePress="onClick"/>
+                                <ObjectIdentifier title="{i18n>owner}" titleActive="true" titlePress="onClick"/>
                             </header>
                         </Column>
                         <Column>
                             <header>
                                 <ObjectIdentifier
-                                    title="{i18n>Classification}" titleActive="true" titlePress="onClick"
+                                    title="{i18n>classification}" titleActive="true" titlePress="onClick"
                                 />
                             </header>
                         </Column>
                         <Column>
                             <header>
-                                <ObjectIdentifier title="{i18n>Reference}" titleActive="true" titlePress="onClick"/>
+                                <ObjectIdentifier title="{i18n>reference}" titleActive="true" titlePress="onClick"/>
                             </header>
                         </Column>
                         <Column>
                             <header>
-                                <ObjectIdentifier title="{i18n>Division}" titleActive="true" titlePress="onClick"/>
+                                <ObjectIdentifier title="{i18n>division}" titleActive="true" titlePress="onClick"/>
                             </header>
                         </Column>
                         <Column>
                             <header>
-                                <ObjectIdentifier title="{i18n>CustomerCode}" titleActive="true" titlePress="onClick"/>
+                                <ObjectIdentifier title="{i18n>customerCode}" titleActive="true" titlePress="onClick"/>
                             </header>
                         </Column>
                         <Column>
                             <header>
-                                <ObjectIdentifier title="{i18n>Institute}" titleActive="true" titlePress="onClick"/>
+                                <ObjectIdentifier title="{i18n>institute}" titleActive="true" titlePress="onClick"/>
                             </header>
                         </Column>
                         <Column>
