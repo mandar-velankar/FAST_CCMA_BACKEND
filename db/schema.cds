@@ -31,7 +31,7 @@ entity FastConditionContracts: cuid, managed {
   hasCancelledContracts: Boolean;
   hasContractsToBeSynchronized: Boolean;
   hasNewContracts: Boolean;
-  CCMContract: Composition of many CCMContract on CCMContract.FastConditionContracts = $self;
+  CCMContract: Association to many CCMContract on CCMContract.FastConditionContracts = $self;
 }
 
 entity CCMContract: cuid, managed, temporal {
@@ -52,8 +52,8 @@ entity CCMContract: cuid, managed, temporal {
   Extension: Boolean;
   ExtensionPeriod: String;
   CreationDate: Date;
-  CCMCustomer: Composition of many CCMCustomer on CCMCustomer.CCMContract = $self;
-  CCMMaterial: Composition of many CCMMaterial on CCMMaterial.CCMContract = $self;
+  CCMCustomer: Association to CCMCustomer on CCMCustomer.CCMContract = $self;
+  CCMMaterial: Association to many CCMMaterial on CCMMaterial.CCMContract = $self;
   FastConditionContracts: Association to FastConditionContracts
 }
 
@@ -72,10 +72,10 @@ entity CCMMaterial: cuid, managed, temporal{
   MaterialNumber: String;
   FOCMaterialNumber: String;
   CCMContract: Association to CCMContract;
-  CurrentInvoicePrice: Composition of CurrentInvoicePrice on CurrentInvoicePrice.CCMMaterial = $self;
-  PriceConditionInvoice: Composition of PriceConditionInvoice on PriceConditionInvoice.ProductCode = ProductCode and PriceConditionInvoice.CountryCode = CountryCode;
-  PriceConditionRebate:  Composition of PriceConditionRebate on PriceConditionRebate.ProductCode = ProductCode and PriceConditionRebate.CountryCode = CountryCode;
-  PriceConditionFOC: Composition of PriceConditionFOC on PriceConditionFOC.ProductCode = ProductCode and PriceConditionFOC.CountryCode = CountryCode;
+  CurrentInvoicePrice: Association to CurrentInvoicePrice on CurrentInvoicePrice.CCMMaterial = $self;
+  PriceConditionInvoice: Association to PriceConditionInvoice on PriceConditionInvoice.ProductCode = ProductCode and PriceConditionInvoice.CountryCode = CountryCode;
+  PriceConditionRebate:  Association to PriceConditionRebate on PriceConditionRebate.ProductCode = ProductCode and PriceConditionRebate.CountryCode = CountryCode;
+  PriceConditionFOC: Association to PriceConditionFOC on PriceConditionFOC.ProductCode = ProductCode and PriceConditionFOC.CountryCode = CountryCode;
 }
 entity CurrentInvoicePrice: cuid, managed{
   ConditionType: String;
@@ -130,7 +130,7 @@ entity PriceConditionRebate: cuid, managed, temporal{
   RefundDate                          : Date;
   PriceConditionCode                  : String;
   CCMMaterial: Association to CCMMaterial;
-  PriceConditionDiscountCondition: Composition of many PriceConditionDiscountCondition on PriceConditionDiscountCondition.PriceConditionRebate = $self;
+  PriceConditionDiscountCondition: Association to many PriceConditionDiscountCondition on PriceConditionDiscountCondition.PriceConditionRebate = $self;
 }
 
 entity PriceConditionDiscountCondition: cuid, managed{
