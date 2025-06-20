@@ -34,7 +34,7 @@ entity FastConditionContracts: cuid, managed {
   CCMContract: Composition of many CCMContract on CCMContract.FastConditionContracts = $self;
 }
 
-entity CCMContract: cuid, managed{
+entity CCMContract: cuid, managed, temporal{
   ProductCode: String;
   CountryCode : String;
   ProductName: String;
@@ -57,7 +57,7 @@ entity CCMContract: cuid, managed{
   FastConditionContracts: Association to FastConditionContracts
 }
 
-entity CCMCustomer: cuid, managed{
+entity CCMCustomer: cuid, managed, temporal{
   InstituteID: String;
   CustomerID: Integer;
   CountryCode: String;
@@ -66,7 +66,7 @@ entity CCMCustomer: cuid, managed{
   CCMContract: Association to CCMContract;
 }
 
-entity CCMMaterial: cuid, managed{
+entity CCMMaterial: cuid, managed, temporal{
   CountryCode: String;
   ProductCode: String;
   MaterialNumber: String;
@@ -115,6 +115,10 @@ entity PriceConditionInvoice: cuid, managed, temporal{
   NetPriceWithoutTax                  : Decimal;
   NetPriceWithTax                     : Decimal;
   MaximumPrice                        : Decimal;
+  RequestedVolume                     : Integer;
+  RentalPrice                         : Double;
+  MonthlyRentPerUnit                  : Double;
+  AnnualValue                         : Double;
   CCMMaterial: Association to CCMMaterial;
 }
 
@@ -165,10 +169,7 @@ entity APIDefinition: cuid, managed{
 }
 
 entity APIBody: cuid, managed{
-  Name: String;
-  Type: String;
-  Value: String;
-  Children      : Association to many APIBody on Children.Parent = $self;
-  Parent: Association to APIBody;
+  Source: String;
+  Target: String;
   APIDefinition: Association to APIDefinition;
 }

@@ -1,49 +1,570 @@
-<core:FragmentDefinition 
-	xmlns="sap.m" 
-	xmlns:core="sap.ui.core" 
-	xmlns:up="sap.uxap" 
-	xmlns:form="sap.ui.layout.form" 
-	xmlns:u="sap.uxap"
-	xmlns:t="sap.ui.table" 
-	xmlns:l="sap.ui.layout"
-	xmlns:mvc="sap.ui.core.mvc"
-	xmlns:tree="sap.ui.table">
-
-    <Panel
+<core:FragmentDefinition
+    xmlns:m="sap.m"
+    xmlns:core="sap.ui.core"
+    xmlns:up="sap.uxap"
+    xmlns:form="sap.ui.layout.form"
+    xmlns:u="sap.uxap"
+    xmlns:t="sap.ui.table"
+    xmlns:l="sap.ui.layout"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns:tree="sap.ui.table"
+>
+    <m:Panel
         expandable="true"
         expanded="true"
         headerText="{i18n>PricingFragment.Pricing}"
-    >   
-        <tree:Table 
-			selectionMode="Single"
-			rowActionCount="1"
-		>
-			<!-- <tree:rowActionTemplate> 
-				<tree:RowAction> 
-					<tree:RowActionItem type="Navigation" press=".onListItemPress" /> 
-				</tree:RowAction> 
-			</tree:rowActionTemplate> -->
-			<tree:columns>
-				<tree:Column sortProperty="InvoicePrice" filterProperty="InvoicePrice">
-					<Label text="{i18n>PricingFragment.InvoicePrice}" />
-					<tree:template>
-						<Text text="" />
-					</tree:template>
-				</tree:Column>
-				<tree:Column sortProperty="Rappel" filterProperty="Rappel">
-					<Label text="{i18n>PricingFragment.Rappel}" />
-					<tree:template>
-						<Text text=""/>
-					</tree:template>
-				</tree:Column>
-				<tree:Column sortProperty="FOC" filterProperty="FOC">
-					<Label text="{i18n>PricingFragment.FOC}" />
-					<tree:template>
-						<Text text=""/>
-					</tree:template>
-				</tree:Column>
-			</tree:columns>
-		</tree:Table>
-    </Panel>
-
+    >
+        <m:IconTabBar>
+            <m:items>
+                <m:IconTabFilter
+                    text="InvoicePrice"
+                    key="InvoicePrice"
+                >
+                    <form:Form
+                        id="idNewPricingForm"
+                        editable="true"
+                    >
+                        <form:title>
+                            <core:Title text="{ConditionType}" />
+                        </form:title>
+                        <form:layout>
+                            <form:ResponsiveGridLayout
+                                labelSpanXL="3"
+                                labelSpanL="3"
+                                labelSpanM="3"
+                                labelSpanS="12"
+                                adjustLabelSpan="false"
+                                emptySpanXL="4"
+                                emptySpanL="4"
+                                emptySpanM="4"
+                                emptySpanS="0"
+                                columnsXL="1"
+                                columnsL="1"
+                                columnsM="1"
+                                singleContainerFullSize="false"
+                            />
+                        </form:layout>
+                        <form:formContainers>
+                            <form:FormContainer>
+                                <form:formElements>
+                                    <form:FormElement
+                                        label="{i18n>ESPricingFragment.PVL}"
+                                        visible="{= ${ConditionType} !== 'Rental'}"
+                                    >
+                                        <form:fields>
+                                            <m:Input
+                                                value="{ parts: ['YP00', 'Currency','Region', 'CountryCode'], 
+            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomCurrencyType'}"
+                                                enabled="false"
+                                                visible="{= ${ConditionType} !== 'Rental'}"
+                                            />
+                                        </form:fields>
+                                    </form:FormElement>
+                                    <form:FormElement
+                                        label="{i18n>ESPricingFragment.ConfidentialDiscount}"
+                                        visible="{= ${YP04} > 0 &amp;&amp; ${ConditionType} !== 'Rental'}"
+                                    >
+                                        <form:fields>
+                                            <m:Input
+                                                value="{ parts: ['YP04', 'CountryCode'], 
+            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomPercentageType'}"
+                                                enabled="false"
+                                                visible="{= ${YP04} > 0 &amp;&amp; ${ConditionType} !== 'Rental'}"
+                                            />
+                                        </form:fields>
+                                    </form:FormElement>
+                                    <form:FormElement
+                                        label="{i18n>ESPricingFragment.ConfidentialPrice}"
+                                        visible="{= ${YP04} > 0 &amp;&amp; ${ConditionType} !== 'Rental'}"
+                                    >
+                                        <form:fields>
+                                            <m:Input
+                                                value="{ parts: ['ConfidentialPrice', 'Currency','Region', 'CountryCode'], 
+            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomCurrencyType'}"
+                                                enabled="false"
+                                                visible="{= ${YP04} > 0 &amp;&amp; ${ConditionType} !== 'Rental'}"
+                                            />
+                                        </form:fields>
+                                    </form:FormElement>
+                                    <form:FormElement
+                                        label="{i18n>ESPricingFragment.AdditionalDiscount}"
+                                        visible="{= ${ConditionType} === 'PrecioNeto'}"
+                                    >
+                                        <form:fields>
+                                            <m:Input
+                                                value="{ parts: ['YD75', 'CountryCode'], 
+            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomPercentageType'}"
+                                                enabled="false"
+                                                visible="{= ${ConditionType} === 'PrecioNeto'}"
+                                            />
+                                        </form:fields>
+                                    </form:FormElement>
+                                    <form:FormElement
+                                        label="{i18n>ESPricingFragment.Discount}"
+                                        visible="{= ${ConditionType} === 'DescuentoComercial' || ${ConditionType} === 'DescuentoEspecial'}"
+                                    >
+                                        <form:fields>
+                                            <m:Input
+                                                value="{ parts: ['YD02', 'CountryCode'], 
+            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomPercentageType'}"
+                                                enabled="false"
+                                                visible="{= ${ConditionType} === 'DescuentoComercial' || ${ConditionType} === 'DescuentoEspecial'}"
+                                            />
+                                        </form:fields>
+                                    </form:FormElement>
+                                    <form:FormElement
+                                        label="{i18n>ESPricingFragment.RoyalDecree}"
+                                        visible="{= !${RoyalDecreeIncl} &amp;&amp; ${ConditionType} !== 'Rental'}"
+                                    >
+                                        <form:fields>
+                                            <m:Input
+                                                value="{ parts: ['YD06', 'CountryCode'], 
+            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomPercentageType'}"
+                                                enabled="false"
+                                                visible="{= !${RoyalDecreeIncl} &amp;&amp; ${ConditionType} !== 'Rental'}"
+                                            />
+                                        </form:fields>
+                                    </form:FormElement>
+                                    <form:FormElement
+                                        label="{i18n>ESPricingFragment.royalDecreeIncl}"
+                                        visible="false"
+                                    >
+                                        <form:fields>
+                                            <m:CheckBox
+                                                enabled="false"
+                                                selected="{RoyalDecreeIncl}"
+                                                visible="false"
+                                            />
+                                            <!-- visible="{= ${RoyalDecree} === 'No' &amp;&amp; ${ConditionType} === 'PrecioNeto'}"
+                                 select=".onPricingFormLiveChange($event, 'PrecioNeto')" -->
+                                        </form:fields>
+                                    </form:FormElement>
+                                    <form:FormElement
+                                        label="{i18n>ESPricingFragment.RoyalDecreeApplies}"
+                                        visible="{= !${RoyalDecreeIncl} &amp;&amp; ${ConditionType} !== 'Rental' &amp;&amp; ${ConditionType} !== 'DescuentoEspecial'}"
+                                    >
+                                        <form:fields>
+                                            <m:Select
+                                                selectedKey="{= ${RoyalDecree} ? ${RoyalDecree} : 'No'}"
+                                                enabled="false"
+                                                visible="{= !${RoyalDecreeIncl} &amp;&amp; ${ConditionType} !== 'Rental' &amp;&amp; ${ConditionType} !== 'DescuentoEspecial'}"
+                                            >
+                                                <m:items>
+                                                    <core:Item
+                                                        key="No"
+                                                        text="No"
+                                                    />
+                                                    <core:Item
+                                                        key="Yes"
+                                                        text="Yes"
+                                                    />
+                                                </m:items>
+                                            </m:Select>
+                                        </form:fields>
+                                    </form:FormElement>
+                                    <form:FormElement
+                                        label="{i18n>ESPricingFragment.NetPriceBeforeRC}"
+                                        visible="{= ${ConditionType} === 'PrecioNeto' || ${ConditionType} === 'PVL'}"
+                                    >
+                                        <form:fields>
+                                            <m:Input
+                                                value="{ parts: ['NetPriceWithoutTaxBeforeDeductionRD', 'Currency','Region', 'CountryCode'], 
+            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomCurrencyType'}"
+                                                enabled="false"
+                                                visible="{= ${ConditionType} === 'PrecioNeto' || ${ConditionType} === 'PVL'}"
+                                                fieldGroupIds="priceInputPrecioNeto"
+                                            />
+                                        </form:fields>
+                                    </form:FormElement>
+                                    <form:FormElement
+                                        label="{i18n>ESPricingFragment.NetPriceBeforeRC}"
+                                        visible="{= ${ConditionType} === 'DescuentoComercial'}"
+                                    >
+                                        <form:fields>
+                                            <m:Input
+                                                value="{ parts: ['YP10', 'Currency','Region', 'CountryCode'], 
+            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomCurrencyType'}"
+                                                enabled="false"
+                                                visible="{= ${ConditionType} === 'DescuentoComercial'}"
+                                            />
+                                        </form:fields>
+                                    </form:FormElement>
+                                    <form:FormElement
+                                        label="{i18n>ESPricingFragment.RoyalDecreeValue}"
+                                        visible="{= !${RoyalDecreeIncl} &amp;&amp; ${ConditionType} !== 'Rental' &amp;&amp; ${ConditionType} !== 'DescuentoEspecial'}"
+                                    >
+                                        <form:fields>
+                                            <m:Input
+                                                value="{ parts: ['RoyalDecreeValue', 'Currency','Region', 'CountryCode'], 
+            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomCurrencyType'}"
+                                                enabled="false"
+                                                visible="{= !${RoyalDecreeIncl} &amp;&amp; ${ConditionType} !== 'Rental' &amp;&amp; ${ConditionType} !== 'DescuentoEspecial'}"
+                                            />
+                                        </form:fields>
+                                    </form:FormElement>
+                                    <form:FormElement
+                                        label="{i18n>ESPricingFragment.NetPriceAfterRC}"
+                                        visible="{= !${RoyalDecreeIncl} &amp;&amp; (${ConditionType} === 'PrecioNeto' || ${ConditionType} === 'PVL')}"
+                                    >
+                                        <form:fields>
+                                            <m:Input
+                                                value="{ parts: ['NetPriceWithoutTaxAfterDeductionRD', 'Currency','Region', 'CountryCode'], 
+            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomCurrencyType'}"
+                                                enabled="false"
+                                                visible="{= !${RoyalDecreeIncl} &amp;&amp; (${ConditionType} === 'PrecioNeto' || ${ConditionType} === 'PVL')}"
+                                            />
+                                        </form:fields>
+                                    </form:FormElement>
+                                    <form:FormElement
+                                        label="{i18n>ESPricingFragment.MaximumPrice}"
+                                        visible="{= ${ConditionType} === 'PrecioNeto' &amp;&amp; ${ui>/Classification} === 'Tender' }"
+                                    >
+                                        <form:fields>
+                                            <m:Input
+                                                value="{ parts: ['MaximumPrice', 'Currency','Region', 'CountryCode'], 
+            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomCurrencyType'}"
+                                                enabled="false"
+                                                visible="{= ${ConditionType} === 'PrecioNeto' &amp;&amp; ${ui>/Classification} === 'Tender' }"
+                                                fieldGroupIds="priceInputPrecioNeto"
+                                            />
+                                        </form:fields>
+                                    </form:FormElement>
+                                    <form:FormElement
+                                        label="{i18n>ESPricingFragment.Tax}"
+                                        visible="{= ${ConditionType} !== 'Rental'}"
+                                    >
+                                        <form:fields>
+                                            <m:Input
+                                                value="{ parts: ['Tax', 'CountryCode'], 
+            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomPercentageType'}"
+                                                enabled="false"
+                                                visible="{= ${ConditionType} !== 'Rental'}"
+                                            />
+                                        </form:fields>
+                                    </form:FormElement>
+                                    <form:FormElement
+                                        label="{i18n>ESPricingFragment.NetPriceWtax}"
+                                        visible="{= ${ConditionType} !== 'Rental'}"
+                                    >
+                                        <form:fields>
+                                            <m:Input
+                                                value="{ parts: ['NetPriceWithTax', 'Currency','Region', 'CountryCode'], 
+            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomCurrencyType'}"
+                                                enabled="false"
+                                                visible="{= ${ConditionType} !== 'Rental'}"
+                                            />
+                                        </form:fields>
+                                    </form:FormElement>
+                                    <form:FormElement
+                                        label="{i18n>ESPricingFragment.NetPriceWtaxAfterRC}"
+                                        visible="false"
+                                    >
+                                        <form:fields>
+                                            <m:Input
+                                                value="{ parts: ['NetPriceWithTaxAfterDeductionRD', 'Currency','Region', 'CountryCode'], 
+            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomCurrencyType'}"
+                                                enabled="false"
+                                                visible="false"
+                                            />
+                                        </form:fields>
+                                    </form:FormElement>
+                                    <form:FormElement
+                                        label="{i18n>ESPricingFragment.RequestedVolume}"
+                                        visible="{= ${ConditionType} === 'Rental'}"
+                                    >
+                                        <form:fields>
+                                            <m:Input
+                                                value="{ parts: ['RequestedVolume', 'CountryCode'], 
+            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomNumberType'}"
+                                                enabled="false"
+                                                visible="{= ${ConditionType} === 'Rental'}"
+                                            />
+                                        </form:fields>
+                                    </form:FormElement>
+                                    <form:FormElement
+                                        label="{i18n>ESPricingFragment.RentalPrice}"
+                                        visible="{= ${ConditionType} === 'Rental'}"
+                                    >
+                                        <form:fields>
+                                            <m:Input
+                                                value="{ parts: ['RentalPrice', 'Currency','Region', 'CountryCode'], 
+            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomCurrencyType'}"
+                                                enabled="false"
+                                                visible="{= ${ConditionType} === 'Rental'}"
+                                            />
+                                        </form:fields>
+                                    </form:FormElement>
+                                    <form:FormElement
+                                        label="{i18n>ESPricingFragment.MonthlyRentPerUnit}"
+                                        visible="{= ${ConditionType} === 'Rental'}"
+                                    >
+                                        <form:fields>
+                                            <m:Input
+                                                value="{ parts: ['MonthlyRentPerUnit', 'Currency','Region', 'CountryCode'], 
+            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomCurrencyType'}"
+                                                enabled="false"
+                                                visible="{= ${ConditionType} === 'Rental'}"
+                                            />
+                                        </form:fields>
+                                    </form:FormElement>
+                                    <form:FormElement
+                                        label="{i18n>ESPricingFragment.AnnualValue}"
+                                        visible="{= ${ConditionType} === 'Rental'}"
+                                    >
+                                        <form:fields>
+                                            <m:Input
+                                                value="{ parts: ['AnnualValue', 'Currency','Region', 'CountryCode'], 
+            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomCurrencyType'}"
+                                                enabled="false"
+                                                visible="{= ${ConditionType} === 'Rental'}"
+                                            />
+                                        </form:fields>
+                                    </form:FormElement>
+                                </form:formElements>
+                            </form:FormContainer>
+                        </form:formContainers>
+                    </form:Form>
+                </m:IconTabFilter>
+                <m:IconTabFilter
+                    text="FOC"
+                    key="foc"
+                >
+                    <m:Table
+                        id="idFocTable"
+                        mode="SingleSelectMaster"
+                        selectionChange=".onFocItemSelect"
+                        items="{pa>/priceAgreement/focPriceCondition/freeGoodsOther}"
+                    >
+                        <m:columns>
+                            <m:Column
+                                minScreenWidth="Desktop"
+                                demandPopin="true"
+                                width="150px"
+                                popinDisplay="Inline"
+                            >
+                                <m:Label
+                                    text="Product"
+                                    wrapping="true"
+                                />
+                            </m:Column>
+                            <m:Column
+                                minScreenWidth="Desktop"
+                                demandPopin="true"
+                                width="150px"
+                                popinDisplay="Inline"
+                            >
+                                <m:Label
+                                    text="Royal Decree"
+                                    wrapping="true"
+                                />
+                            </m:Column>
+                            <m:Column
+                                minScreenWidth="Desktop"
+                                demandPopin="true"
+                                width="150px"
+                                popinDisplay="Inline"
+                            >
+                                <m:Label
+                                    text="Min Amount"
+                                    wrapping="true"
+                                />
+                            </m:Column>
+                            <m:Column
+                                minScreenWidth="Desktop"
+                                demandPopin="true"
+                                width="150px"
+                                popinDisplay="Inline"
+                            >
+                                <m:Label
+                                    text="Bonus"
+                                    wrapping="true"
+                                />
+                            </m:Column>
+                            <m:Column
+                                minScreenWidth="Desktop"
+                                demandPopin="true"
+                                width="150px"
+                                popinDisplay="Inline"
+                            >
+                                <m:Label
+                                    text="Potential Savings"
+                                    wrapping="true"
+                                />
+                            </m:Column>
+                        </m:columns>
+                        <m:items>
+                            <m:ColumnListItem>
+                                <m:cells>
+                                    <m:Text
+                                        text="{ProductName}"
+                                    />
+                                    <m:Text text="{RoyalDecree}" />
+                                    <m:Text text="{FOCMinAmount}" />
+                                    <m:Text text="{FOCBonus}" />
+                                    <m:Text
+                                        text="{path:'PotentialGeneratedSavings', type:'sap.ui.model.type.Float', formatOptions: { maxFractionDigits: 2, minFractionDigits: 2}}"
+                                    />
+                                </m:cells>
+                            </m:ColumnListItem>
+                        </m:items>
+                    </m:Table>
+                </m:IconTabFilter>
+                <m:IconTabFilter
+                    text="Rappel"
+                    key="rappel"
+                >
+                    <m:HBox alignItems="Center">
+                        <m:Label
+                            text="{i18n>Liquidation}"
+                            width="10em"
+                            class="sapUiTinyMarginEnd"
+                        />
+                        <m:Select
+                            selectedKey="{pa>/priceAgreement/rappelPriceCondition/liquidation}"
+                            enabled="false"
+                        >
+                            <m:items>
+                                <core:Item
+                                    key=""
+                                    text=""
+                                />
+                                <core:Item
+                                    key="Monthly"
+                                    text="Monthly"
+                                />
+                                <core:Item
+                                    key="Quarterly"
+                                    text="Quarterly"
+                                />
+                                <core:Item
+                                    key="HalfYearly"
+                                    text="Half Yearly"
+                                />
+                                <core:Item
+                                    key="Annually"
+                                    text="Yearly"
+                                />
+                            </m:items>
+                        </m:Select>
+                    </m:HBox>
+                    <m:HBox alignItems="Center">
+                        <m:Label
+                            text="{i18n>PaymentBackDate}"
+                            width="10em"
+                            class="sapUiTinyMarginEnd"
+                        />
+                        <m:DatePicker
+                            value="{path:'RefundDate', type:'sap.ui.model.odata.type.Date', formatOptions: { style: 'short', pattern: 'yyyy-MM-dd'}}"
+                            valueFormat="yyyy-MM-dd"
+                            displayFormat="short"
+                            enabled="false"
+                            class="sapUiSmallMarginBottom"
+                        />
+                    </m:HBox>
+                    <m:HBox>
+                        <m:Label
+                            text="{i18n>Settlement}"
+                            width="10em"
+                            class="sapUiTinyMarginTop sapUiTinyMarginEnd"
+                        />
+                        <m:Text
+                            text="{pa>/priceAgreement/rappelPriceCondition/settlement/description}"
+                            class="sapUiTinyMarginTop sapUiSmallMarginBottom"
+                        />
+                    </m:HBox>
+                    <m:HBox>
+                        <m:Label
+                            text="{i18n>SettlementCalendar}"
+                            width="10em"
+                            class="sapUiSmallMarginTop sapUiTinyMarginEnd"
+                        />
+                        <m:Button
+                            icon="sap-icon://calendar"
+                            press=".onOpenSettlementCalendar"
+                            class="sapUiNoMarginTop sapUiSmallMarginBottom"
+                            enabled="true"
+                        />
+                    </m:HBox>
+                    <m:Table
+                        id="idRappedlTable"
+                        mode="SingleSelectMaster"
+                        items="{pa>/priceAgreement/rappelPriceCondition/discountConditions}"
+                    >
+                        <m:columns>
+                            <m:Column
+                                minScreenWidth="Desktop"
+                                demandPopin="true"
+                                width="150px"
+                                popinDisplay="Inline"
+                            >
+                                <m:Label
+                                    text="Volume Treshold"
+                                    wrapping="true"
+                                />
+                            </m:Column>
+                            <m:Column
+                                minScreenWidth="Desktop"
+                                demandPopin="true"
+                                width="150px"
+                                popinDisplay="Inline"
+                            >
+                                <m:Label
+                                    text="Discount"
+                                    wrapping="true"
+                                />
+                            </m:Column>
+                            <m:Column
+                                minScreenWidth="Desktop"
+                                demandPopin="true"
+                                width="150px"
+                                popinDisplay="Inline"
+                            >
+                                <m:Label
+                                    text="Net Price w/o Tax"
+                                    wrapping="true"
+                                />
+                            </m:Column>
+                            <m:Column
+                                minScreenWidth="Desktop"
+                                demandPopin="true"
+                                width="150px"
+                                popinDisplay="Inline"
+                            >
+                                <m:Label
+                                    text="Tax"
+                                    wrapping="true"
+                                />
+                            </m:Column>
+                            <m:Column
+                                minScreenWidth="Desktop"
+                                demandPopin="true"
+                                width="150px"
+                                popinDisplay="Inline"
+                            >
+                                <m:Label
+                                    text="Net Price with Tax"
+                                    wrapping="true"
+                                />
+                            </m:Column>
+                        </m:columns>
+                        <m:items>
+                            <m:ColumnListItem>
+                                <m:cells>
+                                    <m:Text text="{Volume}" />
+                                    <m:Text
+                                        text="{path:'Discount', type:'.types.percentdecimal'}"
+                                    />
+                                    <m:Text text="{NetPriceWithoutTax}" />
+                                    <m:Text
+                                        text="{path:'Tax', type:'.types.percent'}"
+                                    />
+                                    <m:Text text="{NetPriceWithTax}" />
+                                </m:cells>
+                            </m:ColumnListItem>
+                        </m:items>
+                    </m:Table>
+                </m:IconTabFilter>
+            </m:items>
+        </m:IconTabBar>
+    </m:Panel>
 </core:FragmentDefinition>

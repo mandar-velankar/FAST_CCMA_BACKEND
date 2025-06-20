@@ -5,6 +5,11 @@ import UIComponent from "sap/ui/core/UIComponent";
 import Model from "sap/ui/model/Model";
 import ResourceModel from "sap/ui/model/resource/ResourceModel";
 import ResourceBundle from "sap/base/i18n/ResourceBundle";
+import * as formatter from "../model/formatter"; 
+import CustomPercentageType from "../model/datatypes/CustomPercentageType";
+import CustomNumberType from "../model/datatypes/CustomNumberType";
+import CustomDecimalType from "../model/datatypes/CustomDecimalType";
+import CustomCurrencyType from "../model/datatypes/CustomCurrencyType";
 /**
  * @namespace com.bayer.tender.ccma.controller
  */
@@ -14,6 +19,15 @@ export default class BaseController extends Controller {
 	 * @public
 	 * @returns {sap.ui.core.routing.Router} the router for this component
 	 */
+
+	public formatter = formatter;
+
+	public customTypes: {
+			percentage: CustomPercentageType,
+			number: CustomNumberType,
+			decimal: CustomDecimalType,
+			currency: CustomCurrencyType,
+	}
 	public getRouter(): Router {
 		return (this.getOwnerComponent() as UIComponent).getRouter();
 	}
