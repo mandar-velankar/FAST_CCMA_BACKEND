@@ -72,7 +72,7 @@ export default class Detail extends BaseController {
         const listItem = (event as any).getSource();
         const context = listItem.getBindingContext();
         const ccmContract = context.getObject();
-        this.getRouter().navTo("detail-detail", { layout: "ThreeColumnsMidExpanded", id: this.id, productPackId: ccmContract.ProductCode });
+        this.getRouter().navTo("detail-detail", { layout: "ThreeColumnsMidExpanded", id: this.id, contractId: ccmContract.CCMContractID, productPackId: ccmContract.ProductCode });
     }
 
     public bindTable() {

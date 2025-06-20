@@ -45,7 +45,10 @@ service ConditionContract {
                 ccmcustomer.InstituteType,
                 ccmcustomer.InstituteID,
                 ccmcustomer.CustomerID
-        }
+        };
 
+    entity CCMContractDetailView as select from CCMContract {
+        *
+    };
     function getBackendData() returns String;
 }

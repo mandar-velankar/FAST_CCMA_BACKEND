@@ -17,10 +17,36 @@
 		    id="idDetailDetailContractInformation"
 		    editable="true"       
 	    >
-		<!-- <form:toolbar>
+		<form:toolbar>
 			<Toolbar>
+				<ToolbarSpacer />
+				<Button
+					id="idContractInformationPopOver"
+					icon="sap-icon://alert"
+					visible="false"
+					type="Emphasized"
+					press="onMessagePopoverPress($event)"  
+				/>
+				<Button
+					icon="sap-icon://edit"
+					text="Edit"
+					press=".onContractInformationFormEditBtnPress"
+					visible="{= !${ui>/ContractInformationForm/editMode} }"
+				/>
+				<Button
+					icon="sap-icon://save"
+					text="Save"
+					press=".onContractInformationFormSaveBtnPress"
+					visible="{= ${ui>/ContractInformationForm/editMode} }"
+				/>
+				<Button
+					icon="sap-icon://decline"
+					text="Cancel"
+					press=".onContractInformationFormCancelBtnPress"
+					visible="{= ${ui>/ContractInformationForm/editMode} }"
+				/>
 			</Toolbar>
-		</form:toolbar> -->
+		</form:toolbar>
 		<form:layout>
 			<form:ResponsiveGridLayout
 				labelSpanXL="5"
@@ -42,25 +68,53 @@
 				<form:formElements>
 					<form:FormElement label="{i18n>ContractInformationFragment.StartDate}">
 						<form:fields>
-							<Text id="idStartDate" text="2025-02-13"/>
+							<DatePicker 
+								enabled="{= ${ui>/ContractInformationForm/editMode}}"
+								value = "{
+									path: 'CCMContractStartDate',
+									type: 'sap.ui.model.odata.type.Date',
+									formatOptions: { 
+										pattern: 'yyyy-MM-dd',
+										UTC: false
+									}
+								}"
+							/>
 						</form:fields>
 					</form:FormElement>
 
                     <form:FormElement label="{i18n>ContractInformationFragment.EndtDate}" >
 						<form:fields>
-							<Text id="idEndDate" text="2025-02-15"/>
+							<DatePicker 
+								enabled="{= ${ui>/ContractInformationForm/editMode}}"
+								value = "{
+									path: 'CCMContractEndDate',
+									type: 'sap.ui.model.odata.type.Date',
+									formatOptions: { 
+										pattern: 'yyyy-MM-dd',
+										UTC: false
+									}
+								}"
+							/>
 						</form:fields>
 					</form:FormElement>
 
                     <form:FormElement label="{i18n>ContractInformationFragment.Extension}" >
 						<form:fields>
-							<Text id="idExtension" text=""/>
+							<CheckBox id="idExtendExpiry" enabled="{= ${ui>/ContractInformationForm/editMode}}" selected="{path:'Extension'}"/>
 						</form:fields>
 					</form:FormElement>
 
                     <form:FormElement label="{i18n>ContractInformationFragment.ExtensionPeriod}" >
 						<form:fields>
-							<Text id="idExtensionPeriod" text=""/>
+							<StepInput
+								id="idExtendExpiryDateID"
+								value="{path: 'ExtensionPeriod'}"
+								min="0"
+								max="12"
+								enabled="{= ${ui>/ContractInformationForm/editMode}}"
+								description="Months" 
+								validationMode="LiveChange"
+							/>
 						</form:fields>
 					</form:FormElement>
 					

@@ -10,6 +10,16 @@ import CustomPercentageType from "../model/datatypes/CustomPercentageType";
 import CustomNumberType from "../model/datatypes/CustomNumberType";
 import CustomDecimalType from "../model/datatypes/CustomDecimalType";
 import CustomCurrencyType from "../model/datatypes/CustomCurrencyType";
+import MessagePopover from "sap/m/MessagePopover";
+import MessageItem from "sap/m/MessageItem";
+import MessageType from "sap/ui/core/message/MessageType";
+import { PropertyBindingInfo } from "sap/ui/base/ManagedObject";
+type Message = {
+	type: `{${string}}` | MessageType | "Error" | "Information" | "None" | "Success" | "Warning" | PropertyBindingInfo | undefined;
+	message: string;
+	additionalText:  string;
+	description: string;
+}
 /**
  * @namespace com.bayer.tender.ccma.controller
  */
@@ -77,5 +87,48 @@ export default class BaseController extends Controller {
 		} else {
 			this.getRouter().navTo("master", {},{}, true);
 		}
+	}
+
+	public getUniqueMessages (messages: any) {
+		return messages.reduce((acc: any, msg: any) => {
+			const targets = msg.getTargets?.(); // or msg.getTarget() if it's single target
+			if (!targets || targets.length === 0) return acc;
+		
+			const isAlreadyIncluded = acc.some((existingMsg: any) => {
+				const existingTargets = existingMsg.getTargets?.();
+				return existingTargets?.some(t => targets.includes(t));
+			});
+		
+			if (!isAlreadyIncluded) {
+				acc.push(msg);
+			}
+		
+			return acc;
+		}, []);
+	} 
+
+	public onMessagePopoverPress (event: Event) {
+		const sourceControl = (event.getSource() as any);
+		const context = sourceControl.getBindingContext();
+		const messages = this.getModel().getMessages(context);
+		const uniqueMessages = this.getUniqueMessages(messages);
+		const popover = this.createMessagePopover(uniqueMessages as Message[]);
+		popover.openBy(sourceControl);
+	}
+
+	public createMessagePopover(messages: Message[]): MessagePopover {
+		return new MessagePopover({
+			items: messages.map(msg => new MessageItem({
+				type: msg.type,
+				title: msg.message,
+				subtitle: msg.additionalText,
+				description: msg.description
+			}))
+		});
+	}
+
+	// TODO: Check what is the best way to reset error messages from the model
+	public removeMessageFromMessageManager () {
+		this.getModel()?.setMessages({});
 	}
 }

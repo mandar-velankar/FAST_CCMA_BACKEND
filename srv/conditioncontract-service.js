@@ -10,4 +10,9 @@ module.exports = (srv) => {
         });
         return JSON.stringify(resultpost);
     })
+
+    srv.before(['UPDATE', 'CREATE'], async (req) => {
+        Object.prototype.hasOwnProperty.call(req.data, "CCMContractStartDate") && !req.data.CCMContractStartDate && req.error({ code: 404, message: "Contract Start Date is required.", target: "CCMContractStartDate" });
+        Object.prototype.hasOwnProperty.call(req.data, "CCMContractEndDate") && !req.data.CCMContractEndDate && req.error({ code: 404, message: "Contract End Date is required.", target: "CCMContractEndDate" });
+    })
 };

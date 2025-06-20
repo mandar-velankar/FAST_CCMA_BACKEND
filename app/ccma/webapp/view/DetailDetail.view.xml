@@ -46,9 +46,9 @@
                     <VBox>
                         <core:Fragment fragmentName="com.bayer.tender.ccma.view.fragments.detail-detail.ContractInformation" type="XML"/>
                     </VBox>
-                    <VBox>
+                    <!-- <VBox>
                         <core:Fragment fragmentName="com.bayer.tender.ccma.view.fragments.detail-detail.Customers" type="XML"/>
-                    </VBox>
+                    </VBox> -->
 					<VBox>
 						<Panel
 							expandable="true"

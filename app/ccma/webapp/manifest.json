@@ -124,7 +124,7 @@
         },
         {
           "name": "detail-detail",
-          "pattern": "detail/{id}/detail-detail/{productPackId}/{layout}",
+          "pattern": "detail/{id}/detail-detail/{contractId}/{productPackId}/{layout}",
           "target": [
             "master",
             "detail",
