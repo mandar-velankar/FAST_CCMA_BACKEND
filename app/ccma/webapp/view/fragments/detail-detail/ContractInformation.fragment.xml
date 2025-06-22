@@ -78,6 +78,8 @@
 										UTC: false
 									}
 								}"
+								change=".onChangeContractStartDate"
+								minDate="{ui>/minDate}"
 							/>
 						</form:fields>
 					</form:FormElement>
@@ -93,6 +95,10 @@
 										pattern: 'yyyy-MM-dd',
 										UTC: false
 									}
+								}"
+								minDate="{
+									path: 'CCMContractStartDate',
+									formatter: '.formatMinDate'
 								}"
 							/>
 						</form:fields>

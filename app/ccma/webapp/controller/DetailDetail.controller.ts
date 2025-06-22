@@ -114,7 +114,10 @@ export default class Detail extends BaseController {
         const that = this;
         const form = this.byId("idDetailDetailContractInformation");
         const context = form?.getBindingContext();
+        const formData = context?.getObject();
         const popoverBtn = this.byId("idContractInformationPopOver") as Button;
+        context.setProperty("CCMContractStartDate", formData?.CCMContractStartDate);
+        context.setProperty("CCMContractEndDate", formData?.CCMContractEndDate);
         this.getModel()?.submitBatch("ContractInformation").then(function(){
             if (!form?.getBindingContext()?.getBinding()?.hasPendingChanges()) {
                 that.onContractInformationFormCancelBtnPress();
@@ -131,5 +134,22 @@ export default class Detail extends BaseController {
             }
             
         });
+    }
+
+    public async onChangeContractStartDate () {
+        const form = this.byId("idDetailDetailContractInformation");
+        const context = form?.getBindingContext();
+        if (context) {
+            await context.setProperty("CCMContractEndDate", "");
+        }
+    }
+
+    public formatMinDate (startDate: Date) {
+        if (!startDate) return null;
+    
+        const oDate = new Date(startDate);
+        oDate.setDate(oDate.getDate() + 1); // add 1 day
+    
+        return oDate;
     }
 }
