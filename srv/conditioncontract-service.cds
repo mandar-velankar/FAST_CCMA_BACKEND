@@ -51,4 +51,5 @@ service ConditionContract {
         *
     };
     function getBackendData() returns String;
+    action createCCMContract(FastCCMContractId : UUID, CCMContractID: UUID, ProductCode: String) returns String;
 }

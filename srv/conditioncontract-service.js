@@ -4,6 +4,10 @@ const moment = require("moment");
 
 module.exports = (srv) => {
 
+    const {
+		FastConditionContracts, CCMContract, CCMCustomer, CCMMaterial, PriceConditionInvoice,APIDefinition, APIBody
+	} = cds.entities("om.bayer.SXTENDER.ccma");
+
     srv.on('getBackendData', async(req)=>{
         const fastbackendAPI = await cds.connect.to("FASTBACKEND_API");
         const resultpost = await fastbackendAPI.send({
@@ -23,4 +27,12 @@ module.exports = (srv) => {
                 req.error({ code: 404, message: "Contract Start Date should be before the Contract End Date.", target: "CCMContractStartDate" });
         }
     })
+
+    srv.on('createCCMContract', async (req) => {
+        const tx = cds.tx(req);
+        const { fastCCMContractID, ccmContractID, productCode} = req.data;
+        const fastCCMContract = await tx.run(SELECT.one.from(FastConditionContracts).where({
+					ID: fastCCMContractID
+				}));
+    });
 };
