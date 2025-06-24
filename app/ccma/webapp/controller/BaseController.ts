@@ -14,6 +14,8 @@ import MessagePopover from "sap/m/MessagePopover";
 import MessageItem from "sap/m/MessageItem";
 import MessageType from "sap/ui/core/message/MessageType";
 import { PropertyBindingInfo } from "sap/ui/base/ManagedObject";
+import Context from "sap/ui/model/odata/v4/Context";
+import JSONModel from "sap/ui/model/json/JSONModel";
 type Message = {
 	type: `{${string}}` | MessageType | "Error" | "Information" | "None" | "Success" | "Warning" | PropertyBindingInfo | undefined;
 	message: string;
@@ -107,28 +109,49 @@ export default class BaseController extends Controller {
 		}, []);
 	} 
 
-	public onMessagePopoverPress (event: Event) {
-		const sourceControl = (event.getSource() as any);
-		const context = sourceControl.getBindingContext();
+	public setMessageSection (context: Context, sectionName: string): void {
 		const messages = this.getModel().getMessages(context);
 		const uniqueMessages = this.getUniqueMessages(messages);
-		const popover = this.createMessagePopover(uniqueMessages as Message[]);
+		this.getModel("messages").setProperty(`/${sectionName}`, uniqueMessages);
+	}
+
+	public onMessagePopoverPress (event: Event, sectionName: string) {
+		const sourceControl = (event.getSource() as any);
+		const popover = this.createMessagePopover(sectionName);
+		const messagesModel = this.getModel("messages");
+		popover.setModel(messagesModel, "messages");
 		popover.openBy(sourceControl);
 	}
 
-	public createMessagePopover(messages: Message[]): MessagePopover {
+	public createMessagePopover(sectionName: string): MessagePopover {
 		return new MessagePopover({
-			items: messages.map(msg => new MessageItem({
-				type: msg.type,
-				title: msg.message,
-				subtitle: msg.additionalText,
-				description: msg.description
-			}))
-		});
+			items: {
+				path: `messages>/${sectionName}`,
+				template: new MessageItem({
+					type: "{messages>type}",
+					title: "{messages>message}",
+					subtitle: "{messages>additionalText}",
+					description: "{messages>description}"
+				})
+			}
+		})
 	}
 
 	// TODO: Check what is the best way to reset error messages from the model
-	public removeMessageFromMessageManager () {
+	public removeMessageFromMessageManager (sectionName: string) {
 		this.getModel()?.setMessages({});
+		this.getModel("messages").setProperty(`/${sectionName}`, []);
+	}
+
+	public getUIModel (): JSONModel {
+        return this.getModel("ui") as JSONModel;
+    }
+
+	public subscribeEventEmitter (channelId: string, eventId: string, cb: any) {
+		this.getOwnerComponent()?.getEventBus().subscribe(channelId, eventId, cb, this);
+	}
+
+	public publishEventEmitter (channelId: string, eventId: string) {
+		this.getOwnerComponent()?.getEventBus().publish(channelId, eventId);
 	}
 }

@@ -30,6 +30,27 @@ export default class Detail extends BaseController {
 
     public onInit() {
         this.getRouter().getRoute("detail")?.attachPatternMatched(this.onMatched, this);
+
+       const oModel: JSONModel = new JSONModel({
+            busy: false,
+            delay: 0,
+            editMode: false,
+            ContractInformationForm: {
+                busy: false,
+                delay: 0,
+                editMode: false,
+            },
+            minDate: new Date(),
+        });
+
+        const messagesModel = new JSONModel({
+            contractInformationDetail: []
+        });
+                
+        this.setModel(messagesModel, "messages");
+        this.setModel(oModel, "ui");
+
+        this.subscribeEventEmitter("contractProductChannel", "contractDateChanged", this.refreshContractTable.bind(this));
     }
 
     public onMatched(event: Route$PatternMatchedEvent): void {
@@ -41,6 +62,7 @@ export default class Detail extends BaseController {
         this.id = routeParameters.id;
         (this.getModel('appView') as JSONModel).setProperty("/layout", routeParameters.layout)
         this.bindTable();
+        this.bindContractInformationForm();
     }
 
     /**
@@ -72,13 +94,24 @@ export default class Detail extends BaseController {
         const listItem = (event as any).getSource();
         const context = listItem.getBindingContext();
         const ccmContract = context.getObject();
-        this.getRouter().navTo("detail-detail", { layout: "ThreeColumnsMidExpanded", id: this.id, contractId: ccmContract.CCMContractID, productPackId: ccmContract.ProductCode });
+        this.getRouter().navTo("detail-detail", { layout: "ThreeColumnsMidExpanded", id: this.id, contractId: ccmContract.ID, productPackId: ccmContract.ProductCode });
+    }
+
+    private bindContractInformationForm() {
+        const ccmContractInfo = this.byId("idCCMContractInformation");
+        const path = `/CCMContractInformationDetailView('${this.id}')`; 
+        ccmContractInfo?.bindElement({
+            path: path,
+            parameters: {
+                $$updateGroupId: "ContractInformationDetail"
+            }
+        });
     }
 
     public bindTable() {
         const Table = this.byId("idCCMContract") as Table;
         const ccmCustomerInfo = this.byId("idCCMCustomers");
-        const ccmContractInfo = this.byId("idCCMContractInformation");
+        // const ccmContractInfo = this.byId("idCCMContractInformation");
         let template;
         const bindingInfo = Table?.getBindingInfo("items");
         template = (bindingInfo as any).template;
@@ -101,20 +134,23 @@ export default class Detail extends BaseController {
         ];
 
         Table?.bindItems({
-            path: "/CCMContractView",
+            path: "/CCMContractProductsView",
             template: template,
             filters: filters,
             sorter: sorters,
+            parameters: {
+                $$updateGroupId: "ContractTable"
+            },
             events: {
                 dataReceived: (event: any) => {
                     const data = event.getSource()?.getContexts()[0]?.getObject();
-                    if (data && data.CCMContractID) {
+                    if (data && data.ID) {
                         ccmCustomerInfo?.bindElement({
-                            path: `/CCMContractView(CCMContractID='${data.CCMContractID}')`
+                            path: `/CCMContractView(CCMContractID='${data.ID}')`
                         });
-                        ccmContractInfo?.bindElement({
-                            path: `/CCMContractView(CCMContractID='${data.CCMContractID}')`
-                        });
+                        // ccmContractInfo?.bindElement({
+                        //     path: `/CCMContractView(CCMContractID='${data.CCMContractID}')`
+                        // });
                     }
                 }
             }
@@ -137,4 +173,69 @@ export default class Detail extends BaseController {
         const eDock = Popup.Dock;
         this._oPopover.open(this._bKeyboard, oButton, eDock.BeginTop, eDock.BeginBottom, oButton);
     }
+
+    public onContractInformationFormEditBtnPress () {
+        this.getUIModel()?.setProperty("/ContractInformationForm/editMode", true);
+    }
+    
+    public onContractInformationFormCancelBtnPress () {
+        (this.getModel() as ODataModel)?.resetChanges("ContractInformationDetail");
+        (this.getModel() as ODataModel)?.resetChanges("ContractTable");
+        this.getUIModel()?.setProperty("/ContractInformationForm/editMode", false);
+        this.removeMessageFromMessageManager("contractInformationDetail");
+    }
+
+    public async onChangeContractStartDate () {
+        const form = this.byId("idCCMContractInformation");
+        const context = form?.getBindingContext() as any;
+        if (context) {
+            await context.setProperty("ContractEndDate", "");
+        }
+    }
+
+    public formatMinDate (startDate: Date) {
+        if (!startDate) return null;
+    
+        const oDate = new Date(startDate);
+        oDate.setDate(oDate.getDate() + 1); // add 1 day
+    
+        return oDate;
+    }
+
+    public onContractInformationFormSaveBtnPress () {
+        const that = this;
+        const form = this.byId("idCCMContractInformation");
+        const context = form?.getBindingContext() as any;
+        const formData = context?.getObject();
+        const contractTable = this.byId("idCCMContract");
+
+        context.setProperty("ContractStartDate", formData?.ContractStartDate || "");
+        context.setProperty("ContractEndDate", formData?.ContractEndDate || "");
+
+        
+
+        this.getModel()?.submitBatch("ContractInformationDetail").then(async function(){
+            if (!form?.getBindingContext()?.getBinding()?.hasPendingChanges()) {
+                contractTable?.getItems()?.forEach(pr => {
+                    pr.getBindingContext().setProperty("CCMContractStartDate", formData?.ContractStartDate || "");  
+                    pr.getBindingContext().setProperty("CCMContractEndDate", formData?.ContractEndDate || "");  
+                });
+                await that.getModel()?.submitBatch("ContractTable")
+                that.onContractInformationFormCancelBtnPress();
+                return;
+            }
+
+            if (context) {
+                that.setMessageSection(context, "contractInformationDetailDetail");                
+            }
+            
+        });
+    }
+
+    public refreshContractTable () {
+        const contractTable = this.byId("idCCMContract");
+        contractTable?.getBinding("items")?.refresh();
+    }
+
+
 }

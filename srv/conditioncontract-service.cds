@@ -47,6 +47,13 @@ service ConditionContract {
                 ccmcustomer.CustomerID
         };
 
+    entity CCMContractInformationDetailView as projection on FastConditionContracts;
+    entity CCMContractProductsView as projection on CCMContract {
+        *,
+        FastConditionContracts.ID as FastConditionContractsID,
+        CCMCustomer.InstituteName,
+        CCMCustomer.InstituteType
+    };
     entity CCMContractDetailView as select from CCMContract {
         *
     };

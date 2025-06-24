@@ -21,11 +21,11 @@
 			<Toolbar>
 				<ToolbarSpacer />
 				<Button
-					id="idContractInformationPopOver"
 					icon="sap-icon://alert"
-					visible="false"
 					type="Emphasized"
-					press="onMessagePopoverPress($event)"  
+					press="onMessagePopoverPress($event, 'contractInformationDetailDetail')"
+					text="{= ${messages>/contractInformationDetailDetail}.length }"
+					visible="{= ${messages>/contractInformationDetailDetail}.length > 0 &amp;&amp; ${ui>/ContractInformationForm/editMode}}"
 				/>
 				<Button
 					icon="sap-icon://edit"
@@ -106,14 +106,13 @@
 
                     <form:FormElement label="{i18n>ContractInformationFragment.Extension}" >
 						<form:fields>
-							<CheckBox id="idExtendExpiry" enabled="{= ${ui>/ContractInformationForm/editMode}}" selected="{path:'Extension'}"/>
+							<CheckBox enabled="{= ${ui>/ContractInformationForm/editMode}}" selected="{path:'Extension'}"/>
 						</form:fields>
 					</form:FormElement>
 
                     <form:FormElement label="{i18n>ContractInformationFragment.ExtensionPeriod}" >
 						<form:fields>
 							<StepInput
-								id="idExtendExpiryDateID"
 								value="{path: 'ExtensionPeriod'}"
 								min="0"
 								max="12"

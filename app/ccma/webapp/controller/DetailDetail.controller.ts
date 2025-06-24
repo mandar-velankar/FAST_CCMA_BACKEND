@@ -34,7 +34,12 @@ export default class Detail extends BaseController {
             },
             minDate: new Date(),
         });
-        
+
+        const messagesModel = new JSONModel({
+            contractInformationDetailDetail: []
+        });
+                
+        this.setModel(messagesModel, "messages");
         this.setModel(oModel, "ui");
 
     }
@@ -48,9 +53,6 @@ export default class Detail extends BaseController {
         this.bindContractInformationForm();
     }
 
-    private getUIModel (): JSONModel {
-        return this.getModel("ui") as JSONModel;
-    }
 
     /**
      * Set the full screen mode to false and navigate to master page
@@ -95,13 +97,9 @@ export default class Detail extends BaseController {
     }
 
     public onContractInformationFormCancelBtnPress () {
-        const popoverBtn = this.byId("idContractInformationPopOver") as Button;
-
         (this.getModel() as ODataModel)?.resetChanges("ContractInformation");
         this.getUIModel()?.setProperty("/ContractInformationForm/editMode", false);
-        popoverBtn.setVisible(false);
-        popoverBtn.setText("");
-        this.removeMessageFromMessageManager();
+        this.removeMessageFromMessageManager("contractInformationDetailDetail");
     }
 
     /**
@@ -113,24 +111,19 @@ export default class Detail extends BaseController {
     public onContractInformationFormSaveBtnPress () {
         const that = this;
         const form = this.byId("idDetailDetailContractInformation");
-        const context = form?.getBindingContext();
+        const context = form?.getBindingContext() as any;
         const formData = context?.getObject();
-        const popoverBtn = this.byId("idContractInformationPopOver") as Button;
-        context.setProperty("CCMContractStartDate", formData?.CCMContractStartDate);
-        context.setProperty("CCMContractEndDate", formData?.CCMContractEndDate);
+        context.setProperty("CCMContractStartDate", formData?.CCMContractStartDate || "");
+        context.setProperty("CCMContractEndDate", formData?.CCMContractEndDate || "");
         this.getModel()?.submitBatch("ContractInformation").then(function(){
-            if (!form?.getBindingContext()?.getBinding()?.hasPendingChanges()) {
+            if (!context?.getBinding()?.hasPendingChanges()) {
                 that.onContractInformationFormCancelBtnPress();
+                that.publishEventEmitter("contractProductChannel", "contractDateChanged");
                 return;
             }
 
             if (context) {
-                const messages = that.getModel()?.getMessages(context);
-                const uniqueMessages = that.getUniqueMessages(messages);
-                if (uniqueMessages.length > 0) {
-                    popoverBtn.setVisible(true);
-                    popoverBtn.setText(uniqueMessages.length);
-                }
+                that.setMessageSection(context, "contractInformationDetailDetail");                
             }
             
         });
@@ -138,7 +131,7 @@ export default class Detail extends BaseController {
 
     public async onChangeContractStartDate () {
         const form = this.byId("idDetailDetailContractInformation");
-        const context = form?.getBindingContext();
+        const context = form?.getBindingContext() as any;
         if (context) {
             await context.setProperty("CCMContractEndDate", "");
         }

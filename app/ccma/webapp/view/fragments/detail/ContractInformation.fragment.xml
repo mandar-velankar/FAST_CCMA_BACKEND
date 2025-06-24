@@ -17,10 +17,36 @@
 		    id="idCCMContractInformation"
 		    editable="true"       
 	    >
-		<!-- <form:toolbar>
+		<form:toolbar>
 			<Toolbar>
+				<ToolbarSpacer />
+				<Button
+					icon="sap-icon://alert"
+					type="Emphasized"
+					press="onMessagePopoverPress($event, 'contractInformationDetail')"
+					text="{= ${messages>/contractInformationDetail}.length }"
+					visible="{= ${messages>/contractInformationDetail}.length > 0 &amp;&amp; ${ui>/ContractInformationForm/editMode}}"
+				/>
+				<Button
+					icon="sap-icon://edit"
+					text="Edit"
+					press=".onContractInformationFormEditBtnPress"
+					visible="{= !${ui>/ContractInformationForm/editMode} }"
+				/>
+				<Button
+					icon="sap-icon://save"
+					text="Save"
+					press=".onContractInformationFormSaveBtnPress"
+					visible="{= ${ui>/ContractInformationForm/editMode} }"
+				/>
+				<Button
+					icon="sap-icon://decline"
+					text="Cancel"
+					press=".onContractInformationFormCancelBtnPress"
+					visible="{= ${ui>/ContractInformationForm/editMode} }"
+				/>
 			</Toolbar>
-		</form:toolbar> -->
+		</form:toolbar>
 		<form:layout>
 			<form:ResponsiveGridLayout
 				labelSpanXL="5"
@@ -42,38 +68,58 @@
 				<form:formElements>
 					<form:FormElement label="{i18n>ContractInformationFragment.StartDate}">
 						<form:fields>
-							<Text id="idStartDate" text="{
-										path: 'CCMContractStartDate',
-										type: 'sap.ui.model.odata.type.Date',
-										formatOptions: {
-											pattern: 'yyyy-MM-dd'
-										}
-									}" 
+							<DatePicker 
+								enabled="{= ${ui>/ContractInformationForm/editMode}}"
+								value = "{
+									path: 'ContractStartDate',
+									type: 'sap.ui.model.odata.type.Date',
+									formatOptions: { 
+										pattern: 'yyyy-MM-dd',
+										UTC: false
+									}
+								}"
+								change=".onChangeContractStartDate"
+								minDate="{ui>/minDate}"
 							/>
 						</form:fields>
 					</form:FormElement>
 
                     <form:FormElement label="{i18n>ContractInformationFragment.EndtDate}" >
 						<form:fields>
-							<Text id="idEndDate" text="{
-										path: 'CCMContractEndDate',
-										type: 'sap.ui.model.odata.type.Date',
-										formatOptions: {
-											pattern: 'yyyy-MM-dd'
-										}
-									}"/>
+							<DatePicker 
+								enabled="{= ${ui>/ContractInformationForm/editMode}}"
+								value = "{
+									path: 'ContractEndDate',
+									type: 'sap.ui.model.odata.type.Date',
+									formatOptions: { 
+										pattern: 'yyyy-MM-dd',
+										UTC: false
+									}
+								}"
+								minDate="{
+									path: 'ContractStartDate',
+									formatter: '.formatMinDate'
+								}"
+							/>
 						</form:fields>
 					</form:FormElement>
 
                     <form:FormElement label="{i18n>ContractInformationFragment.Extension}" >
 						<form:fields>
-							<Text id="idExtension" text="{Extension}"/>
+							<CheckBox enabled="{= ${ui>/ContractInformationForm/editMode}}" selected="{path:'Extension'}"/>
 						</form:fields>
 					</form:FormElement>
 
                     <form:FormElement label="{i18n>ContractInformationFragment.ExtensionPeriod}" >
 						<form:fields>
-							<Text id="idExtensionPeriod" text="{ExtensionPeriod}"/>
+							<StepInput
+								value="{path: 'ExtensionPeriod'}"
+								min="0"
+								max="12"
+								enabled="{= ${ui>/ContractInformationForm/editMode}}"
+								description="Months" 
+								validationMode="LiveChange"
+							/>
 						</form:fields>
 					</form:FormElement>
 					

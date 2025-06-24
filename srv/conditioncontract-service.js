@@ -1,6 +1,10 @@
 const cds = require('@sap/cds');
 const moment = require("moment");
 
+const {
+    CCMContract
+} = cds.entities("ConditionContract");
+
 
 module.exports = (srv) => {
 
@@ -16,7 +20,7 @@ module.exports = (srv) => {
         return JSON.stringify(resultpost);
     })
 
-    srv.before(['UPDATE', 'CREATE'], async (req) => {
+    srv.before(['UPDATE', 'CREATE'], "CCMContractDetailView", async (req) => {
         const contractStartDateExists = Object.prototype.hasOwnProperty.call(req.data, "CCMContractStartDate");
         const contractEndDateExists = Object.prototype.hasOwnProperty.call(req.data, "CCMContractEndDate");
         contractStartDateExists && !req.data.CCMContractStartDate && req.error({ code: 404, message: "Contract Start Date is required.", target: "CCMContractStartDate" });
@@ -35,4 +39,16 @@ module.exports = (srv) => {
 					ID: fastCCMContractID
 				}));
     });
+    
+    srv.before(['UPDATE', 'CREATE'], "CCMContractInformationDetailView", async (req) => {
+        const contractStartDateExists = Object.prototype.hasOwnProperty.call(req.data, "ContractStartDate");
+        const contractEndDateExists = Object.prototype.hasOwnProperty.call(req.data, "ContractEndDate");
+        contractStartDateExists && !req.data.ContractStartDate && req.error({ code: 404, message: "Contract Start Date is required.", target: "ContractStartDate" });
+        contractEndDateExists && !req.data.ContractEndDate && req.error({ code: 404, message: "Contract End Date is required.", target: "ContractEndDate" });
+        
+        if (contractStartDateExists && contractEndDateExists) {
+            if(!moment(req.data.ContractStartDate).isBefore(req.data.ContractEndDate))
+                req.error({ code: 404, message: "Contract Start Date should be before the Contract End Date.", target: "ContractStartDate" });
+        }
+    })
 };
