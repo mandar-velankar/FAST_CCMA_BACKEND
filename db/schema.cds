@@ -161,14 +161,30 @@ entity PriceConditionFOC: cuid, managed, temporal{
   CCMMaterial: Association to CCMMaterial;
 }
 
-entity APIDefinition: cuid, managed{
-  Name: String;
-  Source: String;
-  Endpoint: String;
-  APIBody: Association to many APIBody on APIBody.APIDefinition = $self;
+entity APIDefinition: cuid{
+    Provider            : String; 
+    Host                : String;
+    BasePath            : String;
+    Resource            : String;
+    ResourcePath        : String;
+    RequestDelay        : Integer;
+    RequestMaxRetry     : Integer;
+    AuthType            : String;
+    CountryCode         : String;
+    Name                : String;     
+    OAuth: Association to APIConfigOAuth;
+    APIBody: Association to APIBody on APIBody.APIDefinition = $self;
 }
 
-entity APIBody: cuid, managed{
+entity APIConfigOAuth: cuid{
+    OAuthProvider : String;
+    GrantType     : String;
+    ClientID      : String;
+    ClientSecret  : String;
+    Scope         : String;
+}
+
+entity APIBody: cuid{
   Source: String;
   Target: String;
   APIDefinition: Association to APIDefinition;

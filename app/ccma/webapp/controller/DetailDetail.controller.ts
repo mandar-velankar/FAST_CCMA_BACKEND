@@ -3,13 +3,16 @@ import BaseController from "./BaseController";
 import JSONModel from "sap/ui/model/json/JSONModel";
 import { RowActionItem$PressEvent } from "sap/ui/table/RowActionItem";
 import { Route$PatternMatchedEvent } from "sap/ui/core/routing/Route";
-import Button, {} from "sap/m/Button"
+import Button, { } from "sap/m/Button"
+import BusyIndicator from "sap/ui/core/BusyIndicator";
 import ODataModel from "sap/ui/model/odata/v4/ODataModel";
+import MessageBox from "sap/m/MessageBox";
+import { Button$PressEvent } from "sap/ui/commons/Button";
 export type TDetailDetailRouteParameters = {
-    id:string;
-    productPackId:string;
+    id: string;
+    productPackId: string;
     contractId: string;
-    layout:string;
+    layout: string;
 }
 
 /**
@@ -82,7 +85,7 @@ export default class Detail extends BaseController {
     private bindContractInformationForm() {
         const form = this.byId("idDetailDetailContractInformation");
         // const oContextBinding = this.getView()?.getModel()?.bindContext(`/CCMContractDetailView('${this.contractId}')`); 
-        const path = `/CCMContractDetailView('${this.contractId}')`; 
+        const path = `/CCMContractDetailView('${this.contractId}')`;
         // this.getView()?.setBindingContext(oContextBinding?.getBoundContext())
         form?.bindElement({
             path: path,
@@ -92,7 +95,7 @@ export default class Detail extends BaseController {
         });
     }
 
-    public onContractInformationFormEditBtnPress () {
+    public onContractInformationFormEditBtnPress() {
         this.getUIModel()?.setProperty("/ContractInformationForm/editMode", true);
     }
 
@@ -108,7 +111,7 @@ export default class Detail extends BaseController {
      * Note that the promise returned by submitBatch is only rejected if the complete batch request has failed.
      */
 
-    public onContractInformationFormSaveBtnPress () {
+    public onContractInformationFormSaveBtnPress() {
         const that = this;
         const form = this.byId("idDetailDetailContractInformation");
         const context = form?.getBindingContext() as any;
@@ -125,11 +128,11 @@ export default class Detail extends BaseController {
             if (context) {
                 that.setMessageSection(context, "contractInformationDetailDetail");                
             }
-            
+
         });
     }
 
-    public async onChangeContractStartDate () {
+    public async onChangeContractStartDate() {
         const form = this.byId("idDetailDetailContractInformation");
         const context = form?.getBindingContext() as any;
         if (context) {
@@ -137,12 +140,41 @@ export default class Detail extends BaseController {
         }
     }
 
-    public formatMinDate (startDate: Date) {
+    public formatMinDate(startDate: Date) {
         if (!startDate) return null;
-    
+
         const oDate = new Date(startDate);
         oDate.setDate(oDate.getDate() + 1); // add 1 day
-    
+
         return oDate;
+    }
+
+    public onCreateCCMContract(event: Button$PressEvent): void {
+
+        BusyIndicator.show();
+        const ccmContractContextBinding = this.getModel()?.bindContext("/createCCMContract(...)");
+        ccmContractContextBinding?.setParameter("FastCCMContractId", this.id);
+        ccmContractContextBinding?.setParameter("CCMContractID", this.contractId);
+        ccmContractContextBinding?.setParameter("ProductCode", this.productPackID);
+        ccmContractContextBinding?.execute().then(
+            () => {
+                const oActionContext = ccmContractContextBinding.getBoundContext();
+                this.onCreateCCMContractSuccess(oActionContext?.getObject());
+            },
+            (error: any) => {
+                this.onCreateCCMContractFail(error);
+            }
+        );
+    }
+
+    public onCreateCCMContractSuccess(res: any): void {
+        MessageBox.success(res?.value);
+        BusyIndicator.hide();
+    }
+
+    public onCreateCCMContractFail(res: any): void {
+        const message = JSON.parse(res?.responseText)?.error?.message?.value || res?.message
+        MessageBox.error(message);
+        BusyIndicator.hide();
     }
 }
