@@ -97,6 +97,8 @@ entity PriceConditionInvoice: cuid, managed, temporal{
   OfferID                             : String;
   ProductCode                         : Integer;
   ConditionType: String;
+  Currency: String;
+  Region: String;
   CountryCode: String;
   YP00: Double;
   YP04: Double;
@@ -111,6 +113,7 @@ entity PriceConditionInvoice: cuid, managed, temporal{
   RoyalDecreeValue                    : Decimal;
   RoyalDecreeIncl                     : Boolean default false;
   NetPriceWithoutTaxAfterDeductionRD  : Decimal;
+  NetPriceWithoutTaxBeforeDeductionRD : Decimal;
   NetPriceWithTaxAfterDeductionRD     : Decimal;
   NetPriceWithoutTax                  : Decimal;
   NetPriceWithTax                     : Decimal;
@@ -128,6 +131,7 @@ entity PriceConditionRebate: cuid, managed, temporal{
   CountryCode                         : String;
   YP00: Double;
   ConfidentialPrice: Decimal;
+  SettlementDescription: String;
   Tax: Double;
   RoyalDecree                         : String;
   Liquidation                         : String;

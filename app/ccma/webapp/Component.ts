@@ -5,7 +5,6 @@ import JSONModel from "sap/ui/model/json/JSONModel";
 import * as library from "sap/f/library";
 import FlexibleColumnLayoutSemanticHelper from "sap/f/FlexibleColumnLayoutSemanticHelper";
 import ListSelector from "./controller/ListSelector";
-import ErrorHandler from "./controller/ErrorHandler";
 
 const LayoutType = (library as any).LayoutType;
 /**

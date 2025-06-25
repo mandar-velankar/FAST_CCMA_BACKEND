@@ -63,6 +63,7 @@ export default class Detail extends BaseController {
         (this.getModel('appView') as JSONModel).setProperty("/layout", routeParameters.layout)
         this.bindTable();
         this.bindContractInformationForm();
+        this.bindCustomerForm();
     }
 
     /**
@@ -108,9 +109,20 @@ export default class Detail extends BaseController {
         });
     }
 
+    private bindCustomerForm() {
+        const ccmCustomerInfo = this.byId("idCCMCustomers");
+        const path = `/CCMContractView(FastConditionContractsID='${this.id}')`; 
+        ccmCustomerInfo?.bindElement({
+            path: path,
+            parameters: {
+                $$updateGroupId: "CustomerInformationDetail"
+            }
+        });
+    }
+
     public bindTable() {
         const Table = this.byId("idCCMContract") as Table;
-        const ccmCustomerInfo = this.byId("idCCMCustomers");
+        // const ccmCustomerInfo = this.byId("idCCMCustomers");
         // const ccmContractInfo = this.byId("idCCMContractInformation");
         let template;
         const bindingInfo = Table?.getBindingInfo("items");
@@ -143,18 +155,18 @@ export default class Detail extends BaseController {
             },
             events: {
                 dataReceived: (event: any) => {
-                    const data = event.getSource()?.getContexts()[0]?.getObject();
-                    if (data && data.ID) {
-                        ccmCustomerInfo?.bindElement({
-                            path: `/CCMContractView(CCMContractID='${data.ID}')`
-                        });
+                    // const data = event.getSource()?.getContexts()[0]?.getObject();
+                    // if (data && data.ID) {
+                    //     ccmCustomerInfo?.bindElement({
+                    //         path: `/CCMContractView(CCMContractID='${data.ID}')`
+                    //     });
                         // ccmContractInfo?.bindElement({
                         //     path: `/CCMContractView(CCMContractID='${data.CCMContractID}')`
                         // });
                     }
                 }
             }
-        });
+        );
     }
 
     public onClick(event: Event) {

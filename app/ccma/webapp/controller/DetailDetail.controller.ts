@@ -8,6 +8,11 @@ import BusyIndicator from "sap/ui/core/BusyIndicator";
 import ODataModel from "sap/ui/model/odata/v4/ODataModel";
 import MessageBox from "sap/m/MessageBox";
 import { Button$PressEvent } from "sap/ui/commons/Button";
+import FilterOperator from "sap/ui/model/FilterOperator";
+import Filter from "sap/ui/model/Filter";
+import FilterType from "sap/ui/model/FilterType";
+import Sorter from "sap/ui/model/Sorter";
+import Table from "sap/m/Table";
 export type TDetailDetailRouteParameters = {
     id: string;
     productPackId: string;
@@ -54,6 +59,10 @@ export default class Detail extends BaseController {
         this.contractId = args.contractId;
         (this.getModel('appView') as JSONModel).setProperty("/layout", args.layout);
         this.bindContractInformationForm();
+        this.bindPricingForm();
+        this.bindFOCTable()
+        this.bindRebateForm()
+        this.bindRebateDiscountConditionTable();
     }
 
 
@@ -82,15 +91,85 @@ export default class Detail extends BaseController {
         }
     }
 
-    private bindContractInformationForm() {
+    public bindContractInformationForm() {
         const form = this.byId("idDetailDetailContractInformation");
-        // const oContextBinding = this.getView()?.getModel()?.bindContext(`/CCMContractDetailView('${this.contractId}')`); 
-        const path = `/CCMContractDetailView('${this.contractId}')`;
-        // this.getView()?.setBindingContext(oContextBinding?.getBoundContext())
+        const path = `/CCMContractInformationDetailDetailView('${this.contractId}')`;
         form?.bindElement({
             path: path,
             parameters: {
-                $$updateGroupId: "ContractInformation"
+                $$updateGroupId: "contractInformationDetailDetail"
+            }
+        });
+    }
+
+    public bindPricingForm() {
+        const ccmCustomerInfo = this.byId("idNewPricingForm");
+        const path = `/CCMContractPricingFormView(CCMContractID='${this.contractId}')`; 
+        ccmCustomerInfo?.bindElement({
+            path: path,
+            parameters: {
+                $$updateGroupId: "PricingFormDetailDetail"
+            }
+        });
+    }
+
+    public bindRebateForm() {
+        const ccmCustomerInfo = this.byId("idRebateForm");
+        const path = `/CCMContractRebateFormView(CCMContractID='${this.contractId}')`; 
+        ccmCustomerInfo?.bindElement({
+            path: path,
+            parameters: {
+                $$updateGroupId: "RebateFormDetailDetail"
+            }
+        });
+    }
+
+    public bindRebateDiscountConditionTable() {
+        const Table = this.byId("idRebateDisCondtTable") as Table;
+        let template;
+        const bindingInfo = Table?.getBindingInfo("items");
+        template = (bindingInfo as any).template;
+
+
+        const filters = [
+            new Filter({
+                path: 'CCMContractID',
+                operator: FilterOperator.EQ,
+                value1: this.contractId
+            })
+        ];
+
+        Table?.bindItems({
+            path: "/CCMContractRebateDiscountConditionTableView",
+            template: template,
+            filters: filters,
+            parameters: {
+                $$updateGroupId: "RebateDiscountConditionTable"
+            }
+        });
+    }
+
+    public bindFOCTable() {
+        const Table = this.byId("idFocTable") as Table;
+        let template;
+        const bindingInfo = Table?.getBindingInfo("items");
+        template = (bindingInfo as any).template;
+
+
+        const filters = [
+            new Filter({
+                path: 'CCMContractID',
+                operator: FilterOperator.EQ,
+                value1: this.contractId
+            })
+        ];
+
+        Table?.bindItems({
+            path: "/CCMContractFOCTableView",
+            template: template,
+            filters: filters,
+            parameters: {
+                $$updateGroupId: "FOCTable"
             }
         });
     }

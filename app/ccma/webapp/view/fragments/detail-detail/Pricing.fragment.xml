@@ -54,7 +54,7 @@
                                         <form:fields>
                                             <m:Input
                                                 value="{ parts: ['YP00', 'Currency','Region', 'CountryCode'], 
-            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomCurrencyType'}"
+            type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                                 enabled="false"
                                                 visible="{= ${ConditionType} !== 'Rental'}"
                                             />
@@ -67,7 +67,7 @@
                                         <form:fields>
                                             <m:Input
                                                 value="{ parts: ['YP04', 'CountryCode'], 
-            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomPercentageType'}"
+            type: 'com.bayer.tender.ccma.model.datatypes.CustomPercentageType'}"
                                                 enabled="false"
                                                 visible="{= ${YP04} > 0 &amp;&amp; ${ConditionType} !== 'Rental'}"
                                             />
@@ -80,7 +80,7 @@
                                         <form:fields>
                                             <m:Input
                                                 value="{ parts: ['ConfidentialPrice', 'Currency','Region', 'CountryCode'], 
-            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomCurrencyType'}"
+            type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                                 enabled="false"
                                                 visible="{= ${YP04} > 0 &amp;&amp; ${ConditionType} !== 'Rental'}"
                                             />
@@ -93,7 +93,7 @@
                                         <form:fields>
                                             <m:Input
                                                 value="{ parts: ['YD75', 'CountryCode'], 
-            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomPercentageType'}"
+            type: 'com.bayer.tender.ccma.model.datatypes.CustomPercentageType'}"
                                                 enabled="false"
                                                 visible="{= ${ConditionType} === 'PrecioNeto'}"
                                             />
@@ -106,7 +106,7 @@
                                         <form:fields>
                                             <m:Input
                                                 value="{ parts: ['YD02', 'CountryCode'], 
-            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomPercentageType'}"
+            type: 'com.bayer.tender.ccma.model.datatypes.CustomPercentageType'}"
                                                 enabled="false"
                                                 visible="{= ${ConditionType} === 'DescuentoComercial' || ${ConditionType} === 'DescuentoEspecial'}"
                                             />
@@ -119,7 +119,7 @@
                                         <form:fields>
                                             <m:Input
                                                 value="{ parts: ['YD06', 'CountryCode'], 
-            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomPercentageType'}"
+            type: 'com.bayer.tender.ccma.model.datatypes.CustomPercentageType'}"
                                                 enabled="false"
                                                 visible="{= !${RoyalDecreeIncl} &amp;&amp; ${ConditionType} !== 'Rental'}"
                                             />
@@ -169,7 +169,7 @@
                                         <form:fields>
                                             <m:Input
                                                 value="{ parts: ['NetPriceWithoutTaxBeforeDeductionRD', 'Currency','Region', 'CountryCode'], 
-            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomCurrencyType'}"
+            type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                                 enabled="false"
                                                 visible="{= ${ConditionType} === 'PrecioNeto' || ${ConditionType} === 'PVL'}"
                                                 fieldGroupIds="priceInputPrecioNeto"
@@ -183,7 +183,7 @@
                                         <form:fields>
                                             <m:Input
                                                 value="{ parts: ['YP10', 'Currency','Region', 'CountryCode'], 
-            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomCurrencyType'}"
+            type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                                 enabled="false"
                                                 visible="{= ${ConditionType} === 'DescuentoComercial'}"
                                             />
@@ -196,7 +196,7 @@
                                         <form:fields>
                                             <m:Input
                                                 value="{ parts: ['RoyalDecreeValue', 'Currency','Region', 'CountryCode'], 
-            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomCurrencyType'}"
+            type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                                 enabled="false"
                                                 visible="{= !${RoyalDecreeIncl} &amp;&amp; ${ConditionType} !== 'Rental' &amp;&amp; ${ConditionType} !== 'DescuentoEspecial'}"
                                             />
@@ -209,7 +209,7 @@
                                         <form:fields>
                                             <m:Input
                                                 value="{ parts: ['NetPriceWithoutTaxAfterDeductionRD', 'Currency','Region', 'CountryCode'], 
-            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomCurrencyType'}"
+            type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                                 enabled="false"
                                                 visible="{= !${RoyalDecreeIncl} &amp;&amp; (${ConditionType} === 'PrecioNeto' || ${ConditionType} === 'PVL')}"
                                             />
@@ -222,7 +222,7 @@
                                         <form:fields>
                                             <m:Input
                                                 value="{ parts: ['MaximumPrice', 'Currency','Region', 'CountryCode'], 
-            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomCurrencyType'}"
+            type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                                 enabled="false"
                                                 visible="{= ${ConditionType} === 'PrecioNeto' &amp;&amp; ${ui>/Classification} === 'Tender' }"
                                                 fieldGroupIds="priceInputPrecioNeto"
@@ -236,7 +236,7 @@
                                         <form:fields>
                                             <m:Input
                                                 value="{ parts: ['Tax', 'CountryCode'], 
-            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomPercentageType'}"
+            type: 'com.bayer.tender.ccma.model.datatypes.CustomPercentageType'}"
                                                 enabled="false"
                                                 visible="{= ${ConditionType} !== 'Rental'}"
                                             />
@@ -249,7 +249,7 @@
                                         <form:fields>
                                             <m:Input
                                                 value="{ parts: ['NetPriceWithTax', 'Currency','Region', 'CountryCode'], 
-            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomCurrencyType'}"
+            type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                                 enabled="false"
                                                 visible="{= ${ConditionType} !== 'Rental'}"
                                             />
@@ -262,7 +262,7 @@
                                         <form:fields>
                                             <m:Input
                                                 value="{ parts: ['NetPriceWithTaxAfterDeductionRD', 'Currency','Region', 'CountryCode'], 
-            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomCurrencyType'}"
+            type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                                 enabled="false"
                                                 visible="false"
                                             />
@@ -275,7 +275,7 @@
                                         <form:fields>
                                             <m:Input
                                                 value="{ parts: ['RequestedVolume', 'CountryCode'], 
-            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomNumberType'}"
+            type: 'com.bayer.tender.ccma.model.datatypes.CustomNumberType'}"
                                                 enabled="false"
                                                 visible="{= ${ConditionType} === 'Rental'}"
                                             />
@@ -288,7 +288,7 @@
                                         <form:fields>
                                             <m:Input
                                                 value="{ parts: ['RentalPrice', 'Currency','Region', 'CountryCode'], 
-            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomCurrencyType'}"
+            type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                                 enabled="false"
                                                 visible="{= ${ConditionType} === 'Rental'}"
                                             />
@@ -301,7 +301,7 @@
                                         <form:fields>
                                             <m:Input
                                                 value="{ parts: ['MonthlyRentPerUnit', 'Currency','Region', 'CountryCode'], 
-            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomCurrencyType'}"
+            type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                                 enabled="false"
                                                 visible="{= ${ConditionType} === 'Rental'}"
                                             />
@@ -314,7 +314,7 @@
                                         <form:fields>
                                             <m:Input
                                                 value="{ parts: ['AnnualValue', 'Currency','Region', 'CountryCode'], 
-            type: 'com.bayer.tender.statenderapp.model.datatypes.CustomCurrencyType'}"
+            type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                                 enabled="false"
                                                 visible="{= ${ConditionType} === 'Rental'}"
                                             />
@@ -333,7 +333,7 @@
                         id="idFocTable"
                         mode="SingleSelectMaster"
                         selectionChange=".onFocItemSelect"
-                        items="{pa>/priceAgreement/focPriceCondition/freeGoodsOther}"
+                        items="{/CCMContractFOCTableView}"
                     >
                         <m:columns>
                             <m:Column
@@ -413,65 +413,62 @@
                     text="Rappel"
                     key="rappel"
                 >
-                    <m:HBox alignItems="Center">
-                        <m:Label
-                            text="{i18n>Liquidation}"
-                            width="10em"
-                            class="sapUiTinyMarginEnd"
-                        />
-                        <m:Select
-                            selectedKey="{pa>/priceAgreement/rappelPriceCondition/liquidation}"
-                            enabled="false"
-                        >
-                            <m:items>
-                                <core:Item
-                                    key=""
-                                    text=""
-                                />
-                                <core:Item
-                                    key="Monthly"
-                                    text="Monthly"
-                                />
-                                <core:Item
-                                    key="Quarterly"
-                                    text="Quarterly"
-                                />
-                                <core:Item
-                                    key="HalfYearly"
-                                    text="Half Yearly"
-                                />
-                                <core:Item
-                                    key="Annually"
-                                    text="Yearly"
-                                />
-                            </m:items>
-                        </m:Select>
-                    </m:HBox>
-                    <m:HBox alignItems="Center">
-                        <m:Label
-                            text="{i18n>PaymentBackDate}"
-                            width="10em"
-                            class="sapUiTinyMarginEnd"
-                        />
-                        <m:DatePicker
-                            value="{path:'RefundDate', type:'sap.ui.model.odata.type.Date', formatOptions: { style: 'short', pattern: 'yyyy-MM-dd'}}"
-                            valueFormat="yyyy-MM-dd"
-                            displayFormat="short"
-                            enabled="false"
-                            class="sapUiSmallMarginBottom"
-                        />
-                    </m:HBox>
-                    <m:HBox>
-                        <m:Label
-                            text="{i18n>Settlement}"
-                            width="10em"
-                            class="sapUiTinyMarginTop sapUiTinyMarginEnd"
-                        />
-                        <m:Text
-                            text="{pa>/priceAgreement/rappelPriceCondition/settlement/description}"
-                            class="sapUiTinyMarginTop sapUiSmallMarginBottom"
-                        />
-                    </m:HBox>
+                <!-- <m:HBox alignItems="Start" class="sapUiSmallMargin"> -->
+                    <form:Form width="700px"
+                        id="idRebateForm"
+                        editable="true"
+                    >
+                        <form:title>
+                            <core:Title text="{ConditionType}" />
+                        </form:title>
+                        <form:layout>
+                            <form:ResponsiveGridLayout
+                                labelSpanXL="3"
+                                labelSpanL="3"
+                                labelSpanM="3"
+                                labelSpanS="12"
+                                adjustLabelSpan="false"
+                                emptySpanXL="4"
+                                emptySpanL="4"
+                                emptySpanM="4"
+                                emptySpanS="0"
+                                columnsXL="1"
+                                columnsL="1"
+                                columnsM="1"
+                                singleContainerFullSize="false"
+                            />
+                        </form:layout>
+                        <form:formContainers>
+                            <form:FormContainer>
+                                <form:formElements>
+                                    <form:FormElement  label="{i18n>Liquidation}" >
+                                        <form:fields>
+                                            <m:Input value="{Liquidation}" enabled="false"/>
+                                        </form:fields>
+                                    </form:FormElement>
+                                    <form:FormElement  label="{i18n>PaymentBackDate}" >
+                                        <form:fields>
+                                            <m:DatePicker
+                                                id="DP1"
+                                                value="{
+                                                        path:'RefundDate',
+                                                        type:'sap.ui.model.odata.type.Date', 
+                                                        formatOptions: { style: 'short', pattern: 'dd.MM.yyyy',UTC: true}
+                                                }"
+                                                enabled="false"
+                                                class="sapUiSmallMarginBottom"/>
+                                        </form:fields>
+                                    </form:FormElement>
+                                    <form:FormElement  label="{i18n>Settlement}" >
+                                        <form:fields>
+                                            <m:Input value="{SettlementDescription}" enabled="false"/>
+                                        </form:fields>
+                                    </form:FormElement>
+                                </form:formElements>
+                            </form:FormContainer>
+                        </form:formContainers>
+                    </form:Form>
+                <!-- </m:HBox> -->
                     <m:HBox>
                         <m:Label
                             text="{i18n>SettlementCalendar}"
@@ -486,9 +483,9 @@
                         />
                     </m:HBox>
                     <m:Table
-                        id="idRappedlTable"
+                        id="idRebateDisCondtTable"
                         mode="SingleSelectMaster"
-                        items="{pa>/priceAgreement/rappelPriceCondition/discountConditions}"
+                        items="{/CCMContractRappelTableView}"
                     >
                         <m:columns>
                             <m:Column
@@ -552,11 +549,13 @@
                                 <m:cells>
                                     <m:Text text="{Volume}" />
                                     <m:Text
-                                        text="{path:'Discount', type:'.types.percentdecimal'}"
+                                        text="{ parts: ['Discount', 'CountryCode'], 
+            type: 'com.bayer.tender.ccma.model.datatypes.CustomPercentageType'}"
                                     />
                                     <m:Text text="{NetPriceWithoutTax}" />
                                     <m:Text
-                                        text="{path:'Tax', type:'.types.percent'}"
+                                        text="{ parts: ['Tax', 'CountryCode'], 
+            type: 'com.bayer.tender.ccma.model.datatypes.CustomPercentageType'}"
                                     />
                                     <m:Text text="{NetPriceWithTax}" />
                                 </m:cells>

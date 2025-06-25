@@ -42,19 +42,13 @@
 				<form:formElements>
 					<form:FormElement label="{i18n>CustomersFragment.InstituteType}">
 						<form:fields>
-							<Input id="idInstituteType" value="Public" enabled="false"/>
+							<Text id="idInstituteType" text="{InstituteType}"/>
 						</form:fields>
 					</form:FormElement>
 
                     <form:FormElement label="{i18n>CustomersFragment.Institute}" >
 						<form:fields>
-							<Input id="idInstitute" value="KRAKÓW MEDICINA SPECJALISTYCZN" enabled="false"/>
-						</form:fields>
-					</form:FormElement>
-
-                    <form:FormElement label="{i18n>CustomersFragment.Regions}" >
-						<form:fields>
-							<Input id="idRegions" value="KRAKÓW" enabled="false"/>
+							<Text id="idInstitute" text="{InstituteName}"/>
 						</form:fields>
 					</form:FormElement>
 				</form:formElements>
