@@ -53,7 +53,7 @@
                                     >
                                         <form:fields>
                                             <m:Input
-                                                value="{ parts: ['YP00', 'Currency','Region', 'CountryCode'], 
+                                                value="{ parts: ['YP00', 'Currency'], 
             type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                                 enabled="false"
                                                 visible="{= %{ConditionType} !== 'Rental'}"
@@ -79,7 +79,7 @@
                                     >
                                         <form:fields>
                                             <m:Input
-                                                value="{ parts: ['ConfidentialPrice', 'Currency','Region', 'CountryCode'], 
+                                                value="{ parts: ['ConfidentialPrice', 'Currency'], 
             type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                                 enabled="false"
                                                 visible="{= %{YP04} > 0 &amp;&amp; %{ConditionType} !== 'Rental'}"
@@ -166,7 +166,7 @@
                                     >
                                         <form:fields>
                                             <m:Input
-                                                value="{ parts: ['NetPriceWithoutTaxBeforeDeductionRD', 'Currency','Region', 'CountryCode'], 
+                                                value="{ parts: ['NetPriceWithoutTaxBeforeDeductionRD', 'Currency'], 
             type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                                 enabled="false"
                                                 visible="{= %{ConditionType} === 'PrecioNeto' || %{ConditionType} === 'PVL'}"
@@ -180,7 +180,7 @@
                                     >
                                         <form:fields>
                                             <m:Input
-                                                value="{ parts: ['YP10', 'Currency','Region', 'CountryCode'], 
+                                                value="{ parts: ['YP10', 'Currency'], 
             type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                                 enabled="false"
                                                 visible="{= %{ConditionType} === 'DescuentoComercial'}"
@@ -193,7 +193,7 @@
                                     >
                                         <form:fields>
                                             <m:Input
-                                                value="{ parts: ['RoyalDecreeValue', 'Currency','Region', 'CountryCode'], 
+                                                value="{ parts: ['RoyalDecreeValue', 'Currency'], 
             type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                                 enabled="false"
                                                 visible="{= !%{RoyalDecreeIncl} &amp;&amp; %{ConditionType} !== 'Rental' &amp;&amp; %{ConditionType} !== 'DescuentoEspecial'}"
@@ -206,7 +206,7 @@
                                     >
                                         <form:fields>
                                             <m:Input
-                                                value="{ parts: ['NetPriceWithoutTaxAfterDeductionRD', 'Currency','Region', 'CountryCode'], 
+                                                value="{ parts: ['NetPriceWithoutTaxAfterDeductionRD', 'Currency'], 
             type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                                 enabled="false"
                                                 visible="{= !%{RoyalDecreeIncl} &amp;&amp; (%{ConditionType} === 'PrecioNeto' || %{ConditionType} === 'PVL')}"
@@ -219,7 +219,7 @@
                                     >
                                         <form:fields>
                                             <m:Input
-                                                value="{ parts: ['MaximumPrice', 'Currency','Region', 'CountryCode'], 
+                                                value="{ parts: ['MaximumPrice', 'Currency'], 
             type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                                 enabled="false"
                                                 visible="{= %{ConditionType} === 'PrecioNeto' &amp;&amp; %{ui>/Classification} === 'Tender' }"
@@ -246,7 +246,7 @@
                                     >
                                         <form:fields>
                                             <m:Input
-                                                value="{ parts: ['NetPriceWithTax', 'Currency','Region', 'CountryCode'], 
+                                                value="{ parts: ['NetPriceWithTax', 'Currency'], 
             type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                                 enabled="false"
                                                 visible="{= %{ConditionType} !== 'Rental'}"
@@ -259,7 +259,7 @@
                                     >
                                         <form:fields>
                                             <m:Input
-                                                value="{ parts: ['NetPriceWithTaxAfterDeductionRD', 'Currency','Region', 'CountryCode'], 
+                                                value="{ parts: ['NetPriceWithTaxAfterDeductionRD', 'Currency'], 
             type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                                 enabled="false"
                                                 visible="false"
@@ -285,7 +285,7 @@
                                     >
                                         <form:fields>
                                             <m:Input
-                                                value="{ parts: ['RentalPrice', 'Currency','Region', 'CountryCode'], 
+                                                value="{ parts: ['RentalPrice', 'Currency'], 
             type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                                 enabled="false"
                                                 visible="{= %{ConditionType} === 'Rental'}"
@@ -298,7 +298,7 @@
                                     >
                                         <form:fields>
                                             <m:Input
-                                                value="{ parts: ['MonthlyRentPerUnit', 'Currency','Region', 'CountryCode'], 
+                                                value="{ parts: ['MonthlyRentPerUnit', 'Currency'], 
             type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                                 enabled="false"
                                                 visible="{= %{ConditionType} === 'Rental'}"
@@ -311,7 +311,7 @@
                                     >
                                         <form:fields>
                                             <m:Input
-                                                value="{ parts: ['AnnualValue', 'Currency','Region', 'CountryCode'], 
+                                                value="{ parts: ['AnnualValue', 'Currency'], 
             type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                                 enabled="false"
                                                 visible="{= %{ConditionType} === 'Rental'}"

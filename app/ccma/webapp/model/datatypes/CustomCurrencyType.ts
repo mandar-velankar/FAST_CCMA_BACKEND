@@ -12,13 +12,12 @@ export default class CustomCurrencyType extends CompositeType {
             return "";
         }
 
-        const minFractionDigits = parts[3] === 'ES' ? 6 : 2;
+        const minFractionDigits = 6;
         const maxFractionDigits = minFractionDigits;
 
         const oCurrencyFormat = NumberFormat.getCurrencyInstance({
-            minFractionDigits,
-            maxFractionDigits,
-            groupingEnabled: true,
+            minFractionDigits: 6,
+            maxFractionDigits: 6,
             groupingSeparator: ",",
             decimalSeparator: "."
         });
@@ -26,11 +25,6 @@ export default class CustomCurrencyType extends CompositeType {
         const raw = parts[0] ?? "0";
         const cleaned = typeof raw === 'string' ? raw.replace(/,/g, '') : raw;
         const num = typeof cleaned === 'string' ? Number(cleaned) : cleaned;
-
-        if (isNaN(num)) {
-            console.warn("NaN encountered:", raw, cleaned, parts);
-            return `${parts[1] ?? ''}`;
-        }
 
         return `${oCurrencyFormat.format(num)} ${parts[1] ?? ''}`;
     }
