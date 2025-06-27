@@ -7,6 +7,7 @@ import ResourceModel from "sap/ui/model/resource/ResourceModel";
 import ResourceBundle from "sap/base/i18n/ResourceBundle";
 import * as formatter from "../model/formatter"; 
 import CustomPercentageType from "../model/datatypes/CustomPercentageType";
+import PercentageType from "../model/datatypes/PercentageType";
 import CustomNumberType from "../model/datatypes/CustomNumberType";
 import CustomDecimalType from "../model/datatypes/CustomDecimalType";
 import CustomCurrencyType from "../model/datatypes/CustomCurrencyType";
@@ -35,7 +36,7 @@ export default class BaseController extends Controller {
 	public formatter = formatter;
 
 	public customTypes: {
-			percentage: CustomPercentageType,
+			percentage: PercentageType,
 			number: CustomNumberType,
 			decimal: CustomDecimalType,
 			currency: CustomCurrencyType,

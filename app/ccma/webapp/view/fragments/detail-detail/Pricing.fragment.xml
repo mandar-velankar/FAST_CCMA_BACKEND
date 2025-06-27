@@ -66,8 +66,8 @@
                                     >
                                         <form:fields>
                                             <m:Input
-                                                value="{ parts: ['YP04', 'CountryCode'], 
-            type: 'com.bayer.tender.ccma.model.datatypes.CustomPercentageType'}"
+                                                value="{path: 'YP04', 
+            type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'}"
                                                 enabled="false"
                                                 visible="{= %{YP04} > 0 &amp;&amp; %{ConditionType} !== 'Rental'}"
                                             />
@@ -92,8 +92,8 @@
                                     >
                                         <form:fields>
                                             <m:Input
-                                                value="{ parts: ['YD75', 'CountryCode'], 
-            type: 'com.bayer.tender.ccma.model.datatypes.CustomPercentageType'}"
+                                                value="{ path: 'YD75', 
+            type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'}"
                                                 enabled="false"
                                                 visible="{= %{ConditionType} === 'PrecioNeto'}"
                                             />
@@ -105,8 +105,8 @@
                                     >
                                         <form:fields>
                                             <m:Input
-                                                value="{ parts: ['YD02', 'CountryCode'], 
-            type: 'com.bayer.tender.ccma.model.datatypes.CustomPercentageType'}"
+                                                value="{ path: 'YD02', 
+            type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'}"
                                                 enabled="false"
                                                 visible="{= %{ConditionType} === 'DescuentoComercial' || %{ConditionType} === 'DescuentoEspecial'}"
                                             />
@@ -118,8 +118,8 @@
                                     >
                                         <form:fields>
                                             <m:Input
-                                                value="{ parts: ['YD06', 'CountryCode'], 
-            type: 'com.bayer.tender.ccma.model.datatypes.CustomPercentageType'}"
+                                                value="{ path: 'YD06', 
+            type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'}"
                                                 enabled="false"
                                                 visible="{= !%{RoyalDecreeIncl} &amp;&amp; %{ConditionType} !== 'Rental'}"
                                             />
@@ -233,8 +233,8 @@
                                     >
                                         <form:fields>
                                             <m:Input
-                                                value="{ parts: ['Tax', 'CountryCode'], 
-            type: 'com.bayer.tender.ccma.model.datatypes.CustomPercentageType'}"
+                                                value="{ path: 'Tax', 
+            type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'}"
                                                 enabled="false"
                                                 visible="{= %{ConditionType} !== 'Rental'}"
                                             />
@@ -542,13 +542,13 @@
                                 <m:cells>
                                     <m:Text text="{Volume}" />
                                     <m:Text
-                                        text="{ parts: ['Discount', 'CountryCode'], 
-            type: 'com.bayer.tender.ccma.model.datatypes.CustomPercentageType'}"
+                                        text="{ path: 'Discount', 
+            type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'}"
                                     />
                                     <m:Text text="{NetPriceWithoutTax}" />
                                     <m:Text
-                                        text="{ parts: ['Tax', 'CountryCode'], 
-            type: 'com.bayer.tender.ccma.model.datatypes.CustomPercentageType'}"
+                                        text="{ path: 'Tax', 
+            type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'}"
                                     />
                                     <m:Text text="{NetPriceWithTax}" />
                                 </m:cells>
