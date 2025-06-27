@@ -11,40 +11,34 @@ export default class CustomCurrencyType extends CompositeType {
         if (!parts) {
             return "";
         }
-        const countryGroupingSeparators: Record<string, string> = {
-            'NL': '.',
-            'PL': ' '
-        };
 
-        const countryDecimalSeparators: Record<string, string> = {
-            'NL': ',',
-            'PL': ','
-        };
-
-        const minFractionDigits = parts[3] === 'ES' ? 6 : parts[3]?.includes('HM') ? 4 : parts[2] === 'MEA' ? 3 : 2;
+        const minFractionDigits = parts[3] === 'ES' ? 6 : 2;
         const maxFractionDigits = minFractionDigits;
-        const groupingSeparator = countryGroupingSeparators[parts[3]] ? countryGroupingSeparators[parts[3]] : ",";
-        const decimalSeparator = countryDecimalSeparators[parts[3]] ? countryDecimalSeparators[parts[3]] : ".";
 
         const oCurrencyFormat = NumberFormat.getCurrencyInstance({
             minFractionDigits,
             maxFractionDigits,
-            groupingSeparator,
-            decimalSeparator
+            groupingEnabled: true,
+            groupingSeparator: ",",
+            decimalSeparator: "."
         });
-        return `${oCurrencyFormat.format(Number(parts[0] ?? 0))} ${parts[1] ?? ''}`;
+
+        const raw = parts[0] ?? "0";
+        const cleaned = typeof raw === 'string' ? raw.replace(/,/g, '') : raw;
+        const num = typeof cleaned === 'string' ? Number(cleaned) : cleaned;
+
+        if (isNaN(num)) {
+            console.warn("NaN encountered:", raw, cleaned, parts);
+            return `${parts[1] ?? ''}`;
+        }
+
+        return `${oCurrencyFormat.format(num)} ${parts[1] ?? ''}`;
     }
 
-    parseValue(oValue: string): number | null {
+    parseValue(oValue: any): any {
         const oCurrencyFormat = NumberFormat.getCurrencyInstance({
-            // minFractionDigits: 2,
-            // maxFractionDigits: 2
         });
-        const parsed = oCurrencyFormat.parse(oValue);
-        if (typeof parsed === 'number') return parsed;
-        if (typeof parsed === 'string') return Number(parsed);
-        if (Array.isArray(parsed) && typeof parsed[0] === 'number') return parsed[0];
-        return null;
+        return oCurrencyFormat.parse(oValue);
     }
 
     validateValue(oValue: any): void {

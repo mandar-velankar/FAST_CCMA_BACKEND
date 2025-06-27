@@ -252,8 +252,20 @@ export default class Detail extends BaseController {
     }
 
     public onCreateCCMContractFail(res: any): void {
-        const message = JSON.parse(res?.responseText)?.error?.message?.value || res?.message
-        MessageBox.error(message);
-        BusyIndicator.hide();
+    BusyIndicator.hide();
+
+    let message = "An unexpected error occurred. Please contact SAP support.";
+
+    if (res?.responseText) {
+        try {
+            const response = JSON.parse(res.responseText);
+            message = response.error?.message?.value || response.message || message;
+        } catch {
+        }
+    } else if (res?.message) {
+        message = res.message;
     }
+
+    MessageBox.error(message);
+}
 }

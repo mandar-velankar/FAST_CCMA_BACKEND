@@ -80,7 +80,8 @@
           "operationMode": "Server",
           "autoExpandSelect": true,
           "earlyRequests": true,
-          "synchronizationMode": "None"
+          "synchronizationMode": "None",
+          "groupId": "$direct"
         }
       },
       "access": {
