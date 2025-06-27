@@ -60,13 +60,14 @@ module.exports = (srv) => {
                 console.error("SAP Error Response:", error.response.data);
                 const sapError = error.response.data;
 
-                userMessage = sapError?.error?.message?.value ||
+                userMessage =
+                    sapError?.error?.message?.value ||
                     sapError?.error?.innererror?.errordetails?.[0]?.message ||
                     sapError?.fault?.faultstring ||
+                    sapError?.Exception_Details?.Exception_Message ||  
                     "An error occurred while communicating with SAP.";
 
                 userMessage = `SAP Error: ${userMessage}. Please contact the SAP support team.`;
-
                 statusCode = error.response.status || 502;
             }
             else if (error.code && error.message) {
@@ -139,85 +140,98 @@ module.exports = (srv) => {
         throw Error("Missing OAUTH config parameters");
     };
 
-    function getValueByPath(obj, path) {
-        return path.split('.').reduce((acc, key) => acc?.[key], obj);
-    }
-
-    function createNestedObject(path, value) {
+    function setNestedValue(obj, path, value) {
         const keys = path.split('.');
-        return keys.reduceRight((acc, key) => ({ [key]: acc }), value);
-    }
+        let current = obj;
 
-    function deepMerge(target, source) {
-        for (const key of Object.keys(source)) {
-            if (
-                source[key] instanceof Object &&
-                key in target &&
-                target[key] instanceof Object &&
-                !Array.isArray(source[key]) &&
-                !Array.isArray(target[key])
-            ) {
-                deepMerge(target[key], source[key]);
+        keys.forEach((key, index) => {
+            if (index === keys.length - 1) {
+                current[key] = value;
             } else {
-                target[key] = source[key];
+                if (!current[key]) current[key] = {};
+                current = current[key];
             }
-        }
-        return target;
+        });
     }
 
     function buildPayloadFromMappings(sourceData, apiBodyMappings) {
         const finalResult = {};
-        const sourceRow = sourceData[0]; // Assuming single row for now
-        const salesGroupMap = {
-            Pharma: 'PH',
-            Radiology: 'RD'
-        };
-        const conditionType = {
+
+        const salesGroupMap = { Pharma: 'PH', Radiology: 'RD' };
+        const conditionTypeMap = {
             DescuentoComercial: 'YD02',
-            PrecioNeto: 'YP10'
-        }
-        for (const { Source, Target } of apiBodyMappings) {
-            let value;
+            PrecioNeto: 'YP10',
+        };
 
-            // If source is dynamic (from ContractPayloadView), fetch from data
-            if (Source.startsWith('ContractPayloadView.')) {
-                const field = Source.replace('ContractPayloadView.', '');
-                value = sourceRow[field];
-                if (
-                    field === 'Division' &&
-                    Target === 'ConditionContract.ConditionContractType.SalesGroup'
-                ) {
-                    value = salesGroupMap[value] || value;
-                }
-                if (
-                    field === 'ConditionType' &&
-                    Target === 'ConditionContract.ConditionContractType._CndnContrCndnRecord.CndnContrConditionRecordType.ConditionType'
-                ) {
-                    value = conditionType[value] || value;
-                }
-                if (Target.includes('CndnContrConditionRecordType')) {
-                    const lastKey = Target.split('.').pop();
-                    if (lastKey === 'ConditionQuantity') {
-                        value = Number(value) || 0;
-                    } else if (
-                        lastKey === 'ConditionRateAmount' ||
-                        lastKey === 'ConditionRateRatio'
-                    ) {
-                        value = Number(value) || 0;
-                    }
-                }
-                if (field === 'Customer' && Target.includes('BusVolSelectionCriteriaType.Customer')) {
-                    value = String(value);
-                }
+        const staticMappings = apiBodyMappings.filter(m => !m.Source.startsWith('ContractPayloadView.'));
+        const dynamicMappings = apiBodyMappings.filter(m => m.Source.startsWith('ContractPayloadView.'));
+
+        const staticConditionRecord = {};
+        const staticBusVolSelection = {};
+
+        for (const { Source, Target } of staticMappings) {
+            if (Target.includes('CndnContrConditionRecordType')) {
+                const key = Target.split('.').pop();
+                staticConditionRecord[key] = Source;
+            } else if (Target.includes('BusVolSelectionCriteriaType')) {
+                const key = Target.split('.').pop();
+                staticBusVolSelection[key] = Source;
             } else {
-                // Otherwise it's a static value like "YP01" or "0"
-                value = Source;
+                setNestedValue(finalResult, Target, Source);
+            }
+        }
+
+        const conditionRecords = [];
+        const busVolSelectionCriteria = [];
+
+        for (const row of sourceData) {
+            const conditionRecord = { ...staticConditionRecord };
+            const busVolSelection = { ...staticBusVolSelection };
+
+            for (const { Source, Target } of dynamicMappings) {
+                const field = Source.replace('ContractPayloadView.', '');
+                let value = row[field];
+
+                if (value === undefined || value === null) continue;
+
+                if (field === 'Division' && Target === 'ConditionContract.ConditionContractType.SalesGroup') {
+                    value = salesGroupMap[value] || value;
+                    setNestedValue(finalResult, Target, value);
+                    continue;
+                }
+
+                if (field === 'ConditionType' && Target.includes('ConditionType')) {
+                    value = conditionTypeMap[value] || value;
+                }
+
+                const pathSegments = Target.split('.');
+
+                if (Target.includes('CndnContrConditionRecordType')) {
+                    const key = pathSegments[pathSegments.length - 1];
+                    conditionRecord[key] = value;
+                } else if (Target.includes('BusVolSelectionCriteriaType')) {
+                    const key = pathSegments[pathSegments.length - 1];
+                    busVolSelection[key] = value;
+                } else {
+                    setNestedValue(finalResult, Target, value);
+                }
             }
 
-            if (value !== undefined) {
-                const nestedObject = createNestedObject(Target, value);
-                deepMerge(finalResult, nestedObject);
+            if (Object.keys(conditionRecord).length > 0) {
+                conditionRecords.push({ CndnContrConditionRecordType: conditionRecord });
             }
+
+            if (Object.keys(busVolSelection).length > 0) {
+                busVolSelectionCriteria.push({ BusVolSelectionCriteriaType: busVolSelection });
+            }
+        }
+
+        if (conditionRecords.length > 0) {
+            setNestedValue(finalResult, 'ConditionContract.ConditionContractType._CndnContrCndnRecord', conditionRecords);
+        }
+
+        if (busVolSelectionCriteria.length > 0) {
+            setNestedValue(finalResult, 'ConditionContract.ConditionContractType._CndnContrBusVolSelCriteria', busVolSelectionCriteria);
         }
 
         return finalResult;
