@@ -68,6 +68,8 @@ service ConditionContract {
                 fcc.CustomerID                                                  as Customer,
                 fcc.Division,
                 fcc.CCMContract.CCMMaterial.PriceConditionInvoice.ConditionType as ConditionType,
+                fcc.CCMContract.CCMMaterial.PriceConditionInvoice.YD06,
+                fcc.CCMContract.CCMMaterial.PriceConditionInvoice.YP10,
                 fcc.CCMContract.CCMContractStartDate                            as ConditionValidityStartDate,
                 fcc.CCMContract.CCMContractEndDate                              as ConditionValidityEndDate,
                 fcc.CCMContract.OfferPrice                                      as ConditionRateAmount,

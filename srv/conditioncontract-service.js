@@ -48,7 +48,7 @@ module.exports = (srv) => {
             const response = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
             const contractNumber = response?.data?.ConditionContract?.ConditionContractType?.ConditionContract;
             if (contractNumber) {
-                await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, Synchronized: true }).where({ID: CCMContractID}));
+                await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, Synchronized: true }).where({ ID: CCMContractID }));
             }
             console.log("Response from SAP:", response.data);
             return req.reply("CCM Contract " + contractNumber + " created successfully into SAP");
@@ -64,7 +64,7 @@ module.exports = (srv) => {
                     sapError?.error?.message?.value ||
                     sapError?.error?.innererror?.errordetails?.[0]?.message ||
                     sapError?.fault?.faultstring ||
-                    sapError?.Exception_Details?.Exception_Message ||  
+                    sapError?.Exception_Details?.Exception_Message ||
                     "An error occurred while communicating with SAP.";
 
                 userMessage = `SAP Error: ${userMessage}. Please contact the SAP support team.`;
@@ -170,11 +170,11 @@ module.exports = (srv) => {
         const staticBusVolSelection = {};
 
         for (const { Source, Target } of staticMappings) {
+            const key = Target.split('.').pop();
+
             if (Target.includes('CndnContrConditionRecordType')) {
-                const key = Target.split('.').pop();
                 staticConditionRecord[key] = Source;
             } else if (Target.includes('BusVolSelectionCriteriaType')) {
-                const key = Target.split('.').pop();
                 staticBusVolSelection[key] = Source;
             } else {
                 setNestedValue(finalResult, Target, Source);
@@ -204,13 +204,17 @@ module.exports = (srv) => {
                     value = conditionTypeMap[value] || value;
                 }
 
+                // Apply transformation only for DescuentoComercial's ConditionRateRatio
+                if (field === 'DescuentoComercial' && Target.endsWith('ConditionRateRatio')) {
+                    value = value * 100;
+                }
+
                 const pathSegments = Target.split('.');
+                const key = pathSegments[pathSegments.length - 1];
 
                 if (Target.includes('CndnContrConditionRecordType')) {
-                    const key = pathSegments[pathSegments.length - 1];
                     conditionRecord[key] = value;
                 } else if (Target.includes('BusVolSelectionCriteriaType')) {
-                    const key = pathSegments[pathSegments.length - 1];
                     busVolSelection[key] = value;
                 } else {
                     setNestedValue(finalResult, Target, value);
@@ -224,6 +228,29 @@ module.exports = (srv) => {
             if (Object.keys(busVolSelection).length > 0) {
                 busVolSelectionCriteria.push({ BusVolSelectionCriteriaType: busVolSelection });
             }
+
+            // === Handle RoyalDecree as an additional condition record ===
+            if (row.RoyalDecree !== undefined && row.RoyalDecree !== null) {
+                const royalDecreeRecord = { ...staticConditionRecord };
+
+                for (const { Source, Target } of dynamicMappings) {
+                    const field = Source.replace('ContractPayloadView.', '');
+                    if (!Target.includes('CndnContrConditionRecordType')) continue;
+
+                    if (field === 'RoyalDecree') {
+                        royalDecreeRecord['ConditionRateRatio'] = row.RoyalDecree * 100;
+                        continue;
+                    }
+
+                    if (row[field] !== undefined && row[field] !== null) {
+                        const key = Target.split('.').pop();
+                        royalDecreeRecord[key] = row[field];
+                    }
+                }
+
+                royalDecreeRecord['ConditionType'] = 'YD06';
+                conditionRecords.push({ CndnContrConditionRecordType: royalDecreeRecord });
+            }
         }
 
         if (conditionRecords.length > 0) {
@@ -236,6 +263,8 @@ module.exports = (srv) => {
 
         return finalResult;
     }
+
+
 
     srv.before(['UPDATE', 'CREATE'], "CCMContractInformationDetailView", async (req) => {
         const contractStartDateExists = Object.prototype.hasOwnProperty.call(req.data, "ContractStartDate");
