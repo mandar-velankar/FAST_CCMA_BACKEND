@@ -222,6 +222,8 @@ module.exports = (srv) => {
                 if (Target.includes('CndnContrConditionRecordType')) {
                     if (conditionTypeValue === 'YP10') {
                         conditionRecord['ConditionCalculationType'] = 'C';
+                        conditionRecord['ConditionQuantityUnitISOCode'] = 'PCE'
+                        conditionRecord['ConditionQuantity'] = row.RequestedVolume || 1;
                     }
                     conditionRecord[key] = value;
                 } else if (Target.includes('BusVolSelectionCriteriaType')) {

@@ -106,6 +106,7 @@ service ConditionContract {
             pci.YD02,
             pci.YD06,
             pci.YP10,
+            pci.RequestedVolume,
             ccm.CCMContractStartDate as ConditionValidityStartDate,
             ccm.CCMContractEndDate as ConditionValidityEndDate,
             ccm.OfferPrice as ConditionRateAmount,
