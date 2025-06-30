@@ -144,7 +144,7 @@
                         <Text text="{hasFOC}" />
                         <Text text="{NewMaterialNumber}" />
                         <Text text="{ContractNumber}" />
-                        <Text text="{ContractNumber}" />
+                        <Text text="{PreviousContractNumber}" />
                         <Text text="{InstituteName}" visible="false"/>
                         <Text text="{InstituteType}" visible="false"/>
                         <Text text="{ProductCode}" visible="false"/>

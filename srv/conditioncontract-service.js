@@ -43,11 +43,15 @@ module.exports = (srv) => {
         try {
             const { FastCCMContractId, CCMContractID, ProductCode } = req.data;
             const sourceData = await tx.run(SELECT.from(ContractPayloadView).where({
-                FastConditionContractID: FastCCMContractId
+                CCMContractID: CCMContractID, FastConditionContractID: FastCCMContractId, ProductCode: ProductCode
             }));
             const response = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
             const contractNumber = response?.data?.ConditionContract?.ConditionContractType?.ConditionContract;
             if (contractNumber) {
+                const contractInfo = await tx.run(SELECT.one.from(CCMContract).where({ ID: CCMContractID, ContractNumber: {"!=": null} }));
+                if(contractInfo){
+                    await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber}).where({ ID: CCMContractID }));
+                }
                 await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, Synchronized: true }).where({ ID: CCMContractID }));
             }
             console.log("Response from SAP:", response.data);
@@ -188,6 +192,8 @@ module.exports = (srv) => {
             const conditionRecord = { ...staticConditionRecord };
             const busVolSelection = { ...staticBusVolSelection };
 
+            let conditionTypeValue = null;
+
             for (const { Source, Target } of dynamicMappings) {
                 const field = Source.replace('ContractPayloadView.', '');
                 let value = row[field];
@@ -201,11 +207,12 @@ module.exports = (srv) => {
                 }
 
                 if (field === 'ConditionType' && Target.includes('ConditionType')) {
-                    value = conditionTypeMap[value] || value;
+                    conditionTypeValue = conditionTypeMap[value] || value;
+                    value = conditionTypeValue;
                 }
 
                 // Apply transformation only for DescuentoComercial's ConditionRateRatio
-                if (field === 'DescuentoComercial' && Target.endsWith('ConditionRateRatio')) {
+                if (field === 'YD02' && Target.endsWith('ConditionRateRatio')) {
                     value = value * 100;
                 }
 
@@ -213,6 +220,9 @@ module.exports = (srv) => {
                 const key = pathSegments[pathSegments.length - 1];
 
                 if (Target.includes('CndnContrConditionRecordType')) {
+                    if (conditionTypeValue === 'YP10') {
+                        conditionRecord['ConditionCalculationType'] = 'C';
+                    }
                     conditionRecord[key] = value;
                 } else if (Target.includes('BusVolSelectionCriteriaType')) {
                     busVolSelection[key] = value;
@@ -222,6 +232,10 @@ module.exports = (srv) => {
             }
 
             if (Object.keys(conditionRecord).length > 0) {
+                if (conditionRecord.ConditionType === 'YP10') {
+                    delete conditionRecord.ConditionRateRatioUnit;
+                    delete conditionRecord.ConditionRateRatioUnitISOCode;
+                }
                 conditionRecords.push({ CndnContrConditionRecordType: conditionRecord });
             }
 
@@ -230,17 +244,14 @@ module.exports = (srv) => {
             }
 
             // === Handle RoyalDecree as an additional condition record ===
-            if (row.RoyalDecree !== undefined && row.RoyalDecree !== null) {
+            if (row.YD06 !== undefined && row.YD06 !== null) {
                 const royalDecreeRecord = { ...staticConditionRecord };
 
                 for (const { Source, Target } of dynamicMappings) {
                     const field = Source.replace('ContractPayloadView.', '');
                     if (!Target.includes('CndnContrConditionRecordType')) continue;
 
-                    if (field === 'RoyalDecree') {
-                        royalDecreeRecord['ConditionRateRatio'] = row.RoyalDecree * 100;
-                        continue;
-                    }
+                    royalDecreeRecord['ConditionRateRatio'] = row.YD06 * 100;
 
                     if (row[field] !== undefined && row[field] !== null) {
                         const key = Target.split('.').pop();

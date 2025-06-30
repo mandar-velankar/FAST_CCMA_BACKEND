@@ -157,13 +157,13 @@ export default class Master extends BaseController {
 				caseSensitive: false
 			}));
 
-			if (/^\d+$/.test(sSearch)) {
-				orFilters.push(new Filter({
-					path: "CustomerCode",
-					operator: FilterOperator.EQ,
-					value1: parseInt(sSearch)
-				}));
-			}
+			orFilters.push(new Filter({
+				path: "CustomerID",
+				operator: FilterOperator.EQ,
+				value1: sSearch,
+				caseSensitive: false
+			}));
+
 
 			// Date filters
 			if (isNaN(Number(sSearch))) {
@@ -244,7 +244,7 @@ export default class Master extends BaseController {
             "Classification": "Classification",
             "Reference": "Reference",
             "Division": "Division",
-            "Customer Code": "CustomerCode",
+            "Customer Code": "CustomerID",
             "Institute": "InstituteName",
             "Effective Date": "ContractStartDate",
             "Expiry Date": "ContractEndDate"
@@ -274,7 +274,7 @@ export default class Master extends BaseController {
             "Classification": "Classification",
             "Reference": "Reference",
             "Division": "Division",
-            "Customer Code": "CustomerCode",
+            "Customer Code": "CustomerID",
             "Institute": "InstituteName",
             "Effective Date": "ContractStartDate",
             "Expiry Date": "ContractEndDate"
@@ -310,7 +310,7 @@ export default class Master extends BaseController {
             "Classification": "Classification",
             "Reference": "Reference",
             "Division": "Division",
-            "Customer Code": "CustomerCode",
+            "Customer Code": "CustomerID",
             "Institute": "InstituteName",
             "Effective Date": "ContractStartDate",
             "Expiry Date": "ContractEndDate"
