@@ -113,10 +113,13 @@ service ConditionContract {
             mat.MaterialNumber as Product
     }
 
+
 entity CCMContractPricingFormView                  as
     select from CCMContract as ccmcontract
+    inner join FastConditionContracts as fcc
+        on fcc.ID = ccmcontract.FastConditionContracts.ID
     inner join PriceConditionInvoice as invoice
-        on ccmcontract.ProductCode = invoice.ProductCode
+        on ccmcontract.ProductCode = invoice.ProductCode and fcc.OfferID = invoice.OfferID
     {
         key ccmcontract.ID as CCMContractID,
             invoice.ConditionType,
