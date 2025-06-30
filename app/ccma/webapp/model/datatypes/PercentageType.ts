@@ -7,6 +7,9 @@ const oPercentFormat = NumberFormat.getPercentInstance({
     maxFractionDigits: 2
 });
 
+/**
+ * @namespace com.bayer.tender.ccma.model.datatypes
+ */
 export default class PercentageType extends SimpleType {
     constructor() {
         super();

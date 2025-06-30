@@ -2,6 +2,9 @@ import SimpleType from "sap/ui/model/SimpleType";
 import ValidateException from "sap/ui/model/ValidateException";
 import NumberFormat from "sap/ui/core/format/NumberFormat";
 
+/**
+ * @namespace com.bayer.tender.ccma.model.datatypes
+ */
 export default class CustomDecimalType extends SimpleType {
     private _oNumberFormat = NumberFormat.getFloatInstance({
         maxFractionDigits: 2,

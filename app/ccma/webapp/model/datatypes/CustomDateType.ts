@@ -2,6 +2,9 @@ import CompositeType from "sap/ui/model/CompositeType";
 import ValidateException from "sap/ui/model/ValidateException";
 import DateFormat from "sap/ui/core/format/DateFormat";
 
+/**
+ * @namespace com.bayer.tender.ccma.model.datatypes
+ */
 export default class CustomDateType extends CompositeType {
     constructor() {
         super();

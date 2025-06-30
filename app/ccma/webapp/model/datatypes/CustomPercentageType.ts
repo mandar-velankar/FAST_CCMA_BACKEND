@@ -2,6 +2,9 @@ import CompositeType from "sap/ui/model/CompositeType";
 import ValidateException from "sap/ui/model/ValidateException";
 import NumberFormat from "sap/ui/core/format/NumberFormat";
 
+/**
+ * @namespace com.bayer.tender.ccma.model.datatypes
+ */
 export default class CustomPercentageType extends CompositeType {
     constructor() {
         super();
