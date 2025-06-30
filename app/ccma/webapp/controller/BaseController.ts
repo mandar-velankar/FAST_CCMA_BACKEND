@@ -35,7 +35,7 @@ export default class BaseController extends Controller {
 
 	public formatter = formatter;
 
-	public customTypes: {
+	public customTypes = {
 			percentage: PercentageType,
 			number: CustomNumberType,
 			decimal: CustomDecimalType,
