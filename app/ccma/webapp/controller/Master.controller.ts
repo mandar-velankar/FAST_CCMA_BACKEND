@@ -130,7 +130,7 @@ export default class Master extends BaseController {
 
 
 			orFilters.push(new Filter({
-				path: "Classification",
+				path: "ContractType",
 				operator: FilterOperator.Contains,
 				value1: sSearch,
 				caseSensitive: false
@@ -157,13 +157,13 @@ export default class Master extends BaseController {
 				caseSensitive: false
 			}));
 
-			orFilters.push(new Filter({
-				path: "CustomerID",
-				operator: FilterOperator.EQ,
-				value1: sSearch,
-				caseSensitive: false
-			}));
-
+			if (/^\d+$/.test(sSearch)) {
+				orFilters.push(new Filter({
+					path: "CustomerID",
+					operator: FilterOperator.EQ,
+					value1: parseInt(sSearch)
+				}));
+			}
 
 			// Date filters
 			if (isNaN(Number(sSearch))) {
@@ -241,7 +241,7 @@ export default class Master extends BaseController {
         const sorters = {
             "ID": "OfferID",
             "Owner": "Owner",
-            "Classification": "Classification",
+            "Classification": "ContractType",
             "Reference": "Reference",
             "Division": "Division",
             "Customer Code": "CustomerID",
@@ -271,7 +271,7 @@ export default class Master extends BaseController {
         const sorters = {
             "ID": "OfferID",
             "Owner": "Owner",
-            "Classification": "Classification",
+            "Classification": "ContractType",
             "Reference": "Reference",
             "Division": "Division",
             "Customer Code": "CustomerID",
@@ -307,7 +307,7 @@ export default class Master extends BaseController {
 		const filters = {
             "ID": "OfferID",
             "Owner": "Owner",
-            "Classification": "Classification",
+            "Classification": "ContractType",
             "Reference": "Reference",
             "Division": "Division",
             "Customer Code": "CustomerID",
@@ -364,7 +364,7 @@ export default class Master extends BaseController {
 			//set default filtering
 			this.setFilter();
 			//this.oProductsTable.getBinding("items").filter(aKeepFilters, "Application");
-			table?.getModel()?.refresh(true);
+			table?.getModel()?.refresh();
 			//update filter bar
 			// this.byId("vsdFilterBar").setVisible(false);
 		}
