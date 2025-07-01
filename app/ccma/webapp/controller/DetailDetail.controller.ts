@@ -52,7 +52,7 @@ export default class Detail extends BaseController {
 
     }
 
-    public onMatched(event: Route$PatternMatchedEvent): void {
+    public async onMatched(event: Route$PatternMatchedEvent): void {
         const args = event.getParameter("arguments") as TDetailDetailRouteParameters;
         this.id = args.id;
         this.productPackID = args.productPackId;
@@ -63,6 +63,7 @@ export default class Detail extends BaseController {
         this.bindFOCTable()
         this.bindRebateForm()
         this.bindRebateDiscountConditionTable();
+        await this.loadAndSetMaterialText(this.contractId, this.productPackID);
     }
 
 
@@ -252,20 +253,44 @@ export default class Detail extends BaseController {
     }
 
     public onCreateCCMContractFail(res: any): void {
-    BusyIndicator.hide();
+        BusyIndicator.hide();
 
-    let message = "An unexpected error occurred. Please contact SAP support.";
+        let message = "An unexpected error occurred. Please contact SAP support.";
 
-    if (res?.responseText) {
-        try {
-            const response = JSON.parse(res.responseText);
-            message = response.error?.message?.value || response.message || message;
-        } catch {
+        if (res?.responseText) {
+            try {
+                const response = JSON.parse(res.responseText);
+                message = response.error?.message?.value || response.message || message;
+            } catch {
+            }
+        } else if (res?.message) {
+            message = res.message;
         }
-    } else if (res?.message) {
-        message = res.message;
+
+        MessageBox.error(message);
     }
 
-    MessageBox.error(message);
-}
+    public async loadAndSetMaterialText(contractId: string, productCode: string): Promise<void> {
+        const oModel = this.getModel() as ODataModel;
+        const uiModel = this.getModel("ui") as JSONModel;
+        // Create filters for contractId and productCode
+        const filters = [
+            new Filter("CCMContract_ID", FilterOperator.EQ, contractId),
+            new Filter("ProductCode", FilterOperator.EQ, productCode)
+        ];
+        const binding = oModel.bindList("/CCMMaterial", undefined, undefined, filters);
+        try {
+            const materials = await binding.requestContexts();
+            const materialObjects = materials.map(ctx => ctx.getObject() as { MaterialNumber: string; ActiveRecord: number });
+            const text = materialObjects.map(mat => {
+                const status = mat.ActiveRecord === 1 ? "Active" : "Inactive";
+                return `${mat.MaterialNumber} - ${status}`;
+            }).join(",\n");
+            const lineCount = text ? text.split("\n").length : 1;
+            uiModel?.setProperty("/materialsText", text);
+            uiModel?.setProperty("/materialRowCount", Math.max(lineCount, 2));
+        } catch (err) {
+            // handle error as needed
+        }
+    }
 }

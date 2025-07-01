@@ -55,6 +55,10 @@ entity CCMContract: cuid, managed, temporal{
   CreationDate: Date;
   CCMCustomer: Composition of CCMCustomer on CCMCustomer.CCMContract = $self;
   CCMMaterial: Composition of many CCMMaterial on CCMMaterial.CCMContract = $self;
+  CurrentInvoicePrice: Composition of CurrentInvoicePrice on CurrentInvoicePrice.CCMContract = $self;
+  PriceConditionInvoice: Composition of PriceConditionInvoice on PriceConditionInvoice.ProductCode = ProductCode and PriceConditionInvoice.CountryCode = CountryCode;
+  PriceConditionRebate:  Composition of PriceConditionRebate on PriceConditionRebate.ProductCode = ProductCode and PriceConditionRebate.CountryCode = CountryCode;
+  PriceConditionFOC: Composition of many PriceConditionFOC on PriceConditionFOC.ProductCode = ProductCode and PriceConditionFOC.CountryCode = CountryCode;
   FastConditionContracts: Association to FastConditionContracts
 }
 
@@ -72,11 +76,8 @@ entity CCMMaterial: cuid, managed, temporal{
   ProductCode: String;
   MaterialNumber: String;
   FOCMaterialNumber: String;
+  ActiveRecord: Integer;
   CCMContract: Association to CCMContract;
-  CurrentInvoicePrice: Association to CurrentInvoicePrice on CurrentInvoicePrice.CCMMaterial = $self;
-  PriceConditionInvoice: Composition of PriceConditionInvoice on PriceConditionInvoice.ProductCode = ProductCode and PriceConditionInvoice.CountryCode = CountryCode;
-  PriceConditionRebate:  Composition of PriceConditionRebate on PriceConditionRebate.ProductCode = ProductCode and PriceConditionRebate.CountryCode = CountryCode;
-  PriceConditionFOC: Composition of PriceConditionFOC on PriceConditionFOC.ProductCode = ProductCode and PriceConditionFOC.CountryCode = CountryCode;
 }
 entity CurrentInvoicePrice: cuid, managed{
   ConditionType: String;
@@ -91,7 +92,7 @@ entity CurrentInvoicePrice: cuid, managed{
   YD06: Double;
   YD02: Double;
   SapTax: Double;
-  CCMMaterial: Association to CCMMaterial;
+  CCMContract: Association to CCMContract;
 }
 
 entity PriceConditionInvoice: cuid, managed, temporal{
@@ -123,7 +124,7 @@ entity PriceConditionInvoice: cuid, managed, temporal{
   RentalPrice                         : Double;
   MonthlyRentPerUnit                  : Double;
   AnnualValue                         : Double;
-  CCMMaterial: Association to CCMMaterial;
+  CCMContract: Association to CCMContract;
 }
 
 entity PriceConditionRebate: cuid, managed, temporal{
@@ -138,7 +139,7 @@ entity PriceConditionRebate: cuid, managed, temporal{
   Liquidation                         : String;
   RefundDate                          : Date;
   PriceConditionCode                  : String;
-  CCMMaterial: Association to CCMMaterial;
+  CCMContract: Association to CCMContract;
   PriceConditionDiscountCondition: Composition of many PriceConditionDiscountCondition on PriceConditionDiscountCondition.PriceConditionRebate = $self;
 }
 
@@ -163,7 +164,7 @@ entity PriceConditionFOC: cuid, managed, temporal{
   PotentialGeneratedSavings           : Decimal;
   RoyalDecree                         : String;
   ADD_INCLUDE                         : String;
-  CCMMaterial: Association to CCMMaterial;
+  CCMContract: Association to CCMContract;
 }
 
 entity APIDefinition: cuid{

@@ -55,8 +55,13 @@
 							expanded="true"
 							headerText="{i18n>MaterialNumbers}"
 						>
-							<TextArea value="15551515 - Active,
-							5115151 - Inactive" enabled="false"/>
+							<TextArea
+								id="idMaterialTextArea"
+								value="{ui>/materialsText}"
+								rows="{ui>/materialRowCount}"
+								enabled="false"
+								growing="false"
+							/>
 						</Panel>
 					</VBox>
                     <VBox>

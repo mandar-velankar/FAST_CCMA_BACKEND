@@ -34,7 +34,7 @@
                 <Column>
                     <header>
                         <ObjectIdentifier
-                            title="{i18n>Product}"
+                            title="{i18n>ProductsListFragment.Product}"
                             titleActive="true"
                             titlePress="onClick"
                         />
@@ -43,7 +43,7 @@
                 <Column>
                     <header>
                         <ObjectIdentifier
-                            title="{i18n>StartDate}"
+                            title="{i18n>ProductsListFragment.StartDate}"
                             titleActive="true"
                             titlePress="onClick"
                         />
@@ -52,7 +52,7 @@
                 <Column>
                     <header>
                         <ObjectIdentifier
-                            title="{i18n>EndDate}"
+                            title="{i18n>ProductsListFragment.EndDate}"
                             titleActive="true"
                             titlePress="onClick"
                         />
@@ -61,7 +61,7 @@
                 <Column>
                     <header>
                         <ObjectIdentifier
-                            title="{i18n>SAPInvoicePrice}"
+                            title="{i18n>ProductsListFragment.SAPInvoicePrice}"
                             titleActive="true"
                             titlePress="onClick"
                         />
@@ -70,7 +70,7 @@
                 <Column>
                     <header>
                         <ObjectIdentifier
-                            title="{i18n>SAPRappel}"
+                            title="{i18n>ProductsListFragment.SAPRappel}"
                             titleActive="true"
                             titlePress="onClick"
                         />
@@ -79,7 +79,7 @@
                 <Column>
                     <header>
                         <ObjectIdentifier
-                            title="{i18n>INTERACTFOC}"
+                            title="{i18n>ProductsListFragment.INTERACTFOC}"
                             titleActive="true"
                             titlePress="onClick"
                         />
@@ -88,7 +88,7 @@
                 <Column>
                     <header>
                         <ObjectIdentifier
-                            title="{i18n>NewMaterialNumber}"
+                            title="{i18n>ProductsListFragment.NewMaterialNumber}"
                             titleActive="true"
                             titlePress="onClick"
                         />
@@ -97,7 +97,7 @@
                 <Column>
                     <header>
                         <ObjectIdentifier
-                            title="{i18n>SAPContractNumber}"
+                            title="{i18n>ProductsListFragment.SAPContractNumber}"
                             titleActive="true"
                             titlePress="onClick"
                         />
@@ -106,7 +106,7 @@
                 <Column>
                     <header>
                         <ObjectIdentifier
-                            title="{i18n>PreviousSAPContractNumber}"
+                            title="{i18n>ProductsListFragment.PrevSAPContractNumber}"
                             titleActive="true"
                             titlePress="onClick"
                         />

@@ -340,7 +340,7 @@
                                 popinDisplay="Inline"
                             >
                                 <m:Label
-                                    text="Product"
+                                    text="{i18n>ESFOCFragment.Product}"
                                     wrapping="true"
                                 />
                             </m:Column>
@@ -351,7 +351,7 @@
                                 popinDisplay="Inline"
                             >
                                 <m:Label
-                                    text="Royal Decree"
+                                    text="{i18n>ESFOCFragment.RoyalDecree}"
                                     wrapping="true"
                                 />
                             </m:Column>
@@ -362,7 +362,7 @@
                                 popinDisplay="Inline"
                             >
                                 <m:Label
-                                    text="Min Amount"
+                                    text="{i18n>ESFOCFragment.MinAmount}"
                                     wrapping="true"
                                 />
                             </m:Column>
@@ -373,7 +373,7 @@
                                 popinDisplay="Inline"
                             >
                                 <m:Label
-                                    text="Bonus"
+                                    text="{i18n>ESFOCFragment.Bonus}"
                                     wrapping="true"
                                 />
                             </m:Column>
@@ -384,7 +384,7 @@
                                 popinDisplay="Inline"
                             >
                                 <m:Label
-                                    text="Potential Savings"
+                                    text="{i18n>ESFOCFragment.PotentialSavings}"
                                     wrapping="true"
                                 />
                             </m:Column>
@@ -407,8 +407,8 @@
                     </m:Table>
                 </m:IconTabFilter>
                 <m:IconTabFilter
-                    text="Rappel"
-                    key="rappel"
+                    text="Rebate"
+                    key="rebate"
                 >
                 <!-- <m:HBox alignItems="Start" class="sapUiSmallMargin"> -->
                     <form:Form width="700px"
@@ -435,12 +435,12 @@
                         <form:formContainers>
                             <form:FormContainer>
                                 <form:formElements>
-                                    <form:FormElement  label="{i18n>Liquidation}" >
+                                    <form:FormElement  label="{i18n>ESRebateFragment.Liquidation}" >
                                         <form:fields>
                                             <m:Input value="{Liquidation}" enabled="false"/>
                                         </form:fields>
                                     </form:FormElement>
-                                    <form:FormElement  label="{i18n>PaymentBackDate}" >
+                                    <form:FormElement  label="{i18n>ESRebateFragment.PaymentBackDate}" >
                                         <form:fields>
                                             <m:DatePicker
                                                 id="DP1"
@@ -453,7 +453,7 @@
                                                 class="sapUiSmallMarginBottom"/>
                                         </form:fields>
                                     </form:FormElement>
-                                    <form:FormElement  label="{i18n>Settlement}" >
+                                    <form:FormElement  label="{i18n>ESRebateFragment.Settlement}" >
                                         <form:fields>
                                             <m:Input value="{SettlementDescription}" enabled="false"/>
                                         </form:fields>
@@ -465,7 +465,7 @@
                 <!-- </m:HBox> -->
                     <m:HBox>
                         <m:Label
-                            text="{i18n>SettlementCalendar}"
+                            text="{i18n>ESRebateFragment.SettlementCalendar}"
                             width="10em"
                             class="sapUiSmallMarginTop sapUiTinyMarginEnd"
                         />
@@ -479,6 +479,7 @@
                     <m:Table
                         id="idRebateDisCondtTable"
                         mode="SingleSelectMaster"
+                        items="{/CCMContractRebateDiscountConditionTableView}"
                     >
                         <m:columns>
                             <m:Column
@@ -488,7 +489,7 @@
                                 popinDisplay="Inline"
                             >
                                 <m:Label
-                                    text="Volume Treshold"
+                                    text="{i18n>ESRebateDCFragment.VolumeTreshold}"
                                     wrapping="true"
                                 />
                             </m:Column>
@@ -499,7 +500,7 @@
                                 popinDisplay="Inline"
                             >
                                 <m:Label
-                                    text="Discount"
+                                    text="{i18n>ESRebateDCFragment.Discount}"
                                     wrapping="true"
                                 />
                             </m:Column>
@@ -510,7 +511,7 @@
                                 popinDisplay="Inline"
                             >
                                 <m:Label
-                                    text="Net Price w/o Tax"
+                                    text="{i18n>ESRebateDCFragment.NetPricewoTax}"
                                     wrapping="true"
                                 />
                             </m:Column>
@@ -521,7 +522,7 @@
                                 popinDisplay="Inline"
                             >
                                 <m:Label
-                                    text="Tax"
+                                    text="{i18n>ESRebateDCFragment.Tax}"
                                     wrapping="true"
                                 />
                             </m:Column>
@@ -532,7 +533,7 @@
                                 popinDisplay="Inline"
                             >
                                 <m:Label
-                                    text="Net Price with Tax"
+                                    text="{i18n>ESRebateDCFragment.NetPricewithTax}"
                                     wrapping="true"
                                 />
                             </m:Column>

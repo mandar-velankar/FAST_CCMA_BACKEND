@@ -152,8 +152,10 @@ entity CCMContractPricingFormView                  as
 
 entity CCMContractFOCTableView                     as
     select from CCMContract as ccmcontract
+    inner join FastConditionContracts as fcc
+        on fcc.ID = ccmcontract.FastConditionContracts.ID
     inner join PriceConditionFOC as foc
-        on ccmcontract.ProductCode = foc.ProductCode
+        on ccmcontract.ProductCode = foc.ProductCode and fcc.OfferID = foc.OfferID
     {
         key ccmcontract.ID as CCMContractID,
             foc.OfferID,
@@ -172,8 +174,10 @@ entity CCMContractFOCTableView                     as
 
 entity CCMContractRebateFormView                   as
     select from CCMContract as ccmcontract
+    inner join FastConditionContracts as fcc
+        on fcc.ID = ccmcontract.FastConditionContracts.ID
     inner join PriceConditionRebate as rebate
-        on ccmcontract.ProductCode = rebate.ProductCode
+        on ccmcontract.ProductCode = rebate.ProductCode and fcc.OfferID = rebate.OfferID
     {
         key ccmcontract.ID as CCMContractID,
             rebate.OfferID,
