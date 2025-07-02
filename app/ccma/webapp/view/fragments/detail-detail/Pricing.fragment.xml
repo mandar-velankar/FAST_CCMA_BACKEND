@@ -332,6 +332,12 @@
                         mode="SingleSelectMaster"
                         items="{/CCMContractFOCTableView}"
                     >
+                        <m:headerToolbar>
+                            <m:Toolbar >
+                                <m:ToolbarSpacer />
+                                <m:Button text="Send to interact" type="Emphasized"/>
+                            </m:Toolbar>
+                        </m:headerToolbar>
                         <m:columns>
                             <m:Column
                                 minScreenWidth="Desktop"
