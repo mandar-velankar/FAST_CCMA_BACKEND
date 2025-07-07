@@ -211,4 +211,5 @@ entity CCMContractRebateDiscountConditionTableView as
 
 function getBackendData()                                                                        returns String;
 action   createCCMContract(FastCCMContractId : UUID, CCMContractID : UUID, ProductCode : String) returns String;
+action   sendFOCToInteractMail(FastCCMContractId : UUID, CCMContractID : UUID, ProductCode : String) returns String;
 }

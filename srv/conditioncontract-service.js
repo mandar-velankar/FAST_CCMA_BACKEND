@@ -2,6 +2,8 @@ const cds = require('@sap/cds');
 const moment = require("moment");
 const axios = require('axios');
 const qs = require("qs");
+const Handlebars = require("handlebars");
+const ServiceHelper = require('./utils/ServiceHelper');
 
 const {
     FastConditionContracts,
@@ -290,4 +292,126 @@ module.exports = (srv) => {
                 req.error({ code: 404, message: "Contract Start Date should be before the Contract End Date.", target: "ContractStartDate" });
         }
     })
+
+    srv.on("sendFOCToInteractMail", async (req) => {
+        try {
+            const {FastCCMContractId, CCMContractID, ProductCode} = req.data;
+            const recipients = [
+                {
+                    RecipientEmail: "commercialagreements_test@bayer.com",
+                    RecipientName: "PCA Spain CH/ PH"
+                },
+                {
+                    RecipientEmail: "commercialagreements_test.pt@bayer.com",
+                    RecipientName: "PCA Portugal CH/ PH"
+                }
+            ];
+            
+            const fastbackendAPI = await cds.connect.to("FASTBACKEND_API");
+
+            const fastContract = await SELECT.one.from(FastConditionContracts)
+                .where({ ID: FastCCMContractId });
+            const ccmcontract = await SELECT.one.from(CCMContract, cc => {
+                cc`.*`,
+                cc.CCMCustomer(cust => cust`.*`),
+                cc.CCMMaterial(mat => mat`.*`),
+                cc.PriceConditionFOC(foc => foc`.*`)
+            }).where({
+                ID: CCMContractID,
+                ProductCode: ProductCode
+            });
+              
+            await addOutgoingMail(fastbackendAPI, {
+                data: {
+                    fastContract,
+                    ccmcontract
+                }, 
+                templateId: "SendFOCToInteractMail",
+                subject: `FAST REF ${fastContract.OfferID} - QFHC (Sales org name) - Registro de productos gratuitos`,
+                recipients
+            },
+            mapFOCInteractDataToMail);
+
+            return "Mail saved successfully";
+        } catch (error) {
+            return req.reject(403, "Failed to send mail")
+        }
+    });
+
+    const mapFOCInteractDataToMail = function (template, data, subject, recipients) {
+        const recipientEmails = recipients.map(r => r.RecipientEmail).join(';');
+        const focMaterials = data.ccmcontract.CCMMaterial.map(material => {
+            const priceConditionFOC = data.ccmcontract.PriceConditionFOC.find(foc => 
+                foc.OfferID === data.fastContract.OfferID && 
+                foc.CountryCode === data.fastContract.CountryCode && 
+                foc.ProductCode == material.ProductCode
+            );
+
+            return {
+                MaterialNumber: material.MaterialNumber || "",
+                FOCMaterialNumber: material.FOCMaterialNumber || "",
+                FOCMinAmount: parseFloat(priceConditionFOC?.FOCMinAmount) || 0
+            }
+        });
+        const base64Content = template?.MailTemplateFile?.content;
+        const templateContent = base64Content ? Buffer.from(base64Content, 'base64') : null;
+
+        return {
+            CountryCode: data.fastContract.CountryCode,
+            TenderID: data.fastContract.TenderID,
+            OfferID: data.fastContract.OfferID,
+            Sender: 'FAST-Admin@bayer.com',
+            Recipients: recipientEmails,
+            Subject: subject,
+            MailBody: generateMailBody(templateContent, {
+                data: { 
+                    ccmcontract: {
+                        ...data.ccmcontract,
+                        CCMContractStartDate: data.ccmcontract.CCMContractStartDate ? ServiceHelper.formatDate(data.ccmcontract.CCMContractStartDate, 'YYYY-MM-DD','YYYY-MM-DD') : "",
+                        CCMContractEndDate: data.ccmcontract.CCMContractEndDate ? ServiceHelper.formatDate(data.ccmcontract.CCMContractEndDate, 'YYYY-MM-DD','YYYY-MM-DD') : ""
+                    }, 
+                    materialNumber: data.ccmcontract.CCMMaterial?.[0]?.MaterialNumber || "",
+                    focMaterials
+                }
+            }),
+            Sent: false
+        };
+    }
+
+    const addOutgoingMail = async function (api, { data, templateId, subject, recipients }, mappingCB) {
+		const mailTemplate = await getMailTemplate(api, templateId);
+		const mappedData = mappingCB(mailTemplate?.d, data, subject, recipients);
+		return api.send({
+            method: 'POST',
+            path: `/v2/conditioncontracting/OutgoingMails`,
+            data: mappedData
+        });
+	}
+
+	
+
+    const generateMailBody = function (content, data) {
+        return Handlebars.compile("" + content)(data);
+    }
+
+    const getMailTemplate = async function (api, templateId) {
+        try{
+            const result = await api.send({
+                method: 'GET',
+                path: `/v2/conditioncontracting/MailTemplate(CountryCode='ES',Language='ES',TemplateId='${templateId}')?$expand=MailTemplateFile&$select=MailTemplateFile.content`
+            });
+            // const result = await fastbackendAPI.send({
+            //     query: SELECT.one.from("ConditionContractService.MailTemplate")
+            //     .columns('*', 'MailTemplateFile.title', 'MailTemplateFile.content')
+            //     .where({ TemplateId: templateId })
+            // })
+            // const result = await fastbackendAPI.run(SELECT.one.from(MailTemplate)
+			// .columns('*', 'MailTemplateFile.title', 'MailTemplateFile.content')
+			// .where({ TemplateId: templateId }))
+            return result;
+        }catch(error){
+            console.error("No mail template found");
+            return;
+        }
+    }
 };

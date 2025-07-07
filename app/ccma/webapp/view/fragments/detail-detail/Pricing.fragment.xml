@@ -335,7 +335,7 @@
                         <m:headerToolbar>
                             <m:Toolbar >
                                 <m:ToolbarSpacer />
-                                <m:Button text="Send to interact" type="Emphasized"/>
+                                <m:Button text="Send to interact" type="Emphasized" press=".onSendFOCInteractMail" enabled="{= ${ui>/hasPricingFOC}}"/>
                             </m:Toolbar>
                         </m:headerToolbar>
                         <m:columns>

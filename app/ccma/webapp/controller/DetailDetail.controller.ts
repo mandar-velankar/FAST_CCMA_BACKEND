@@ -40,6 +40,7 @@ export default class Detail extends BaseController {
                 delay: 0,
                 editMode: false,
             },
+            hasPricingFOC: false,
             minDate: new Date(),
         });
 
@@ -171,8 +172,18 @@ export default class Detail extends BaseController {
             filters: filters,
             parameters: {
                 $$updateGroupId: "FOCTable"
+            },
+            events: {
+                dataReceived: this.focDataReceived.bind(this)
             }
         });
+    }
+
+    private focDataReceived () {
+        const uiModel = this.getModel("ui") as JSONModel;
+        const table = this.byId("idFocTable") as Table;
+        const items = table.getItems();
+        uiModel.setProperty("/hasPricingFOC", !!(items && items.length > 0));
     }
 
     public onContractInformationFormEditBtnPress() {
@@ -292,5 +303,46 @@ export default class Detail extends BaseController {
         } catch (err) {
             // handle error as needed
         }
+    }
+
+    public onSendFOCInteractMail(event: Button$PressEvent): void {
+
+        BusyIndicator.show();
+        const focInteractContextBinding = this.getModel()?.bindContext("/sendFOCToInteractMail(...)");
+        focInteractContextBinding?.setParameter("FastCCMContractId", this.id);
+        focInteractContextBinding?.setParameter("CCMContractID", this.contractId);
+        focInteractContextBinding?.setParameter("ProductCode", this.productPackID);
+        focInteractContextBinding?.execute().then(
+            () => {
+                const oActionContext = focInteractContextBinding.getBoundContext();
+                this.onSendFOCInteractMailSuccess(oActionContext?.getObject());
+            },
+            (error: any) => {
+                this.onSendFOCInteractMailFail(error);
+            }
+        );
+    }
+
+    public onSendFOCInteractMailSuccess(res: any): void {
+        MessageBox.success(res?.value);
+        BusyIndicator.hide();
+    }
+
+    public onSendFOCInteractMailFail(res: any): void {
+        BusyIndicator.hide();
+
+        let message = "An unexpected error occurred. Please contact SAP support.";
+
+        if (res?.responseText) {
+            try {
+                const response = JSON.parse(res.responseText);
+                message = response.error?.message?.value || response.message || message;
+            } catch {
+            }
+        } else if (res?.message) {
+            message = res.message;
+        }
+
+        MessageBox.error(message);
     }
 }
