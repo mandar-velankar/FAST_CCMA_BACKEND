@@ -43,8 +43,8 @@ entity CCMContract: cuid, managed, temporal{
   BrandID: String;
   BrandName: String;
   OfferPrice: Double;
-  hasRappel: Boolean;
-  hasFOC: Boolean;
+  hasRappel: String;
+  hasFOC: String;
   CCMContractStartDate: Date;
   CCMContractEndDate: Date;
   PreviousContractNumber: String;
@@ -78,6 +78,7 @@ entity CCMMaterial: cuid, managed, temporal{
   MaterialNumber: String;
   FOCMaterialNumber: String;
   ActiveRecord: Integer;
+  isNewMaterialNumber: Boolean default false;
   CCMContract: Association to CCMContract;
 }
 entity CurrentInvoicePrice: cuid, managed{
@@ -116,7 +117,6 @@ entity PriceConditionInvoice: cuid, managed, temporal{
   RoyalDecreeValue                    : Decimal;
   RoyalDecreeIncl                     : Boolean default false;
   NetPriceWithoutTaxAfterDeductionRD  : Decimal;
-  NetPriceWithoutTaxBeforeDeductionRD : Decimal;
   NetPriceWithTaxAfterDeductionRD     : Decimal;
   NetPriceWithoutTax                  : Decimal;
   NetPriceWithTax                     : Decimal;
