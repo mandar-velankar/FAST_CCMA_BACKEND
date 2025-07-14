@@ -137,7 +137,6 @@ entity CCMContractPricingFormView                  as
             invoice.RoyalDecreeValue,
             invoice.RoyalDecreeIncl,
             invoice.NetPriceWithoutTaxAfterDeductionRD,
-            invoice.NetPriceWithoutTaxBeforeDeductionRD,
             invoice.Currency,
             invoice.Region,
             invoice.NetPriceWithTaxAfterDeductionRD,
