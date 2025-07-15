@@ -191,7 +191,7 @@ export default class Detail extends BaseController {
     }
 
     public onContractInformationFormCancelBtnPress () {
-        (this.getModel() as ODataModel)?.resetChanges("ContractInformation");
+        (this.getModel() as ODataModel)?.resetChanges("contractInformationDetailDetail");
         this.getUIModel()?.setProperty("/ContractInformationForm/editMode", false);
         this.removeMessageFromMessageManager("contractInformationDetailDetail");
     }
@@ -209,7 +209,7 @@ export default class Detail extends BaseController {
         const formData = context?.getObject();
         context.setProperty("CCMContractStartDate", formData?.CCMContractStartDate || "");
         context.setProperty("CCMContractEndDate", formData?.CCMContractEndDate || "");
-        this.getModel()?.submitBatch("ContractInformation").then(function(){
+        this.getModel()?.submitBatch("contractInformationDetailDetail").then(function(){
             if (!context?.getBinding()?.hasPendingChanges()) {
                 that.onContractInformationFormCancelBtnPress();
                 that.publishEventEmitter("contractProductChannel", "contractDateChanged");
