@@ -231,6 +231,8 @@ export default class Detail extends BaseController {
                 contractTable?.getItems()?.forEach(pr => {
                     pr.getBindingContext().setProperty("CCMContractStartDate", formData?.ContractStartDate || "");  
                     pr.getBindingContext().setProperty("CCMContractEndDate", formData?.ContractEndDate || "");  
+                    pr.getBindingContext().setProperty("Extension", formData?.Extension);  
+                    pr.getBindingContext().setProperty("ExtensionPeriod", formData?.ExtensionPeriod);  
                 });
                 await that.getModel()?.submitBatch("ContractTable")
                 that.onContractInformationFormCancelBtnPress();
