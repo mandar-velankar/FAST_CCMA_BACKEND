@@ -157,6 +157,7 @@ entity CCMContractFOCTableView                     as
         on ccmcontract.ProductCode = foc.ProductCode and fcc.OfferID = foc.OfferID
     {
         key ccmcontract.ID as CCMContractID,
+            ccmcontract.ProductName,
             foc.OfferID,
             foc.CountryCode,
             foc.ProductCode,
@@ -179,6 +180,7 @@ entity CCMContractRebateFormView                   as
         on ccmcontract.ProductCode = rebate.ProductCode and fcc.OfferID = rebate.OfferID
     {
         key ccmcontract.ID as CCMContractID,
+            rebate.ID as PriceConditionRebateID: UUID,
             rebate.OfferID,
             rebate.ProductCode,
             rebate.CountryCode,
@@ -199,13 +201,20 @@ entity CCMContractRebateDiscountConditionTableView as
     inner join CCMContract as ccmcontract
         on ccmcontract.ProductCode = rebate.ProductCode
     {
-        key ccmcontract.ID as CCMContractID,
+        key descond.ID,
+            rebate.ID as PriceConditionRebateID: UUID,
             descond.Discount,
             descond.Volume,
             descond.NetPriceWithoutTax,
             descond.NetPriceWithTax,
             rebate.Tax
-    }
+    } group by descond.ID,
+            rebate.ID,
+            descond.Discount,
+            descond.Volume,
+            descond.NetPriceWithoutTax,
+            descond.NetPriceWithTax,
+            rebate.Tax;
 
 
 function getBackendData()                                                                        returns String;

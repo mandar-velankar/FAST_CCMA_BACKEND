@@ -63,7 +63,7 @@ export default class Detail extends BaseController {
         this.bindPricingForm();
         this.bindFOCTable()
         this.bindRebateForm()
-        this.bindRebateDiscountConditionTable();
+        // this.bindRebateDiscountConditionTable();
         await this.loadAndSetMaterialText(this.contractId, this.productPackID);
     }
 
@@ -122,11 +122,18 @@ export default class Detail extends BaseController {
             path: path,
             parameters: {
                 $$updateGroupId: "RebateFormDetailDetail"
-            }
+            },
+            events: {
+                dataReceived: (event: any) => {
+                    const uiModel = this.getModel("ui") as JSONModel;
+                    const items = event.getSource().getBoundContext()?.getObject();
+                    this.bindRebateDiscountConditionTable(items?.PriceConditionRebateID);
+            }}
+
         });
     }
 
-    public bindRebateDiscountConditionTable() {
+    public bindRebateDiscountConditionTable(PriceConditionRebateID) {
         const Table = this.byId("idRebateDisCondtTable") as Table;
         let template;
         const bindingInfo = Table?.getBindingInfo("items");
@@ -135,9 +142,9 @@ export default class Detail extends BaseController {
 
         const filters = [
             new Filter({
-                path: 'CCMContractID',
+                path: 'PriceConditionRebateID',
                 operator: FilterOperator.EQ,
-                value1: this.contractId
+                value1: PriceConditionRebateID
             })
         ];
 

@@ -166,7 +166,7 @@
                                     >
                                         <form:fields>
                                             <m:Input
-                                                value="{ parts: ['NetPriceWithoutTaxBeforeDeductionRD', 'Currency'], 
+                                                value="{ parts: ['YP10', 'Currency'], 
             type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                                 enabled="false"
                                                 visible="{= %{ConditionType} === 'PrecioNeto' || %{ConditionType} === 'PVL'}"
@@ -462,6 +462,11 @@
                                     <form:FormElement  label="{i18n>ESRebateFragment.Settlement}" >
                                         <form:fields>
                                             <m:Input value="{SettlementDescription}" enabled="false"/>
+                                        </form:fields>
+                                    </form:FormElement>
+                                    <form:FormElement  label="{i18n>ESRebateFragment.Settlement}" visible="false">
+                                        <form:fields>
+                                            <m:Input value="{PriceConditionRebateID}" visible="false"/>
                                         </form:fields>
                                     </form:FormElement>
                                 </form:formElements>
