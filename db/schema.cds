@@ -65,6 +65,7 @@ entity CCMContract: cuid, managed, temporal{
 
 entity CCMCustomer: cuid, managed, temporal{
   InstituteID: String;
+  AssortmentReference: String;
   CustomerID: Integer;
   CountryCode: String;
   InstituteType: String;
