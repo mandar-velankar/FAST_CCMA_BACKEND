@@ -9,6 +9,7 @@ modules:
   requires:
   - name: uaa_FAST
   - name: F_TNDR_CAG_FAST_CCMA_BACKEND-db
+  - name: F_TNDR_CAG_FAST_CCMA_BACKEND-destination-service
   provides:
   - name: srv-api
     properties:
