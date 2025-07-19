@@ -98,6 +98,7 @@ service ConditionContract {
         key fcc.ID as FastConditionContractID,
         key ccm.ID as CCMContractID,
         key ccm.ProductCode,
+            ccm.CCMCustomer.AssortmentReference,
             fcc.ContractStartDate as CndnContrValidFrom,
             fcc.ContractEndDate as CndnContrValidTo,
             fcc.CustomerID as Customer,
