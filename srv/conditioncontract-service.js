@@ -50,6 +50,7 @@ module.exports = (srv) => {
             const response = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
             const contractNumber = response?.data?.ConditionContract?.ConditionContractType?.ConditionContract;
             if (contractNumber) {
+                console.log("Payload sent to SAP:", JSON.stringify(JSON.parse(response?.config?.data), null, 2));
                 const contractInfo = await tx.run(SELECT.one.from(CCMContract).where({ ID: CCMContractID, ContractNumber: {"!=": null} }));
                 if(contractInfo){
                     await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber}).where({ ID: CCMContractID }));
@@ -173,26 +174,26 @@ module.exports = (srv) => {
         const dynamicMappings = apiBodyMappings.filter(m => m.Source.startsWith('ContractPayloadView.'));
 
         const staticConditionRecord = {};
-        const staticBusVolSelection = {};
+        const staticBVHeader = {}; 
 
         for (const { Source, Target } of staticMappings) {
             const key = Target.split('.').pop();
 
             if (Target.includes('CndnContrConditionRecordType')) {
                 staticConditionRecord[key] = Source;
-            } else if (Target.includes('BusVolSelectionCriteriaType')) {
-                staticBusVolSelection[key] = Source;
+            } else if (Target.includes('bvheader')) {
+                staticBVHeader[key] = Source;
             } else {
                 setNestedValue(finalResult, Target, Source);
             }
         }
 
         const conditionRecords = [];
-        const busVolSelectionCriteria = [];
+        const bvheaderList = [];
 
         for (const row of sourceData) {
             const conditionRecord = { ...staticConditionRecord };
-            const busVolSelection = { ...staticBusVolSelection };
+            const bvheaderEntry = { ...staticBVHeader };
 
             let conditionTypeValue = null;
 
@@ -213,7 +214,6 @@ module.exports = (srv) => {
                     value = conditionTypeValue;
                 }
 
-                // Apply transformation only for DescuentoComercial's ConditionRateRatio
                 if (field === 'YD02' && Target.endsWith('ConditionRateRatio')) {
                     value = value * 100;
                 }
@@ -224,12 +224,12 @@ module.exports = (srv) => {
                 if (Target.includes('CndnContrConditionRecordType')) {
                     if (conditionTypeValue === 'YP10') {
                         conditionRecord['ConditionCalculationType'] = 'C';
-                        conditionRecord['ConditionQuantityUnitISOCode'] = 'PCE'
+                        conditionRecord['ConditionQuantityUnitISOCode'] = 'PCE';
                         conditionRecord['ConditionQuantity'] = row.RequestedVolume || 1;
                     }
                     conditionRecord[key] = value;
-                } else if (Target.includes('BusVolSelectionCriteriaType')) {
-                    busVolSelection[key] = value;
+                } else if (Target.includes('bvheader')) {
+                    bvheaderEntry[key] = value;
                 } else {
                     setNestedValue(finalResult, Target, value);
                 }
@@ -242,12 +242,15 @@ module.exports = (srv) => {
                 }
                 conditionRecords.push({ CndnContrConditionRecordType: conditionRecord });
             }
-
-            if (Object.keys(busVolSelection).length > 0) {
-                busVolSelectionCriteria.push({ BusVolSelectionCriteriaType: busVolSelection });
+            
+            if (row.AssortmentReference) {
+                bvheaderEntry['FieldCombination'] = 'Y002';
             }
 
-            // === Handle RoyalDecree as an additional condition record ===
+            if (Object.keys(bvheaderEntry).length > 0) {
+                bvheaderList.push(bvheaderEntry);
+            }
+
             if (row.YD06 !== undefined && row.YD06 !== null) {
                 const royalDecreeRecord = { ...staticConditionRecord };
 
@@ -272,8 +275,8 @@ module.exports = (srv) => {
             setNestedValue(finalResult, 'ConditionContract.ConditionContractType._CndnContrCndnRecord', conditionRecords);
         }
 
-        if (busVolSelectionCriteria.length > 0) {
-            setNestedValue(finalResult, 'ConditionContract.ConditionContractType._CndnContrBusVolSelCriteria', busVolSelectionCriteria);
+        if (bvheaderList.length > 0) {
+            setNestedValue(finalResult, 'ConditionContract.bvheader', bvheaderList);
         }
 
         return finalResult;
