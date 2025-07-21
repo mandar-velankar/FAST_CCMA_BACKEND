@@ -405,8 +405,22 @@
                                 <m:cells>
                                     <m:Text text="{ProductName}" />
                                     <m:Text text="{RoyalDecree}" />
-                                    <m:Text text="{FOCMinAmount}" />
-                                    <m:Text text="{FOCBonus}" />
+                                    <m:Text 
+                                        text ="{
+                                            path: 'FreeGoodsOther_Step',
+                                            type: 'sap.ui.model.type.Integer',
+                                            formatOptions: { 
+                                                maxFractionDigits: 0,
+                                                minFractionDigits: 0, 
+                                                groupingEnabled: true, 
+                                                groupingSeparator: ','
+                                            }
+                                        }"							
+                                    />
+                                    <m:Text text="{
+                                        path: 'FOCBonus',
+                                        formatter: '.formatter.formatBonus'
+                                    }" />
                                     <m:Text
                                         text="{path:'PotentialGeneratedSavings', type:'sap.ui.model.type.Float', formatOptions: { maxFractionDigits: 2, minFractionDigits: 2}}"
                                     />

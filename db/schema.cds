@@ -162,7 +162,7 @@ entity PriceConditionFOC: cuid, managed, temporal{
   FreeGoodsOther_ABS_PCT: String(4);
   VAT: Double; 
   FOCMinAmount                        : Integer;
-  FOCBonus                            : Decimal;
+  FOCBonus                            : String;
   PotentialGeneratedSavings           : Decimal;
   RoyalDecree                         : String;
   ADD_INCLUDE                         : String;
