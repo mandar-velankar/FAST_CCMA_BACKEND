@@ -90,8 +90,8 @@
                     items="{
 							path: '/FastConditionContractsView',
 							sorter: {
-								path: 'OfferID',
-								descending: false
+								path: 'createdAt',
+								descending: true
 							}
                     }"
                     class="sapFDynamicPageAlignContent"
