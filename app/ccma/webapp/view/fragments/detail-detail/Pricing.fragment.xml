@@ -167,7 +167,7 @@
                                         <form:fields>
                                             <m:Input
                                                 value="{ parts: ['YP10', 'Currency'], 
-            type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
+                                                        type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                                 enabled="false"
                                                 visible="{= %{ConditionType} === 'PrecioNeto' || %{ConditionType} === 'PVL'}"
                                                 fieldGroupIds="priceInputPrecioNeto"
@@ -180,8 +180,8 @@
                                     >
                                         <form:fields>
                                             <m:Input
-                                                value="{ parts: ['YP10', 'Currency'], 
-            type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
+                                                value="{ parts: ['NetPriceWithoutTax', 'Currency'], 
+                        			                    type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                                 enabled="false"
                                                 visible="{= %{ConditionType} === 'DescuentoComercial'}"
                                             />
@@ -333,9 +333,14 @@
                         items="{/CCMContractFOCTableView}"
                     >
                         <m:headerToolbar>
-                            <m:Toolbar >
+                            <m:Toolbar>
                                 <m:ToolbarSpacer />
-                                <m:Button text="Send to interact" type="Emphasized" press=".onSendFOCInteractMail" enabled="{= ${ui>/hasPricingFOC}}"/>
+                                <m:Button
+                                    text="Send to interact"
+                                    type="Emphasized"
+                                    press=".onSendFOCInteractMail"
+                                    enabled="{= ${ui>/hasPricingFOC}}"
+                                />
                             </m:Toolbar>
                         </m:headerToolbar>
                         <m:columns>
@@ -398,9 +403,7 @@
                         <m:items>
                             <m:ColumnListItem>
                                 <m:cells>
-                                    <m:Text
-                                        text="{ProductName}"
-                                    />
+                                    <m:Text text="{ProductName}" />
                                     <m:Text text="{RoyalDecree}" />
                                     <m:Text text="{FOCMinAmount}" />
                                     <m:Text text="{FOCBonus}" />
@@ -416,8 +419,9 @@
                     text="Rebate"
                     key="rebate"
                 >
-                <!-- <m:HBox alignItems="Start" class="sapUiSmallMargin"> -->
-                    <form:Form width="700px"
+                    <!-- <m:HBox alignItems="Start" class="sapUiSmallMargin"> -->
+                    <form:Form
+                        width="700px"
                         id="idRebateForm"
                         editable="true"
                     >
@@ -441,12 +445,19 @@
                         <form:formContainers>
                             <form:FormContainer>
                                 <form:formElements>
-                                    <form:FormElement  label="{i18n>ESRebateFragment.Liquidation}" >
+                                    <form:FormElement
+                                        label="{i18n>ESRebateFragment.Liquidation}"
+                                    >
                                         <form:fields>
-                                            <m:Input value="{Liquidation}" enabled="false"/>
+                                            <m:Input
+                                                value="{Liquidation}"
+                                                enabled="false"
+                                            />
                                         </form:fields>
                                     </form:FormElement>
-                                    <form:FormElement  label="{i18n>ESRebateFragment.PaymentBackDate}" >
+                                    <form:FormElement
+                                        label="{i18n>ESRebateFragment.PaymentBackDate}"
+                                    >
                                         <form:fields>
                                             <m:DatePicker
                                                 id="DP1"
@@ -456,24 +467,36 @@
                                                         formatOptions: { style: 'short', pattern: 'dd.MM.yyyy',UTC: true}
                                                 }"
                                                 enabled="false"
-                                                class="sapUiSmallMarginBottom"/>
+                                                class="sapUiSmallMarginBottom"
+                                            />
                                         </form:fields>
                                     </form:FormElement>
-                                    <form:FormElement  label="{i18n>ESRebateFragment.Settlement}" >
+                                    <form:FormElement
+                                        label="{i18n>ESRebateFragment.Settlement}"
+                                    >
                                         <form:fields>
-                                            <m:Input value="{SettlementDescription}" enabled="false"/>
+                                            <m:Input
+                                                value="{SettlementDescription}"
+                                                enabled="false"
+                                            />
                                         </form:fields>
                                     </form:FormElement>
-                                    <form:FormElement  label="{i18n>ESRebateFragment.Settlement}" visible="false">
+                                    <form:FormElement
+                                        label="{i18n>ESRebateFragment.Settlement}"
+                                        visible="false"
+                                    >
                                         <form:fields>
-                                            <m:Input value="{PriceConditionRebateID}" visible="false"/>
+                                            <m:Input
+                                                value="{PriceConditionRebateID}"
+                                                visible="false"
+                                            />
                                         </form:fields>
                                     </form:FormElement>
                                 </form:formElements>
                             </form:FormContainer>
                         </form:formContainers>
                     </form:Form>
-                <!-- </m:HBox> -->
+                    <!-- </m:HBox> -->
                     <m:HBox>
                         <m:Label
                             text="{i18n>ESRebateFragment.SettlementCalendar}"
