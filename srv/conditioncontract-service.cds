@@ -92,7 +92,7 @@ service ConditionContract {
 
     entity ContractPayloadView as select from FastConditionContracts as fcc 
         inner join CCMContract as ccm on ccm.FastConditionContracts.ID = fcc.ID 
-        inner join CCMMaterial as mat on mat.CCMContract.ID = ccm.ID 
+        inner join CCMMaterial as mat on mat.CCMContract.ID = ccm.ID and mat.ActiveRecord = 1
         left outer join PriceConditionInvoice as pci 
             on pci.ProductCode = mat.ProductCode and fcc.OfferID = pci.OfferID{
         key fcc.ID as FastConditionContractID,
