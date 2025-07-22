@@ -12,6 +12,16 @@
 			<f:DynamicPageTitle
                 id="detailDetaildynamicPageTitle"
             >
+			<f:heading>
+                    <VBox>
+                        <Title
+                            id = "idProductPackNameDetailDetail"
+                            text="{ui>/ProductName}"
+                            level="H2"
+                            class="sapUiTinyMarginBottom"
+                        />
+                    </VBox>
+			</f:heading>
             <f:navigationActions>
 					<!--<Button
 							text="Edit"

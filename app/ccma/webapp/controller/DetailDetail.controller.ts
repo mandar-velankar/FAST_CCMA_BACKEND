@@ -100,6 +100,13 @@ export default class Detail extends BaseController {
             path: path,
             parameters: {
                 $$updateGroupId: "contractInformationDetailDetail"
+            },
+            events: {
+                dataReceived: (event: any) => {
+                    const uiModel = this.getModel("ui") as JSONModel;
+                    const items = event.getSource().getBoundContext()?.getObject();
+                    uiModel.setProperty("/ProductName", items.ProductName);
+                }
             }
         });
     }
@@ -308,7 +315,6 @@ export default class Detail extends BaseController {
             uiModel?.setProperty("/materialsText", text);
             uiModel?.setProperty("/materialRowCount", Math.max(lineCount, 2));
         } catch (err) {
-            // handle error as needed
         }
     }
 
