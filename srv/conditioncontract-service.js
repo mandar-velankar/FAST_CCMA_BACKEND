@@ -251,7 +251,7 @@ module.exports = (srv) => {
                 bvheaderList.push(bvheaderEntry);
             }
 
-            if (row.YD06 !== undefined && row.YD06 !== null) {
+            if (row.YD06 !== undefined && row.YD06 !== null && row.YD06 !== 0) {
                 const royalDecreeRecord = { ...staticConditionRecord };
 
                 for (const { Source, Target } of dynamicMappings) {
