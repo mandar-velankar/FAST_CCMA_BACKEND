@@ -224,6 +224,7 @@ module.exports = (srv) => {
                 if (Target.includes('CndnContrConditionRecordType')) {
                     if (conditionTypeValue === 'YP10') {
                         conditionRecord['ConditionCalculationType'] = 'C';
+                        conditionRecord['ConditionQuantityUnit'] = 'PC';
                         conditionRecord['ConditionQuantityUnitISOCode'] = 'PCE';
                         conditionRecord['ConditionQuantity'] = row.RequestedVolume || 1;
                     }
@@ -238,9 +239,10 @@ module.exports = (srv) => {
             if (Object.keys(conditionRecord).length > 0) {
                 if (conditionRecord.ConditionType === 'YP10') {
                     delete conditionRecord.ConditionRateRatioUnit;
+                    delete conditionRecord.ConditionRateRatio;
                     delete conditionRecord.ConditionRateRatioUnitISOCode;
                 }
-                conditionRecords.push({ CndnContrConditionRecordType: conditionRecord });
+                conditionRecords.push(conditionRecord);
             }
             
             if (row.AssortmentReference) {
@@ -267,12 +269,15 @@ module.exports = (srv) => {
                 }
 
                 royalDecreeRecord['ConditionType'] = 'YD06';
-                conditionRecords.push({ CndnContrConditionRecordType: royalDecreeRecord });
+                conditionRecords.push(royalDecreeRecord);
             }
         }
 
         if (conditionRecords.length > 0) {
-            setNestedValue(finalResult, 'ConditionContract.ConditionContractType._CndnContrCndnRecord', conditionRecords);
+            setNestedValue(finalResult, 'ConditionContract.ConditionContractType._CndnContrCndnRecord', [
+                "",
+                { CndnContrConditionRecordType: conditionRecords }
+            ]);
         }
 
         if (bvheaderList.length > 0) {
