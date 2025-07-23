@@ -11,6 +11,8 @@ import Filter from "sap/ui/model/Filter";
 import FilterType from "sap/ui/model/FilterType";
 import Sorter from "sap/ui/model/Sorter";
 import Table from "sap/m/Table";
+import BusyIndicator from "sap/ui/core/BusyIndicator";
+import MessageBox from "sap/m/MessageBox";
 type TDetailRouteParameters = {
     id: string;
     layout: string;
@@ -249,6 +251,48 @@ export default class Detail extends BaseController {
     public refreshContractTable () {
         const contractTable = this.byId("idCCMContract");
         contractTable?.getBinding("items")?.refresh();
+    }
+
+    public onCreateAllCCMContract(): void {
+
+        BusyIndicator.show();
+        const ccmFASTContractContextBinding = this.getModel()?.bindContext("/createAllCCMContract(...)");
+        ccmFASTContractContextBinding?.setParameter("FastCCMContractId", this.id);
+        ccmFASTContractContextBinding?.execute().then(
+            () => {
+                const oActionContext = ccmFASTContractContextBinding.getBoundContext();
+                this.onCreateAllCCMContractSuccess(oActionContext?.getObject());
+            },
+            (error: any) => {
+                this.onCreateAllCCMContractFail(error);
+            }
+        );
+    }
+
+    public onCreateAllCCMContractSuccess(res: any): void {
+        const contractTable = this.byId("idCCMContract");
+
+        MessageBox.success(res?.value);
+        BusyIndicator.hide();
+        contractTable?.getBinding("items")?.refresh();
+    }
+
+    public onCreateAllCCMContractFail(res: any): void {
+        BusyIndicator.hide();
+
+        let message = "An unexpected error occurred. Please contact SAP support.";
+
+        if (res?.responseText) {
+            try {
+                const response = JSON.parse(res.responseText);
+                message = response.error?.message?.value || response.message || message;
+            } catch {
+            }
+        } else if (res?.message) {
+            message = res.message;
+        }
+
+        MessageBox.error(message);
     }
 
 

@@ -422,4 +422,94 @@ module.exports = (srv) => {
             return;
         }
     }
+
+    srv.on('createAllCCMContract', async (req) => {
+        const tx = cds.tx(req);
+        try {
+            const { FastCCMContractId } = req.data;
+            const sourceData = await tx.run(SELECT.from(ContractPayloadView).where({
+                 FastConditionContractID: FastCCMContractId
+            }));
+
+            // Grouping the source data by ContractID
+            const grouped = Object.values(
+                sourceData.reduce((acc, item) => {
+                  const key = item.CCMContractID;
+                  if (!acc[key]) {
+                    acc[key] = [];
+                  }
+                  acc[key].push(item);
+                  return acc;
+                }, {})
+            );
+
+            for (const ct of grouped) {
+                const response = await createAllCCMContracts(tx, 'ES', "ConditionContract", ct);
+                const contractNumber = response?.data?.ConditionContract?.ConditionContractType?.ConditionContract;
+                if (contractNumber) {
+                    const contractInfo = await tx.run(SELECT.one.from(CCMContract).where({ ID: ct[0].CCMContractID, ContractNumber: {"!=": null} }));
+                    if(contractInfo){
+                        await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber}).where({ ID: ct[0].CCMContractID }));
+                    }
+                    await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, Synchronized: true }).where({ ID: ct[0].CCMContractID }));
+                }
+            }
+
+            return req.reply("");
+        } catch (error) {
+            let statusCode = 500;
+            let userMessage = "Unexpected server error. Please contact the application support team.";
+
+            if (error.response?.data) {
+                console.error("SAP Error Response:", error.response.data);
+                const sapError = error.response.data;
+
+                userMessage =
+                    sapError?.error?.message?.value ||
+                    sapError?.error?.innererror?.errordetails?.[0]?.message ||
+                    sapError?.fault?.faultstring ||
+                    sapError?.Exception_Details?.Exception_Message ||
+                    "An error occurred while communicating with SAP.";
+
+                userMessage = `SAP Error: ${userMessage}. Please contact the SAP support team.`;
+                statusCode = error.response.status || 502;
+            }
+            else if (error.code && error.message) {
+                console.error("App Error:", error.message);
+                userMessage = error.message;
+                statusCode = typeof error.code === 'number' ? error.code : 500;
+            }
+            else {
+                console.error("Unhandled Error:", error);
+            }
+
+            return req.reject(statusCode, userMessage);
+        }
+    });
+
+    async function createAllCCMContracts(tx, countryCode, resource, sourceData) {
+        const apiConfig = await tx.run(SELECT.one.from(APIDefinition).where({ Provider: 'ConditionContract', CountryCode: countryCode, Resource: resource }));
+        const apiBodyMappings = await tx.run(SELECT.from(APIBody).where({ APIDefinition_ID: apiConfig.ID }));
+        if (!apiBodyMappings) {
+            throw new Error("ERR_MISSING_PARAMETER:API body Mappings not found");
+        }
+        const body = buildPayloadFromMappings(sourceData, apiBodyMappings);
+        if (!body) {
+            throw new Error("ERR_MISSING_PARAMETER:API Body not found");
+        }
+        const oauthAuth = await tx.run(SELECT.one.from(APIConfigOAuth, apiConfig.OAuth_ID));
+        const url = `${apiConfig.Host}${apiConfig.BasePath}${apiConfig.ResourcePath}`;
+
+        const oauthCredentials = await getBearerToken(oauthAuth);
+
+        return axios({
+            method: 'post',
+            url: url,
+            headers: {
+                'Authorization': `Bearer ${oauthCredentials.data.access_token}`,
+                'Content-Type': 'application/json'
+            },
+            data: JSON.stringify(body)
+        });
+    }
 };
