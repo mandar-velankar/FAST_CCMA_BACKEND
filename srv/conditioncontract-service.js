@@ -215,7 +215,7 @@ module.exports = (srv) => {
                 }
 
                 if (field === 'YD02' && Target.endsWith('ConditionRateRatio')) {
-                    value = value * 100;
+                    value = Math.round(value * 100 * 100) / 100;
                 }
 
                 const pathSegments = Target.split('.');
@@ -247,6 +247,7 @@ module.exports = (srv) => {
             
             if (row.AssortmentReference) {
                 bvheaderEntry['FieldCombination'] = 'Y002';
+                delete bvheaderEntry['customer'];
             }
 
             if (Object.keys(bvheaderEntry).length > 0) {
