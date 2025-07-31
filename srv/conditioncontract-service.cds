@@ -11,6 +11,7 @@ service ConditionContract {
     entity PriceConditionRebate                   as projection on ccma.PriceConditionRebate;
     entity PriceConditionDiscountCondition        as projection on ccma.PriceConditionDiscountCondition;
     entity PriceConditionFOC                      as projection on ccma.PriceConditionFOC;
+    entity SettlementsDate                        as projection on ccma.SettlementsDate;
     entity APIDefinition                          as projection on ccma.APIDefinition;
     entity APIConfigOAuth                         as projection on ccma.APIConfigOAuth;
     entity APIBody                                as projection on ccma.APIBody;

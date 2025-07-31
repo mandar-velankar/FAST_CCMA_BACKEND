@@ -170,6 +170,13 @@ entity PriceConditionFOC: cuid, managed, temporal{
   CCMContract: Association to CCMContract;
 }
 
+entity SettlementsDate: managed{
+  key CCMContractID          : UUID;
+  key FromDate               : Date;
+  ToDate                     : Date;
+  SettlementID               : String; 
+}
+
 entity APIDefinition: cuid{
     Provider            : String; 
     Host                : String;
