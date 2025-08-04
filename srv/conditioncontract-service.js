@@ -48,7 +48,7 @@ module.exports = (srv) => {
                 CCMContractID: CCMContractID, FastConditionContractID: FastCCMContractId, ProductCode: ProductCode
             }));
             const response = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
-            const contractNumber = response?.data?.ConditionContract?.ConditionContractType?.ConditionContract;
+            const contractNumber = response?.data?.ConditionContract;
             if (contractNumber) {
                 console.log("Payload sent to SAP:", JSON.stringify(JSON.parse(response?.config?.data), null, 2));
                 const contractInfo = await tx.run(SELECT.one.from(CCMContract).where({ ID: CCMContractID, ContractNumber: {"!=": null} }));
@@ -280,6 +280,8 @@ module.exports = (srv) => {
                 { CndnContrConditionRecordType: conditionRecords }
             ]);
         }
+
+        setNestedValue(finalResult, 'ConditionContract.conditioncontract', {});
 
         if (bvheaderList.length > 0) {
             setNestedValue(finalResult, 'ConditionContract.bvheader', bvheaderList);
