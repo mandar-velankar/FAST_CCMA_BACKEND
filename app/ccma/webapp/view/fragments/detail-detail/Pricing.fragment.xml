@@ -460,6 +460,16 @@
                             <form:FormContainer>
                                 <form:formElements>
                                     <form:FormElement
+                                        label="{i18n>ESRebateFragment.MarketIncentiveID}"
+                                    >
+                                        <form:fields>
+                                            <m:Input
+                                                value="{MarketIncentiveID}"
+                                                enabled="false"
+                                            />
+                                        </form:fields>
+                                    </form:FormElement>
+                                    <form:FormElement
                                         label="{i18n>ESRebateFragment.Liquidation}"
                                     >
                                         <form:fields>

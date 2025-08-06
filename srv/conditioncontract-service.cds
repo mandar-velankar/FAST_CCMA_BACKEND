@@ -194,7 +194,8 @@ entity CCMContractRebateFormView                   as
             rebate.RoyalDecree,
             rebate.Liquidation,
             rebate.RefundDate,
-            rebate.PriceConditionCode
+            rebate.PriceConditionCode,
+            rebate.MarketIncentiveID
     }
 
 entity CCMContractRebateDiscountConditionTableView as
