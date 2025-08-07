@@ -209,6 +209,26 @@ module.exports = (srv) => {
                     continue;
                 }
 
+                if (field === 'SAPID' && Target === 'ConditionContract.ConditionContractType.CndnContrSourceDoc') {
+                    if(row.ContractType.toLowerCase() === 'tender'){
+                        value = "CO-".concat(row.Reference.replace(/ /g,'-'));
+                    }
+                    // Commercial Agreement
+                    if(row.ContractType.toLowerCase() === 'commercial agreement'){
+                        value = "OF-".concat(row.TenderID); 
+                    }
+                    setNestedValue(finalResult, Target, value);
+                    continue;
+                }
+
+                if (field === 'ExternalID' && Target === 'ConditionContract.ConditionContractType.ExternalDocumentReferenceID') {
+                    if(row.ContractType.toLowerCase() === 'tender'){
+                        value = "TE-".concat(row.TenderID);
+                    }
+                    setNestedValue(finalResult, Target, value);
+                    continue;
+                }
+
                 if (field === 'ConditionType' && Target.includes('ConditionType')) {
                     conditionTypeValue = conditionTypeMap[value] || value;
                     value = conditionTypeValue;
@@ -270,6 +290,7 @@ module.exports = (srv) => {
                 }
 
                 royalDecreeRecord['ConditionType'] = 'YD06';
+                delete royalDecreeRecord['ConditionRateAmount'];
                 conditionRecords.push(royalDecreeRecord);
             }
         }

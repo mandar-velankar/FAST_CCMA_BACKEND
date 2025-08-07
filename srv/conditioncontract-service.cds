@@ -113,7 +113,11 @@ service ConditionContract {
             ccm.CCMContractEndDate as ConditionValidityEndDate,
             ccm.OfferPrice as ConditionRateAmount,
             mat.MaterialNumber as Product,
-            fcc.SAPID
+            fcc.SAPID,
+            fcc.ExternalID,
+            fcc.Reference,
+            fcc.TenderID,
+            fcc.ContractType
     }
 
 
