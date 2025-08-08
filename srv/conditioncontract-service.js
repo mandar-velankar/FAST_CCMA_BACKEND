@@ -221,9 +221,13 @@ module.exports = (srv) => {
                     continue;
                 }
 
-                if (field === 'ExternalID' && Target === 'ConditionContract.ConditionContractType.ExternalDocumentReferenceID') {
+                if (field === 'SAPID' && Target === 'ConditionContract.ConditionContractType.ExternalDocumentReferenceID') {
                     if(row.ContractType.toLowerCase() === 'tender'){
-                        value = "TE-".concat(row.TenderID);
+                        value = "CO-".concat(row.Reference.replace(/ /g,'-'));
+                    }
+                    // Commercial Agreement
+                    if(row.ContractType.toLowerCase() === 'commercial agreement'){
+                        value = "OF-".concat(row.TenderID); 
                     }
                     setNestedValue(finalResult, Target, value);
                     continue;
