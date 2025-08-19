@@ -265,3 +265,13 @@ export function price(price: string, currency: string): string {
     }
     return oValue + " " + currency;
 }
+
+export function getLiquidationInMonths (liquidation: string){
+    switch (liquidation) {
+        case "Monthly": return 1;
+        case "Quarterly": return 3;
+        case "HalfYearly": return 6;
+        case "Annually": return 12;
+        default:return 0;
+    }
+}

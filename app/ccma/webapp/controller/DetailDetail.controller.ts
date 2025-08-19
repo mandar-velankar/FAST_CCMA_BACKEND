@@ -13,11 +13,31 @@ import Filter from "sap/ui/model/Filter";
 import FilterType from "sap/ui/model/FilterType";
 import Sorter from "sap/ui/model/Sorter";
 import Table from "sap/m/Table";
+import Fragment from "sap/ui/core/Fragment";
+import Dialog from "sap/m/Dialog";
+import * as formatter from "com/bayer/tender/ccma/model/formatter";
 export type TDetailDetailRouteParameters = {
     id: string;
     productPackId: string;
     contractId: string;
     layout: string;
+}
+
+type SettlementDate = {
+    CCMContractID?: string;
+    FromDate: string;
+    ToDate: string;
+    SettlementID?: string;
+}
+
+type SettlementDateModel = {
+    fromDate: string | Date | null;
+    toDate: string | Date | null;
+    fromValueState: string;
+    toValueState: string;
+    minDate?: Date | string | null;
+    maxDate?: Date | string | null;
+    SettlementID: string;
 }
 
 /**
@@ -27,6 +47,7 @@ export default class Detail extends BaseController {
     private id: string;
     private productPackID: string;
     private contractId: string;
+    public formatter = formatter;
 
     public onInit() {
         this.getRouter().getRoute("detail-detail")?.attachPatternMatched(this.onMatched, this);
@@ -357,5 +378,434 @@ export default class Detail extends BaseController {
         }
 
         MessageBox.error(message);
+    }
+
+    public async onOpenSettlementCalendar() {
+        let dialog = this.byId("idSettlementCalendarDialog") as Dialog;
+        let isDialogOpen = dialog && dialog.isOpen();
+
+        if (!isDialogOpen) {
+            dialog = await Fragment.load({
+                id: this.getView()?.getId(),
+                name: "com.bayer.tender.ccma.view.fragments.detail-detail.SettlementCalendar",
+                controller: this
+            }) as Dialog;
+
+            dialog.open();
+            this.getView()?.addDependent(dialog);
+            
+            // Load settlement calendar data
+            await this.onLoadSettlementCalendarModel(dialog);
+        } else {
+            dialog.open();
+        }
+    }
+
+    private async onLoadSettlementCalendarModel(dialog: Dialog) {
+        // Get existing settlement dates from the backend
+        let settlementDates = await this.getSettlementDates();
+        
+        // If no existing dates, start with empty array
+        if(settlementDates && settlementDates.length === 0){
+            settlementDates = this.calculateSettlementCalendarProposal();
+        }
+        
+        const contract = (this.getContractInfo() as any);
+        
+        // Add min/max dates to each settlement date for UI restrictions
+        settlementDates = settlementDates.map((date: SettlementDateModel) => {
+            return {
+                ...date,
+                minDate: contract.CCMContractStartDate ? new Date(contract.CCMContractStartDate) : null,
+                maxDate: contract.CCMContractEndDate ? new Date(contract.CCMContractEndDate) : null
+            } as SettlementDateModel;
+        });
+        
+        const settlementCalendarModel = new JSONModel({
+            settlementDates: settlementDates,
+            valid: settlementDates.length > 0,
+            minDate: contract.CCMContractStartDate ? new Date(contract.CCMContractStartDate) : null,
+            maxDate: contract.CCMContractEndDate ? new Date(contract.CCMContractEndDate) : null
+        });
+        dialog.setModel(settlementCalendarModel, "sc");
+    }
+
+    private getContractInfo() {
+        const contractInfoForm = this.byId("idDetailDetailContractInformation");
+        if (contractInfoForm) {
+            const context = contractInfoForm.getBindingContext();
+            if (context) {
+                return context.getObject();
+            }
+        }
+        return null;
+    }
+
+    public onCloseSettlementCalendar() {
+        let dialog = this.byId("idSettlementCalendarDialog") as Dialog;
+        if (dialog && dialog.isOpen()) {
+            dialog.close();
+            dialog.destroy();
+        }
+    }
+
+    public onDeleteRange(oEvent: any) {
+        const source = oEvent.getSource();
+        const bindingContext = source.getBindingContext("sc");
+        const index = bindingContext.getPath().split("/")[2]; // Get index from path like "/settlementDates/0"
+        
+        const dialog = this.byId("idSettlementCalendarDialog") as Dialog;
+        const model = dialog.getModel("sc") as JSONModel;
+
+        const contract = this.getContractInfo() as any;
+        const rebateFormData = this.getRebateFormData() as any;
+
+        let settlementDates = model.getProperty("/settlementDates") as SettlementDateModel[] || [];
+        
+        // Remove the item at the specified index
+        settlementDates.splice(index, 1);
+        settlementDates = this.calculateSettlementCalendarMinMaxDate(settlementDates, rebateFormData.RefundDate, contract.CCMContractEndDate);
+        
+        model.setProperty("/settlementDates", settlementDates);
+    }
+
+    public onAdd() {
+        const dialog = this.byId("idSettlementCalendarDialog") as Dialog;
+        const model = dialog.getModel("sc") as JSONModel;
+        const contract = (this.getContractInfo() as any);
+        const rebateFormData = this.getRebateFormData() as any;
+        let settlementDates = model.getProperty("/settlementDates") as SettlementDateModel[] || [];
+        const lastFullDate = settlementDates[settlementDates.length-1]?.toDate;
+        const lastDate = lastFullDate && this.getDateWithoutTime(new Date(lastFullDate));
+        // Get contract start and end dates for min/max restrictions
+        const contractEndDate = contract.CCMContractEndDate ? new Date(contract.CCMContractEndDate) : null;
+
+        if(settlementDates && settlementDates.length > 0 && !lastDate){
+				MessageBox.error(this.getText("ESRebateFragment.SettlementCalendarEmpytLine"));
+				return;
+        }
+        if(lastDate && contractEndDate && lastDate.getTime() === contractEndDate.getTime()){
+            MessageBox.error(this.getText("ESRebateFragment.SettlementCalendarCompleted"));
+            return;
+        }
+        
+        settlementDates = this.calculateSettlementCalendarMinMaxDate(settlementDates, rebateFormData.RefundDate, contract.CCMContractEndDate);
+
+        // Add a new empty settlement date range
+        settlementDates.push({
+            fromDate: null,
+            toDate: null,
+            fromValueState: "None",
+            toValueState: "None",
+            minDate: rebateFormData.RefundDate ? new Date(rebateFormData.RefundDate) : null,
+            maxDate: contractEndDate
+        } as SettlementDateModel);
+        
+        model.setProperty("/settlementDates", settlementDates);
+        model.setProperty("/valid", false); // Set to false since we have empty dates
+    }
+
+    public getDateWithoutTime (date: Date): Date {
+        return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+    }
+
+    public getText(key: string, props?: any): string {
+        return this.getModel("i18n").getResourceBundle().getText(key, props);
+    }
+
+    public onChangeSettlementDate(event: any, type: string) {
+        const dialog = this.byId("idSettlementCalendarDialog") as Dialog;
+        const model = dialog.getModel("sc") as JSONModel;
+        const path = event.getSource().getBindingContext("sc").getPath();
+        const contract = this.getContractInfo() as any;
+        const rebateFormData = this.getRebateFormData() as any;
+        let settlementDates = model.getProperty("/settlementDates") as SettlementDateModel[] || [];
+        
+        model.setProperty(`${path}/${type}ValueState`,event.getSource().isValidValue()?"None":"Error");
+        settlementDates = this.calculateSettlementCalendarMinMaxDate(settlementDates, rebateFormData.RefundDate, contract.CCMContractEndDate);
+        model.setProperty("/settlementDates",settlementDates);
+        this.isSettlementCalendarValid(model);
+    }
+
+    private convertToDate(dateValue: string | Date | null): Date | null {
+        if (!dateValue) return null;
+        if (dateValue instanceof Date) return dateValue;
+        if (typeof dateValue === 'string') return new Date(dateValue);
+        return null;
+    }
+
+    private formatDateForBackend(dateValue: string | Date | null): string | null {
+        if (!dateValue) return null;
+        const dateObj = this.convertToDate(dateValue);
+        if (!dateObj || isNaN(dateObj.getTime())) return null;
+        return dateObj.toISOString().split('T')[0];
+    }
+
+    public calculateSettlementCalendarMinMaxDate(settlementDates: SettlementDateModel[], refundDate: Date, expiryDate: Date): SettlementDateModel[] {
+        for (const [idx, settlementDate] of settlementDates.entries()) {
+            settlementDate.minDate = this.getPreviousSettlementDate(idx, settlementDates, new Date(refundDate), new Date(expiryDate));
+            settlementDate.maxDate = this.getNextSettlementDate(idx, settlementDates, new Date(refundDate), new Date(expiryDate));
+        }
+        return settlementDates;
+    }
+
+    public getPreviousSettlementDate(idx: number, settlementDates: SettlementDateModel[], refundDate: Date, expiryDate: Date): Date | null {
+        const prevSettlementDate = settlementDates[idx - 1];
+        let prevDate = new Date(refundDate.getTime());
+        if(prevSettlementDate?.toDate){
+            prevDate = new Date(prevSettlementDate.toDate.getTime());
+            prevDate.setDate(prevDate.getDate()+1);
+        }
+        if(prevDate.getTime()>expiryDate.getTime()){
+            prevDate = new Date(expiryDate.getTime());
+        }
+        return prevDate;
+    }
+    public getNextSettlementDate (idx: number, settlementDates: SettlementDateModel[], refundDate: Date, expiryDate: Date): Date | null {
+        const nextSettlementDate = settlementDates[idx + 1];
+        let nextDate = new Date(expiryDate.getTime());
+        if(nextSettlementDate?.fromDate){
+            nextDate = new Date(nextSettlementDate.fromDate.getTime());
+            nextDate.setDate(nextDate.getDate()-1);
+        }
+        if(nextDate.getTime()<refundDate.getTime()){
+            nextDate = new Date(refundDate.getTime());
+        }
+        return nextDate;
+    }
+
+    private generateSettlementId(sapId: string, toDate: string | Date | null): string {
+        if (!toDate) return '';
+        
+        const formattedToDate = this.formatDateForBackend(toDate);
+        if (!formattedToDate) return '';
+        
+        if (sapId) {
+            return `${sapId}-${formattedToDate}`;
+        } else {
+            return `${formattedToDate}`;
+        }
+    }
+
+    private formatSettlementDateForBackend(dateValue: string | Date | null): string | null {
+        return this.formatDateForBackend(dateValue);
+    }
+
+    public async onApply() {
+        const dialog = this.byId("idSettlementCalendarDialog") as Dialog;
+        const model = dialog.getModel("sc") as JSONModel;
+        const settlementDates = model.getProperty("/settlementDates") as SettlementDateModel[] || [];
+        const sapId = await this.getContractSAPID();
+        const controller = this;
+
+        const isValid = model.getProperty("/valid") as boolean;
+        const isEmpty = settlementDates.length === 0;
+
+        if (!isEmpty && !isValid) {
+            MessageBox.error(this.getText("ESRebateFragment.SettlementCalendarErrors"));
+            return;
+        }
+
+        const emptyRanges = settlementDates.filter(sd => !sd.toDate && !sd.fromDate) || [];
+        if (emptyRanges.length > 0) {
+            MessageBox.error(this.getText("ESRebateFragment.SettlementCalendarEmptyRanges"));
+            return;
+        }
+
+        try {
+            BusyIndicator.show();
+            const existingDates = await this.getSettlementDates(); // from DB
+
+            // Normalize dates into Edm.Date (YYYY-MM-DD)
+            const normalize = (d: SettlementDateModel) => ({
+                FromDate: this.formatSettlementDateForBackend(d.fromDate),
+                ToDate: this.formatSettlementDateForBackend(d.toDate),
+                SettlementID: this.generateSettlementId(sapId, d.toDate)
+            });
+
+            // Maps
+            const existingMap = new Map<string, any>(
+                existingDates.map(d => {
+                    const nd = normalize(d);
+                    return [`${this.contractId}_${nd.FromDate}`, nd];
+                })
+            );
+
+            const uiMap = new Map<string, any>(
+                settlementDates.map(d => {
+                    const nd = normalize(d);
+                    return [`${this.contractId}_${nd.FromDate}`, nd];
+                })
+            );
+
+            // === DELETE === (DB entry not in UI)
+            for (const [key, dbRecord] of existingMap) {
+                if (!uiMap.has(key)) {
+                    const oBinding = this.getModel()?.bindContext(`/SettlementsDate(CCMContractID='${this.contractId}',FromDate='${dbRecord.FromDate}')`, null, { $$groupId: "settlementCalendar" });
+                    // Wait until bound context is available
+                    oBinding.requestObject().then(async function () {
+                        const oCtx = oBinding.getBoundContext(); // ✅ real v4 Context
+                        oCtx.delete("settlementCalendar");       // marks for deletion
+                        await controller.getModel()?.submitBatch("settlementCalendar"); // ✅ executes batch
+                    });
+                }
+            }
+
+            // === CREATE / UPDATE ===
+            for (const [key, uiRecord] of uiMap) {
+                if (!existingMap.has(key)) {
+                    // CREATE new row
+                    const listBinding = this.getModel()?.bindList("/SettlementsDate");
+                    listBinding?.create({
+                        CCMContractID: this.contractId,
+                        FromDate: uiRecord.FromDate,
+                        ToDate: uiRecord.ToDate,
+                        SettlementID: uiRecord.SettlementID
+                    }, true);
+
+                } else {
+                    const dbRecord = existingMap.get(key);
+
+                    // === UPDATE (only ToDate is allowed to change)
+                    if (dbRecord.ToDate !== uiRecord.ToDate) {
+                        const context = this.getModel()?.bindContext(`/SettlementsDate(CCMContractID='${this.contractId}',FromDate='${dbRecord.FromDate}')`, undefined, {
+                            $$groupId: "settlementCalendar"
+                        }).getBoundContext();
+                        context?.setProperty("ToDate", uiRecord.ToDate, "settlementCalendar");
+                        context?.setProperty("SettlementID", this.generateSettlementId(sapId, uiRecord.ToDate), "settlementCalendar");
+                    }
+                }
+            }
+
+            // === Submit all changes ===
+            await this.getModel()?.submitBatch("settlementCalendar");
+
+            MessageBox.success("Settlement calendar saved successfully.");
+            this.onCloseSettlementCalendar();
+        } catch (error) {
+            console.error("Error saving settlement calendar:", error);
+            MessageBox.error("Error saving settlement calendar: " + (error as Error).message);
+        } finally {
+            BusyIndicator.hide();
+        }
+    }
+
+
+
+
+    private getSettlementDates(): Promise<SettlementDateModel[]> {
+        return new Promise((resolve, reject) => {
+            const oModel = this.getModel() as ODataModel;
+            const filters = [
+                new Filter("CCMContractID", FilterOperator.EQ, this.contractId)
+            ];
+            const binding = oModel.bindList("/SettlementsDate", undefined, undefined, filters);
+            binding.requestContexts().then(
+                (contexts) => {
+                    const settlementDates = contexts.map(ctx => {
+                        const data = ctx.getObject() as SettlementDate;
+                        // Return dates as provided by the backend
+                        return {
+                            fromDate: new Date(data.FromDate),
+                            toDate: new Date(data.ToDate),
+                            fromValueState: "None",
+                            toValueState: "None",
+                            SettlementID: data.SettlementID
+                        } as SettlementDateModel;
+                    });
+                    resolve(settlementDates);
+                },
+                (error) => {
+                    reject(error);
+                }
+            );
+        });
+    }
+
+    private async getContractSAPID(): Promise<string> {
+        return new Promise((resolve, reject) => {
+            const oModel = this.getModel() as ODataModel;
+            // Query the ContractPayloadView to get the SAPID
+            const filters = [
+                new Filter("ID", FilterOperator.EQ, this.id)
+            ];
+            const binding = oModel.bindList("/FastConditionContractsView", undefined, undefined, filters);
+            binding.requestContexts().then(
+                (contexts) => {
+                    if (contexts && contexts.length > 0) {
+                        const data = contexts[0].getObject() as any;
+                        const sapId = data.SAPID || '';
+                        resolve(sapId);
+                    } else {
+                        resolve('');
+                    }
+                },
+                (error) => {
+                    console.log("Error retrieving SAPID:", error);
+                    reject(error);
+                }
+            );
+        });
+    }
+
+    private getRebateFormData() {
+        // Get the rebate form which should have the data
+        const rebateForm = this.byId("idRebateForm");
+        if (rebateForm) {
+            const context = rebateForm.getBindingContext();
+            if (context) {
+                return context.getObject()
+            }
+        }
+        return null;
+    }
+
+    public isSettlementCalendarValid (model: JSONModel){
+        const settlementDates = model.getProperty("/settlementDates") as SettlementDateModel[] || [];
+        const isValid = settlementDates.filter(settlementDate => settlementDate.toValueState === "Error" || settlementDate.fromValueState === "Error" ) || [];
+        model.setProperty("/valid",(isValid.length === 0));
+    }
+
+    public calculateSettlementCalendarProposal (){
+        const contract = (this.getContractInfo() as any);
+        const rebateFormData = this.getRebateFormData() as any;
+        const settlementId = rebateFormData.SettlementDescription;
+        const months = formatter?.getLiquidationInMonths(rebateFormData.Liquidation);
+        let settlementDates: any = [];
+        switch (settlementId) {
+            case 'Validity':
+                settlementDates.push({
+                    fromDate: new Date(rebateFormData.RefundDate),
+                    toDate: new Date(contract.CCMContractEndDate),
+                    minDate: new Date(rebateFormData.RefundDate),
+                    maxDate: new Date(contract.CCMContractEndDate)
+                });
+                break;
+            case 'Frequency':
+                let dateFrom = new Date(rebateFormData.RefundDate);
+                let idx = 0;
+                do {
+                    let dateTo = new Date(dateFrom.getTime());
+                    dateTo.setMonth(dateTo.getMonth() + months);
+                    dateTo.setDate(dateTo.getDate() - 1 );
+                    settlementDates.push({
+                        fromDate:new Date(dateFrom.getTime()),
+                        toDate:new Date(dateTo.getTime())//,
+                        // minDate: this.getPreviousSettlementDate(idx,settlementDates),
+                        // maxDate: this.getNextSettlementDate(idx,settlementDates)
+                    });
+                    dateFrom.setMonth(dateFrom.getMonth() + months);
+                    idx++;
+                } while (dateFrom < contract.CCMContractEndDate);
+                //set last record todate with expirydate value
+                if(settlementDates.length > 0){
+                    settlementDates[settlementDates.length-1].toDate = new Date(contract.CCMContractEndDate);
+                }
+                settlementDates = this.calculateSettlementCalendarMinMaxDate(settlementDates, rebateFormData.RefundDate, contract.CCMContractEndDate);
+                break;
+            default:
+                break;
+        }
+        return settlementDates;
     }
 }

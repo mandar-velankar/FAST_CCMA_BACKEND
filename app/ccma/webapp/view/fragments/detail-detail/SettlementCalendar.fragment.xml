@@ -1,0 +1,61 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core">
+	<Dialog showHeader="false" id="idSettlementCalendarDialog">
+		<content>			
+			<Table items="{sc>/settlementDates}" sticky="ColumnHeaders,HeaderToolbar">
+				<headerToolbar>
+					<OverflowToolbar id="otbSubheader">
+						<Title text="Settlement calendar" level="H2" />
+						<ToolbarSpacer />
+						<Button icon="sap-icon://add" type="Transparent" press=".onAdd"/>
+					</OverflowToolbar>
+				</headerToolbar>
+				<columns>
+					<Column>
+						<Text text="{i18n>ESRebateFragment.from}" />
+					</Column>
+					<Column>
+						<Text text="{i18n>ESRebateFragment.to}" />
+					</Column>
+					<Column>
+						<Text text="{i18n>ESRebateFragment.delete}" />
+					</Column>
+				</columns>
+				<items>
+					<ColumnListItem>
+						<cells>
+                        
+                            <DatePicker value="{
+                                                path:'sc>fromDate',
+                                                type:'sap.ui.model.type.Date', 
+                                                formatOptions: { style: 'short', pattern: 'yyyy-MM-dd',UTC: true}
+                                        }"
+										maxDate="{= ${sc>toDate} || ${sc>maxDate} }"
+										valueState="{sc>fromValueState}"
+                                        valueFormat="yyyy-MM-dd" 
+                                        displayFormat="short"
+										change=".onChangeSettlementDate($event,'from')"/>
+                            <DatePicker value="{
+                                                path:'sc>toDate',
+                                                type:'sap.ui.model.type.Date', 
+                                                formatOptions: { style: 'short', pattern: 'yyyy-MM-dd',UTC: true}
+                                        }"
+										minDate="{= ${sc>fromDate} || ${sc>minDate}}"
+										maxDate="{sc>maxDate}"
+										valueState="{sc>toValueState}"
+                                        valueFormat="yyyy-MM-dd" 
+                                        displayFormat="short"
+										change=".onChangeSettlementDate($event,'to')"/>
+							<Button icon="sap-icon://delete" press=".onDeleteRange"/>
+                        </cells>
+					</ColumnListItem>
+				</items>
+			</Table>
+		</content>
+		<buttons>
+			<Button text="Apply" 
+				press=".onApply" 
+				enabled="{sc>/valid}"/>
+			<Button icon="sap-icon://decline" text="Cancel" press=".onCloseSettlementCalendar"></Button>
+		</buttons>
+	</Dialog>
+</core:FragmentDefinition>
