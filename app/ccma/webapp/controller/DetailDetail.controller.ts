@@ -391,8 +391,9 @@ export default class Detail extends BaseController {
                 controller: this
             }) as Dialog;
 
-            dialog.open();
             this.getView()?.addDependent(dialog);
+            dialog.open();
+
             
             // Load settlement calendar data
             await this.onLoadSettlementCalendarModel(dialog);
@@ -410,22 +411,9 @@ export default class Detail extends BaseController {
             settlementDates = this.calculateSettlementCalendarProposal();
         }
         
-        const contract = (this.getContractInfo() as any);
-        
-        // Add min/max dates to each settlement date for UI restrictions
-        settlementDates = settlementDates.map((date: SettlementDateModel) => {
-            return {
-                ...date,
-                minDate: contract.CCMContractStartDate ? new Date(contract.CCMContractStartDate) : null,
-                maxDate: contract.CCMContractEndDate ? new Date(contract.CCMContractEndDate) : null
-            } as SettlementDateModel;
-        });
-        
         const settlementCalendarModel = new JSONModel({
             settlementDates: settlementDates,
-            valid: settlementDates.length > 0,
-            minDate: contract.CCMContractStartDate ? new Date(contract.CCMContractStartDate) : null,
-            maxDate: contract.CCMContractEndDate ? new Date(contract.CCMContractEndDate) : null
+            valid: true
         });
         dialog.setModel(settlementCalendarModel, "sc");
     }
@@ -467,6 +455,10 @@ export default class Detail extends BaseController {
         settlementDates = this.calculateSettlementCalendarMinMaxDate(settlementDates, rebateFormData.RefundDate, contract.CCMContractEndDate);
         
         model.setProperty("/settlementDates", settlementDates);
+
+        //Revalidate the settlement calendar
+        this.isSettlementCalendarValid(model);
+
     }
 
     public onAdd() {
@@ -521,7 +513,7 @@ export default class Detail extends BaseController {
         const rebateFormData = this.getRebateFormData() as any;
         let settlementDates = model.getProperty("/settlementDates") as SettlementDateModel[] || [];
         
-        model.setProperty(`${path}/${type}ValueState`,event.getSource().isValidValue()?"None":"Error");
+        model.setProperty(`${path}/${type}ValueState`,event.getSource().isValidValue() && !!event.getParameter("newValue")?"None":"Error");
         settlementDates = this.calculateSettlementCalendarMinMaxDate(settlementDates, rebateFormData.RefundDate, contract.CCMContractEndDate);
         model.setProperty("/settlementDates",settlementDates);
         this.isSettlementCalendarValid(model);
@@ -796,7 +788,7 @@ export default class Detail extends BaseController {
                     });
                     dateFrom.setMonth(dateFrom.getMonth() + months);
                     idx++;
-                } while (dateFrom < contract.CCMContractEndDate);
+                } while (new Date(dateFrom) < new Date(contract.CCMContractEndDate));
                 //set last record todate with expirydate value
                 if(settlementDates.length > 0){
                     settlementDates[settlementDates.length-1].toDate = new Date(contract.CCMContractEndDate);
