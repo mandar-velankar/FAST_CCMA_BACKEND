@@ -380,26 +380,26 @@ export default class Detail extends BaseController {
         MessageBox.error(message);
     }
 
-    public async onOpenSettlementCalendar() {
+    public onOpenSettlementCalendar() {
         let dialog = this.byId("idSettlementCalendarDialog") as Dialog;
         let isDialogOpen = dialog && dialog.isOpen();
 
         if (!isDialogOpen) {
-            dialog = await Fragment.load({
+            dialog = Fragment.load({
                 id: this.getView()?.getId(),
                 name: "com.bayer.tender.ccma.view.fragments.detail-detail.SettlementCalendar",
                 controller: this
-            }) as Dialog;
+            }).then((oDialog) => {
+                this.getView()?.addDependent(oDialog);
+                return oDialog;
+            });
+        } 
 
-            this.getView()?.addDependent(dialog);
+        dialog.then(async (dialog) => {
             dialog.open();
-
-            
             // Load settlement calendar data
             await this.onLoadSettlementCalendarModel(dialog);
-        } else {
-            dialog.open();
-        }
+        });
     }
 
     private async onLoadSettlementCalendarModel(dialog: Dialog) {
