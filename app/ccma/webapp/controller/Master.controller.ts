@@ -112,6 +112,10 @@ export default class Master extends BaseController {
 		let brandID = (this.byId("idSlctBrand") as Select)?.getSelectedKey();
 		let productCode = (this.byId("idSelectProduct") as Select)?.getSelectedKey();
 
+		const slctfilterSelectedItemKey = this.byId("idNewMaterialNumbers")?.getSelectedItem().getKey().toLowerCase();
+
+		const hasNewMaterialsFilter = slctfilterSelectedItemKey === "newmaterialnumberskey";
+
 		if (sSearch.length > 0) {
 
 			orFilters.push(new Filter({
@@ -217,6 +221,13 @@ export default class Master extends BaseController {
 				value1: productCode,
 				caseSensitive: false
 			}));
+		}
+
+		//New Material Numbers filter
+		if (slctfilterSelectedItemKey && slctfilterSelectedItemKey !== "all_materials") {
+			if(hasNewMaterialsFilter){ 
+				andFilters.push(new Filter("hasNewMaterialNumber", "EQ", hasNewMaterialsFilter));
+			}
 		}
 
 		if (andFilters.length > 0) {

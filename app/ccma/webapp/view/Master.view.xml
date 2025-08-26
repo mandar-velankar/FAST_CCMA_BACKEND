@@ -76,6 +76,16 @@
                             text="MIRENA 1x1 EVO ES"
                         />
                     </Select>
+                    <Select id="idNewMaterialNumbers" change=".setFilter">
+                        <core:Item
+                            key="All_Materials"
+                            text="All"
+                        />
+                        <core:Item
+                            key="newMaterialNumbersKey"
+                            text="New Material Numbers"
+                        />
+                    </Select>
 
                     <ToolbarSpacer />
                     <SearchField
