@@ -589,7 +589,6 @@ export default class Detail extends BaseController {
         const settlementDates = model.getProperty("/settlementDates") as SettlementDateModel[] || [];
         const sapId = await this.getContractSAPID();
         const controller = this;
-        const deletePromises: Promise<void>[] = [];
 
         const isValid = model.getProperty("/valid") as boolean;
         const isEmpty = settlementDates.length === 0;
@@ -636,17 +635,13 @@ export default class Detail extends BaseController {
                 if (!uiMap.has(key)) {
                     const oBinding = this.getModel()?.bindContext(`/SettlementsDate(CCMContractID='${this.contractId}',FromDate='${dbRecord.FromDate}')`, null, { $$groupId: "settlementCalendar" });
                     // Wait until bound context is available
-                    const promise = oBinding.requestObject().then(async function () {
+                   oBinding.requestObject().then(function () {
                         const oCtx = oBinding.getBoundContext();
-                        return oCtx.delete("settlementCalendar");
+                        oCtx.delete("$auto");
                     });
-                    deletePromises.push(promise);
                 }
             }
 
-            if (deletePromises && deletePromises.length > 0) {
-                await controller.getModel()?.submitBatch("settlementCalendar");
-            }
             // === CREATE / UPDATE ===
             for (const [key, uiRecord] of uiMap) {
                 if (!existingMap.has(key)) {
