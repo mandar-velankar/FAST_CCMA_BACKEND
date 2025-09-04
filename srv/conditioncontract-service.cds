@@ -120,6 +120,49 @@ service ConditionContract {
             fcc.ContractType
     }
 
+ entity ContractRebatePayloadView as select from FastConditionContracts as fcc 
+    inner join CCMContract as ccm on ccm.FastConditionContracts.ID = fcc.ID
+    inner join PriceConditionRebate as pcr
+        on pcr.ProductCode = ccm.ProductCode and fcc.OfferID = pcr.OfferID
+    left outer join MaxDiscountView as mdv
+        on mdv.ProductCode = pcr.ProductCode and mdv.OfferID = pcr.OfferID {
+    key fcc.ID as FastConditionContractID,
+    key ccm.ID as CCMContractID,
+    key ccm.ProductCode,
+        ccm.CCMCustomer.AssortmentReference,
+        fcc.ContractStartDate as CndnContrValidFrom,
+        fcc.ContractEndDate as CndnContrValidTo,
+        fcc.CustomerID as Customer,
+        fcc.Division,
+        pcr.PriceConditionDiscountCondition.Volume,
+        pcr.PriceConditionDiscountCondition.Discount,
+        mdv.MaxDiscount,
+        pcr.YP00,
+        pcr.ConfidentialPrice,
+        pcr.SettlementDescription,
+        pcr.Tax,
+        pcr.RoyalDecree,
+        pcr.Liquidation,
+        pcr.RefundDate,
+        pcr.PriceConditionCode,
+        pcr.MarketIncentiveID,
+        ccm.CCMContractStartDate as ConditionValidityStartDate,
+        ccm.CCMContractEndDate as ConditionValidityEndDate,
+        ccm.OfferPrice as ConditionRateAmount,
+        ccm.EANUPCCode,
+        fcc.SAPID,
+        fcc.ExternalID,
+        fcc.Reference,
+        fcc.TenderID,
+        fcc.ContractType
+}
+
+entity MaxDiscountView as select from PriceConditionRebate {
+    key ProductCode,
+    key OfferID,
+    max(PriceConditionRebate.PriceConditionDiscountCondition.Discount) as MaxDiscount: Double
+}
+group by ProductCode, OfferID;
 
 entity CCMContractPricingFormView                  as
     select from CCMContract as ccmcontract

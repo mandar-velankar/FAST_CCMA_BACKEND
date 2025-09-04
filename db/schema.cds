@@ -38,6 +38,7 @@ entity FastConditionContracts: cuid, managed {
 
 entity CCMContract: cuid, managed, temporal{
   ProductCode: String;
+  EANUPCCode: String;
   CountryCode : String;
   ProductName: String;
   UoM: String;
