@@ -769,6 +769,35 @@ module.exports = (srv) => {
                  FastConditionContractID: FastCCMContractId
             }));
 
+            const rebateSourceData = await tx.run(SELECT.from(ContractRebatePayloadView).where({
+                FastConditionContractID: FastCCMContractId
+            }));
+
+            const rebateContractIDs = [...new Set(rebateSourceData.map(item => item.CCMContractID))];
+
+            const rebateSettlementData = await tx.run(SELECT.from(SettlementsDate).where({
+                CCMContractID: {in: rebateContractIDs}
+            }));
+
+            const rebatePromise = rebateSourceData.length > 0
+            ? Promise.all(rebateSettlementData.map(async (settle) => {
+                const fromDate = settle.FromDate;
+                const toDate = settle.ToDate;
+                const SettlementID = settle.SettlementID;
+
+                const filteredRebateData = rebateSourceData.filter(r => r.CCMContractID === settle.CCMContractID);
+
+                // Pass dates into createRebateContract
+                return createRebateContract(
+                    tx,
+                    'ES',
+                    "ConditionContract",
+                    filteredRebateData,
+                    { fromDate, toDate, SettlementID }
+                );
+            })) : Promise.resolve([]);
+
+
             // Grouping the source data by ContractID
             const grouped = Object.values(
                 sourceData.reduce((acc, item) => {
@@ -781,19 +810,38 @@ module.exports = (srv) => {
                 }, {})
             );
 
-            for (const ct of grouped) {
-                const response = await createAllCCMContracts(tx, 'ES', "ConditionContract", ct);
-                const contractNumber = response?.data?.ConditionContract?.ConditionContractType?.ConditionContract;
+            const invoicePromises = grouped.map(ct => createCCMContract(tx, 'ES', "ConditionContract", ct));
+            
+            const [invoiceResponses, rebateResponses] = await Promise.all([
+                Promise.all(invoicePromises),
+                rebatePromise
+            ]);
+
+            const createdContractNumbers = [];
+            for (let i = 0; i < invoiceResponses.length; i++) {
+                const response = invoiceResponses[i];
+                const contractDataGroup = grouped[i];
+                const CCMContractID = contractDataGroup[0].CCMContractID;
+                const contractNumber = response?.data?.ConditionContract;
+
                 if (contractNumber) {
-                    const contractInfo = await tx.run(SELECT.one.from(CCMContract).where({ ID: ct[0].CCMContractID, ContractNumber: {"!=": null} }));
+                    createdContractNumbers.push(contractNumber);
+                    const contractInfo = await tx.run(SELECT.one.from(CCMContract).where({ ID: CCMContractID, ContractNumber: {"!=": null} }));
                     if(contractInfo){
-                        await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber}).where({ ID: ct[0].CCMContractID }));
+                        await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber}).where({ ID: CCMContractID }));
                     }
-                    await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, Synchronized: true }).where({ ID: ct[0].CCMContractID }));
+                    await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, Synchronized: true }).where({ ID: CCMContractID }));
                 }
             }
 
-            return req.reply("");
+            if (Array.isArray(rebateResponses)) {
+                for (const rebateResp of rebateResponses) {
+                    console.log("Rebate payload sent to SAP:", JSON.stringify(rebateResp?.config?.data, null, 2));
+                    console.log("Rebate response from SAP:", rebateResp?.data);
+
+                }
+            }
+            return req.reply(`${createdContractNumbers.length} CCM Invoice Contract(s) and ${rebateResponses.length} Rebate Contract(s) created successfully into SAP.`);
         } catch (error) {
             let statusCode = 500;
             let userMessage = "Unexpected server error. Please contact the application support team.";
@@ -824,30 +872,4 @@ module.exports = (srv) => {
             return req.reject(statusCode, userMessage);
         }
     });
-
-    async function createAllCCMContracts(tx, countryCode, resource, sourceData) {
-        const apiConfig = await tx.run(SELECT.one.from(APIDefinition).where({ Provider: 'ConditionContract', CountryCode: countryCode, Resource: resource }));
-        const apiBodyMappings = await tx.run(SELECT.from(APIBody).where({ APIDefinition_ID: apiConfig.ID }));
-        if (!apiBodyMappings) {
-            throw new Error("ERR_MISSING_PARAMETER:API body Mappings not found");
-        }
-        const body = buildPayloadFromMappings(sourceData, apiBodyMappings);
-        if (!body) {
-            throw new Error("ERR_MISSING_PARAMETER:API Body not found");
-        }
-        const oauthAuth = await tx.run(SELECT.one.from(APIConfigOAuth, apiConfig.OAuth_ID));
-        const url = `${apiConfig.Host}${apiConfig.BasePath}${apiConfig.ResourcePath}`;
-
-        const oauthCredentials = await getBearerToken(oauthAuth);
-
-        return axios({
-            method: 'post',
-            url: url,
-            headers: {
-                'Authorization': `Bearer ${oauthCredentials.data.access_token}`,
-                'Content-Type': 'application/json'
-            },
-            data: JSON.stringify(body)
-        });
-    }
 };
