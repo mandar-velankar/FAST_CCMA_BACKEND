@@ -79,14 +79,14 @@ module.exports = (srv) => {
 
             const contractNumber = invoiceResponse?.data?.ConditionContract;
             if (contractNumber) {
-                console.log("Payload sent to SAP:", JSON.stringify(JSON.parse(response?.config?.data), null, 2));
+                console.log("Payload sent to SAP:", JSON.stringify(JSON.parse(invoiceResponse?.config?.data), null, 2));
                 const contractInfo = await tx.run(SELECT.one.from(CCMContract).where({ ID: CCMContractID, ContractNumber: {"!=": null} }));
                 if(contractInfo){
                     await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber}).where({ ID: CCMContractID }));
                 }
                 await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, Synchronized: true }).where({ ID: CCMContractID }));
             }
-            console.log("Invoice response from SAP:", response.data);
+            console.log("Invoice response from SAP:", invoiceResponse?.data);
 
             if (Array.isArray(rebateResponses)) {
                 for (const rebateResp of rebateResponses) {
