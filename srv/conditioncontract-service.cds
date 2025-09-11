@@ -1,6 +1,10 @@
 using {com.bayer.SXTENDER.ccma} from '../db/schema';
+using {StandardAppService as StandardAppService} from './external/StandardAppService';
 
 service ConditionContract {
+
+    entity PT_TMINST   as projection on StandardAppService.PT_TMINST;
+    entity PT_TMINSHIER   as projection on StandardAppService.PT_TMINSHIER;
 
     entity FastConditionContracts                 as projection on ccma.FastConditionContracts;
     entity CCMContract                            as projection on ccma.CCMContract;
@@ -267,6 +271,91 @@ entity CCMContractRebateDiscountConditionTableView as
             descond.NetPriceWithTax,
             rebate.Tax;
 
+entity IdentifyExistingContract as select from FastConditionContracts as fcc 
+    inner join CCMContract as ccm on ccm.FastConditionContracts.ID = fcc.ID 
+    inner join CCMMaterial as mat on mat.CCMContract.ID = ccm.ID and mat.ActiveRecord = 1{
+            fcc.ID as FastConditionContractID,
+            ccm.ID as CCMContractID,
+            ccm.ContractNumber,
+            ccm.PreviousContractNumber,
+            ccm.ItemGUID,
+            ccm.ProductCode,
+            ccm.CCMCustomer.AssortmentReference,
+            ccm.CCMCustomer.InstituteID,
+            fcc.ContractStartDate as CndnContrValidFrom,
+            fcc.ContractEndDate as CndnContrValidTo,
+        key fcc.CustomerID as Customer,
+            fcc.Division,
+            ccm.CCMContractStartDate as ConditionValidityStartDate,
+            ccm.CCMContractEndDate as ConditionValidityEndDate,
+            ccm.OfferPrice as ConditionRateAmount,
+        key mat.MaterialNumber as Product,
+            fcc.SAPID,
+            fcc.ExternalID,
+            fcc.Reference,
+            fcc.TenderID,
+            fcc.OfferID,
+            fcc.ContractType
+}
+
+entity InstituteHierarchyExpanded as select from PT_TMINSHIER
+{
+    key ParentInstituteID,
+    key InstituteID
+};
+
+entity RelatedInstitutes as select from PT_TMINST as inst
+    left join PT_TMINSHIER as childRel
+        on childRel.ParentInstituteID = inst.InstituteID
+    left join PT_TMINSHIER as parentRel
+        on parentRel.InstituteID = inst.InstituteID
+{
+    inst.InstituteID as BaseInstituteID,
+    inst.External_InstituteId as AssortmentReference,
+    inst.CustomerID,
+
+    childRel.InstituteID  as ChildInstituteID,
+    parentRel.ParentInstituteID as ParentInstituteID
+};
+
+entity CandidateInstitutes as select from RelatedInstitutes
+{
+    BaseInstituteID,
+    ChildInstituteID as CandidateInstituteID,
+    'CHILD' as RelationType
+}
+where ChildInstituteID is not null
+
+union all select from RelatedInstitutes
+{
+    BaseInstituteID,
+    ParentInstituteID as CandidateInstituteID,
+    'PARENT' as RelationType
+}
+where ParentInstituteID is not null
+
+union all select from RelatedInstitutes
+{
+    BaseInstituteID,
+    BaseInstituteID as CandidateInstituteID,
+    'SELF' as RelationType
+};
+
+entity ContractMatching as select from IdentifyExistingContract as c
+    inner join CandidateInstitutes as ci
+        on c.InstituteID = ci.CandidateInstituteID
+{
+    ci.BaseInstituteID,              
+    ci.CandidateInstituteID,         
+    ci.RelationType,                 // SELF, PARENT, CHILD
+    c.CCMContractID,
+    c.ContractNumber,
+    c.ContractType,
+    c.Customer,
+    c.AssortmentReference,
+    c.CndnContrValidFrom,
+    c.CndnContrValidTo
+};
 
 function getBackendData()                                                                        returns String;
 action   createCCMContract(FastCCMContractId : UUID, CCMContractID : UUID, ProductCode : String) returns String;
