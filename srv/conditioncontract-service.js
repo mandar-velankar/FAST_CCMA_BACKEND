@@ -16,7 +16,8 @@ const {
     ContractPayloadView,
     ContractRebatePayloadView,
     SettlementsDate,
-    APIConfigOAuth
+    APIConfigOAuth,
+    ContractItemGUID
 } = cds.entities("ConditionContract");
 
 
@@ -85,6 +86,25 @@ module.exports = (srv) => {
                     await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber}).where({ ID: CCMContractID }));
                 }
                 await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, Synchronized: true }).where({ ID: CCMContractID }));
+            }
+
+            let bvheaders = invoiceResponse?.data?.bvheader || [];
+            if (!Array.isArray(bvheaders)) {
+                bvheaders = [bvheaders]; 
+            }
+
+            if (bvheaders.length) {
+                const inserts = bvheaders.map((bvh) => ({
+                    CCMContract_ID: CCMContractID,
+                    ConditionDocument: bvh.ConditionDocument,
+                    CustomerID: bvh.customer,
+                    FieldCombination: bvh.FieldCombination,
+                    ItemGUID: bvh.itemguid,
+                    createdAt: new Date(),
+                    createdBy: req.user.id,
+                }));
+
+                await tx.run(INSERT.into(ContractItemGUID).entries(inserts));
             }
             console.log("Invoice response from SAP:", invoiceResponse?.data);
 

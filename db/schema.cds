@@ -61,10 +61,19 @@ entity CCMContract: cuid, managed, temporal{
   CCMCustomer: Composition of CCMCustomer on CCMCustomer.CCMContract = $self;
   CCMMaterial: Composition of many CCMMaterial on CCMMaterial.CCMContract = $self;
   CurrentInvoicePrice: Composition of CurrentInvoicePrice on CurrentInvoicePrice.CCMContract = $self;
+  ContractItemGUID: Composition of many ContractItemGUID on ContractItemGUID.CCMContract = $self;
   PriceConditionInvoice: Composition of PriceConditionInvoice on PriceConditionInvoice.ProductCode = ProductCode and PriceConditionInvoice.CountryCode = CountryCode;
   PriceConditionRebate:  Composition of PriceConditionRebate on PriceConditionRebate.ProductCode = ProductCode and PriceConditionRebate.CountryCode = CountryCode;
   PriceConditionFOC: Composition of many PriceConditionFOC on PriceConditionFOC.ProductCode = ProductCode and PriceConditionFOC.CountryCode = CountryCode;
   FastConditionContracts: Association to FastConditionContracts
+}
+
+entity ContractItemGUID : cuid, managed {
+  ConditionDocument: String;
+  CustomerID: String;
+  FieldCombination: String;
+  ItemGUID: String;
+  CCMContract: Association to CCMContract;
 }
 
 entity CCMCustomer: cuid, managed, temporal{

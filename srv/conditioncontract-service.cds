@@ -19,6 +19,7 @@ service ConditionContract {
     entity APIDefinition                          as projection on ccma.APIDefinition;
     entity APIConfigOAuth                         as projection on ccma.APIConfigOAuth;
     entity APIBody                                as projection on ccma.APIBody;
+    entity ContractItemGUID                       as projection on ccma.ContractItemGUID;
 
 
     entity FastConditionContractsView             as
