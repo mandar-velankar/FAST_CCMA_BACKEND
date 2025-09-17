@@ -49,10 +49,6 @@
         "credentials": {
           "destination": "FAST_API_OAUTH"
         }
-      },
-      "StandardAppService": {
-        "kind": "odata-v2",
-        "model": "srv/external/StandardAppService"
       }
     },
     "sql": {
