@@ -592,10 +592,10 @@ module.exports = (srv) => {
             }
 
             if (Object.keys(conditionRecord).length > 0) {
-                if (conditionRecord.ConditionType === 'YP10') {
+                if (conditionRecord.ConditionType === 'YD02') {
                     delete conditionRecord.ConditionRateAmount;
                 }
-                if (conditionRecord.ConditionType === 'YD02') {
+                if (conditionRecord.ConditionType === 'YP10') {
                     delete conditionRecord.ConditionRateRatioUnit;
                     delete conditionRecord.ConditionRateRatio;
                     delete conditionRecord.ConditionRateRatioUnitISOCode;
