@@ -53,7 +53,7 @@ entity CCMContract: cuid, managed, temporal{
   PreviousContractNumber: String;
   ContractNumber: String;
   ItemGUID: String;
-  Synchronized: Boolean;
+  Synchronized: Boolean default false;
   Notified: Boolean;
   Extension: Boolean;
   ExtensionPeriod: String;
@@ -188,6 +188,8 @@ entity SettlementsDate: managed{
   key FromDate               : Date;
   ToDate                     : Date;
   SettlementID               : String; 
+  RebateContractNumber    : String;
+  Synchronized              : Boolean default false;
 }
 
 entity APIDefinition: cuid{
