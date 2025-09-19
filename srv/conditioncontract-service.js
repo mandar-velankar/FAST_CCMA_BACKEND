@@ -111,10 +111,24 @@ module.exports = (srv) => {
             if (Array.isArray(rebateResponses)) {
                 for (const rebateResp of rebateResponses) {
                     const rebateContractNumber = rebateResp?.data?.ConditionContract;
-                    if (rebateContractNumber) {
-                        await tx.run(UPDATE(SettlementsDate).with({ RebateContractNumber: rebateContractNumber, Synchronized: true }).where({ CCMContractID: CCMContractID }));
-                        console.log("Rebate payload sent to SAP:", JSON.stringify(rebateResp?.config?.data, null, 2));
-                        console.log("Rebate response from SAP:", rebateResp?.data);
+                    const externalDocRefID = rebateResp?.data?.ExternalDocumentReferenceID;
+
+                    if (rebateContractNumber && externalDocRefID) {
+                        // Find the matching settlement row
+                        const settlement = rebateSettlementData.find(s => s.SettlementID === externalDocRefID);
+
+                        if (settlement) {
+                            await tx.run(
+                                UPDATE(SettlementsDate)
+                                    .with({ RebateContractNumber: rebateContractNumber, Synchronized: true })
+                                    .where({ SettlementID: settlement.SettlementID })
+                            );
+
+                            console.log("Rebate payload sent to SAP:", JSON.stringify(rebateResp?.config?.data, null, 2));
+                            console.log("Rebate response from SAP:", rebateResp?.data);
+                        } else {
+                            console.warn(`No matching settlement found for ExternalDocumentReferenceID: ${externalDocRefID}`);
+                        }
                     }
                 }
             }
