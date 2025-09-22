@@ -294,9 +294,9 @@ entity IdentifyExistingContract as select from FastConditionContracts as fcc
             fcc.TenderID,
             fcc.OfferID,
             fcc.ContractType
-}
+}where ccm.ContractNumber is not null;
 
-function getBackendData()                                                                        returns String;
+function getInstituteData()                                                                        returns String;
 action   createCCMContract(FastCCMContractId : UUID, CCMContractID : UUID, ProductCode : String) returns String;
 action   createAllCCMContract(FastCCMContractId : UUID) returns String;
 action   sendFOCToInteractMail(FastCCMContractId : UUID, CCMContractID : UUID, ProductCode : String) returns String;
