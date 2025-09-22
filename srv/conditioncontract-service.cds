@@ -105,6 +105,7 @@ service ConditionContract {
             fcc.ContractStartDate as CndnContrValidFrom,
             fcc.ContractEndDate as CndnContrValidTo,
             fcc.CustomerID as Customer,
+            fcc.InstituteID,
             fcc.Division,
             pci.ConditionType,
             pci.YD02,
