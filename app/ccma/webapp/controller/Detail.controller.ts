@@ -107,7 +107,18 @@ export default class Detail extends BaseController {
             path: path,
             parameters: {
                 $$updateGroupId: "ContractInformationDetail"
+            },
+            events: {
+                dataReceived: (event: any) => {
+                    const uiModel = this.getModel("ui") as JSONModel;
+                    const items = event.getSource().getBoundContext()?.getObject();
+                    let bAllContractsHaveNumber = items?.CCMContract?.every(function (contract) {
+                        return !!contract.ContractNumber;
+                    });
+                    uiModel.setProperty("/hasExistingContract", bAllContractsHaveNumber);
+                }
             }
+            
         });
     }
 

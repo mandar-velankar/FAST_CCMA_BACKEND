@@ -127,6 +127,7 @@ export default class Detail extends BaseController {
                     const uiModel = this.getModel("ui") as JSONModel;
                     const items = event.getSource().getBoundContext()?.getObject();
                     uiModel.setProperty("/ProductName", items.ProductName);
+                    uiModel.setProperty("/hasExistingContract", items.ContractNumber ? true : false );
                 }
             }
         });
