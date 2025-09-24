@@ -213,7 +213,6 @@ entity APIConfigOAuth: cuid{
     ClientID      : String;
     ClientSecret  : String;
     Scope         : String;
-    Method: String;
 }
 
 entity APIBody: cuid{
