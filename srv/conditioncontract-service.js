@@ -226,28 +226,45 @@ module.exports = (srv) => {
 
     async function processContractsForCreation(tx, processedData) {
         const { sourceData, case: caseType, contracts } = processedData;
-
-        // Use first record for contract action decision
         const newOffer = sourceData[0];
 
-        // CASE_1 and CASE_3 logic
+        let lastResponse = null;
+
         if (caseType === "CASE_1" || caseType === "CASE_3") {
             for (const contract of contracts) {
                 const action = decideContractAction(contract, newOffer);
 
                 if (action === "CREATE_NEW") {
-                    await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
+                    lastResponse = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
                 } else if (action === "END_AND_CREATE_NEW") {
-                    const prevDay = d => new Date(new Date(d).setDate(new Date(d).getDate() - 1)).toISOString().slice(0, 10);
-                    await expireExistingContract(tx, 'ES', "ConditionContract", {ExistingContractNumber: contract.ContractNumber, ExpireDate: prevDay(newOffer.ConditionValidityStartDate)});
-                    await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
+                    await handleExpireContract(tx, contract, newOffer);
+
+                    lastResponse = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
                 }
             }
+        } else if (caseType === "NO_MATCH" || caseType === "UNCLASSIFIED") {
+            // No previous match → always create new
+            lastResponse = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
         }
-        // NO_MATCH or UNCLASSIFIED
-        else if (caseType === "NO_MATCH" || caseType === "UNCLASSIFIED") {
-            await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
+
+        return lastResponse;
+    }
+
+    async function handleExpireContract(tx, contract, newOffer) {
+        const prevDay = d => new Date(new Date(d).setDate(new Date(d).getDate() - 1)).toISOString().slice(0, 10);
+
+        const response = await expireExistingContract(tx,'ES',"ConditionContract",{ExistingContractNumber: contract.ContractNumber,ExpireDate: prevDay(newOffer.ConditionValidityStartDate)});
+
+        if (response?.status !== 200) {
+            throw new Error(`ExpireExistingContract failed for ${contract.ContractNumber}`);
         }
+
+        console.log(`Expired contract ${contract.ContractNumber} successfully`);
+
+        // optional DB sync
+        await tx.run(UPDATE(CCMContract).set({ Expired: true}).where({ ID: contract.CCMContractID }));
+
+        return true;
     }
 
 
@@ -295,9 +312,9 @@ module.exports = (srv) => {
                 console.log("Payload sent to SAP:", JSON.stringify(JSON.parse(invoiceResponse?.config?.data), null, 2));
                 const contractInfo = await tx.run(SELECT.one.from(CCMContract).where({ ID: CCMContractID, ContractNumber: {"!=": null} }));
                 if(contractInfo){
-                    await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber}).where({ ID: CCMContractID }));
+                    await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber, Expired: false}).where({ ID: CCMContractID }));
                 }
-                await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, Synchronized: true }).where({ ID: CCMContractID }));
+                await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, Synchronized: true, Expired: false}).where({ ID: CCMContractID }));
             }
 
             let bvheaders = invoiceResponse?.data?.bvheader || [];
