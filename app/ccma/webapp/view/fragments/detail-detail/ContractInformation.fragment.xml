@@ -127,6 +127,11 @@
 							<Text text="{ProductName}" visible="false"/>
 						</form:fields>
 					</form:FormElement>
+					<form:FormElement label="{ContractNumber}" visible="false">
+						<form:fields>
+							<Text text="{ContractNumber}" visible="false"/>
+						</form:fields>
+					</form:FormElement>
 					
 				</form:formElements>
 			</form:FormContainer>

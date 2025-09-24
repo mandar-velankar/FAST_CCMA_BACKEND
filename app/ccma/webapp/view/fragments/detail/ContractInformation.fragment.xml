@@ -122,7 +122,11 @@
 							/>
 						</form:fields>
 					</form:FormElement>
-					
+					<form:FormElement label="{CCMContract/ContractNumber}" visible="false">
+						<form:fields>
+							<Text text="{CCMContract/ContractNumber}" visible="false"/>
+						</form:fields>
+					</form:FormElement>
 				</form:formElements>
 			</form:FormContainer>
 		</form:formContainers>

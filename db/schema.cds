@@ -38,6 +38,7 @@ entity FastConditionContracts: cuid, managed {
 
 entity CCMContract: cuid, managed, temporal{
   ProductCode: String;
+  EANUPCCode: String;
   CountryCode : String;
   ProductName: String;
   UoM: String;
@@ -51,7 +52,8 @@ entity CCMContract: cuid, managed, temporal{
   CCMContractEndDate: Date;
   PreviousContractNumber: String;
   ContractNumber: String;
-  Synchronized: Boolean;
+  ItemGUID: String;
+  Synchronized: Boolean default false;
   Notified: Boolean;
   Extension: Boolean;
   ExtensionPeriod: String;
@@ -59,10 +61,19 @@ entity CCMContract: cuid, managed, temporal{
   CCMCustomer: Composition of CCMCustomer on CCMCustomer.CCMContract = $self;
   CCMMaterial: Composition of many CCMMaterial on CCMMaterial.CCMContract = $self;
   CurrentInvoicePrice: Composition of CurrentInvoicePrice on CurrentInvoicePrice.CCMContract = $self;
+  ContractItemGUID: Composition of many ContractItemGUID on ContractItemGUID.CCMContract = $self;
   PriceConditionInvoice: Composition of PriceConditionInvoice on PriceConditionInvoice.ProductCode = ProductCode and PriceConditionInvoice.CountryCode = CountryCode;
   PriceConditionRebate:  Composition of PriceConditionRebate on PriceConditionRebate.ProductCode = ProductCode and PriceConditionRebate.CountryCode = CountryCode;
   PriceConditionFOC: Composition of many PriceConditionFOC on PriceConditionFOC.ProductCode = ProductCode and PriceConditionFOC.CountryCode = CountryCode;
   FastConditionContracts: Association to FastConditionContracts
+}
+
+entity ContractItemGUID : cuid, managed {
+  ConditionDocument: String;
+  CustomerID: String;
+  FieldCombination: String;
+  ItemGUID: String;
+  CCMContract: Association to CCMContract;
 }
 
 entity CCMCustomer: cuid, managed, temporal{
@@ -177,6 +188,8 @@ entity SettlementsDate: managed{
   key FromDate               : Date;
   ToDate                     : Date;
   SettlementID               : String; 
+  RebateContractNumber    : String;
+  Synchronized              : Boolean default false;
 }
 
 entity APIDefinition: cuid{
@@ -200,6 +213,7 @@ entity APIConfigOAuth: cuid{
     ClientID      : String;
     ClientSecret  : String;
     Scope         : String;
+    Method: String;
 }
 
 entity APIBody: cuid{

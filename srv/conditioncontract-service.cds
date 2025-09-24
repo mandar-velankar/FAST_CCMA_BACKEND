@@ -2,6 +2,7 @@ using {com.bayer.SXTENDER.ccma} from '../db/schema';
 
 service ConditionContract {
 
+
     entity FastConditionContracts                 as projection on ccma.FastConditionContracts;
     entity CCMContract                            as projection on ccma.CCMContract;
     entity CCMCustomer                            as projection on ccma.CCMCustomer;
@@ -15,6 +16,7 @@ service ConditionContract {
     entity APIDefinition                          as projection on ccma.APIDefinition;
     entity APIConfigOAuth                         as projection on ccma.APIConfigOAuth;
     entity APIBody                                as projection on ccma.APIBody;
+    entity ContractItemGUID                       as projection on ccma.ContractItemGUID;
 
 
     entity FastConditionContractsView             as
@@ -103,6 +105,7 @@ service ConditionContract {
             fcc.ContractStartDate as CndnContrValidFrom,
             fcc.ContractEndDate as CndnContrValidTo,
             fcc.CustomerID as Customer,
+            fcc.InstituteID,
             fcc.Division,
             pci.ConditionType,
             pci.YD02,
@@ -120,6 +123,49 @@ service ConditionContract {
             fcc.ContractType
     }
 
+ entity ContractRebatePayloadView as select from FastConditionContracts as fcc 
+    inner join CCMContract as ccm on ccm.FastConditionContracts.ID = fcc.ID
+    inner join PriceConditionRebate as pcr
+        on pcr.ProductCode = ccm.ProductCode and fcc.OfferID = pcr.OfferID
+    left outer join MaxDiscountView as mdv
+        on mdv.ProductCode = pcr.ProductCode and mdv.OfferID = pcr.OfferID {
+    key fcc.ID as FastConditionContractID,
+    key ccm.ID as CCMContractID,
+    key ccm.ProductCode,
+        ccm.CCMCustomer.AssortmentReference,
+        fcc.ContractStartDate as CndnContrValidFrom,
+        fcc.ContractEndDate as CndnContrValidTo,
+        fcc.CustomerID as Customer,
+        fcc.Division,
+        pcr.PriceConditionDiscountCondition.Volume,
+        pcr.PriceConditionDiscountCondition.Discount,
+        mdv.MaxDiscount,
+        pcr.YP00,
+        pcr.ConfidentialPrice,
+        pcr.SettlementDescription,
+        pcr.Tax,
+        pcr.RoyalDecree,
+        pcr.Liquidation,
+        pcr.RefundDate,
+        pcr.PriceConditionCode,
+        pcr.MarketIncentiveID,
+        ccm.CCMContractStartDate as ConditionValidityStartDate,
+        ccm.CCMContractEndDate as ConditionValidityEndDate,
+        ccm.OfferPrice as ConditionRateAmount,
+        ccm.EANUPCCode,
+        fcc.SAPID,
+        fcc.ExternalID,
+        fcc.Reference,
+        fcc.TenderID,
+        fcc.ContractType
+}
+
+entity MaxDiscountView as select from PriceConditionRebate {
+    key ProductCode,
+    key OfferID,
+    max(PriceConditionRebate.PriceConditionDiscountCondition.Discount) as MaxDiscount: Double
+}
+group by ProductCode, OfferID;
 
 entity CCMContractPricingFormView                  as
     select from CCMContract as ccmcontract
@@ -224,8 +270,34 @@ entity CCMContractRebateDiscountConditionTableView as
             descond.NetPriceWithTax,
             rebate.Tax;
 
+entity IdentifyExistingContract as select from FastConditionContracts as fcc 
+    inner join CCMContract as ccm on ccm.FastConditionContracts.ID = fcc.ID 
+    inner join CCMMaterial as mat on mat.CCMContract.ID = ccm.ID and mat.ActiveRecord = 1{
+            fcc.ID as FastConditionContractID,
+            ccm.ID as CCMContractID,
+            ccm.ContractNumber,
+            ccm.PreviousContractNumber,
+            ccm.ItemGUID,
+            ccm.ProductCode,
+            ccm.CCMCustomer.AssortmentReference,
+            ccm.CCMCustomer.InstituteID,
+            fcc.ContractStartDate as CndnContrValidFrom,
+            fcc.ContractEndDate as CndnContrValidTo,
+        key fcc.CustomerID as Customer,
+            fcc.Division,
+            ccm.CCMContractStartDate as ConditionValidityStartDate,
+            ccm.CCMContractEndDate as ConditionValidityEndDate,
+            ccm.OfferPrice as ConditionRateAmount,
+        key mat.MaterialNumber as Product,
+            fcc.SAPID,
+            fcc.ExternalID,
+            fcc.Reference,
+            fcc.TenderID,
+            fcc.OfferID,
+            fcc.ContractType
+}where ccm.ContractNumber is not null;
 
-function getBackendData()                                                                        returns String;
+function getInstituteData()                                                                        returns String;
 action   createCCMContract(FastCCMContractId : UUID, CCMContractID : UUID, ProductCode : String) returns String;
 action   createAllCCMContract(FastCCMContractId : UUID) returns String;
 action   sendFOCToInteractMail(FastCCMContractId : UUID, CCMContractID : UUID, ProductCode : String) returns String;
