@@ -17,7 +17,8 @@ const {
     ContractRebatePayloadView,
     SettlementsDate,
     APIConfigOAuth,
-    ContractItemGUID
+    ContractItemGUID,
+    IdentifyExistingContract
 } = cds.entities("ConditionContract");
 
 
@@ -42,6 +43,213 @@ module.exports = (srv) => {
                 req.error({ code: 404, message: "Contract Start Date should be before the Contract End Date.", target: "CCMContractStartDate" });
         }
     })
+
+    async function fetchInstituteData() {
+        const fastbackendAPI = await cds.connect.to("FASTBACKEND_API");
+        const response = await fastbackendAPI.send({
+            method: 'GET',
+            path: `/v2/conditioncontracting/getInstituteData`
+        });
+
+        const institutes = response?.d?.candidateInstituteData || [];
+        return institutes.map(item => ({
+            ...item
+        }));
+    }
+
+    async function preprocessContracts(tx, sourceData) {
+
+        const candidates = await fetchInstituteData();
+
+        const contracts = await tx.run(
+            SELECT.from(IdentifyExistingContract)
+        );
+
+        const enrichedContracts = contracts.flatMap(contract => {
+            return candidates
+                .filter(c =>
+                    String(c.CandidateInstituteID).trim() === String(contract.InstituteID).trim() ||
+                    String(c.BaseInstituteID).trim() === String(contract.InstituteID).trim()
+                )
+                .map(match => ({
+                ...contract,
+                candidateType: match.RelationType,
+                baseInstitute: match.BaseInstituteID,
+                candidateInstitute: match.CandidateInstituteID
+                }));
+        });
+
+        return classifyContracts(sourceData, enrichedContracts);
+        
+    }
+
+    /*function classifyContracts(sourceData, enrichedContracts) {
+        
+        if (!sourceData.length) return [];
+
+        // take first record just for matching (all have same InstituteID anyway)
+        const newOffer = sourceData[0];
+        // 1. Find contracts related to this offer via hierarchy (SELF/PARENT/CHILD)
+        const relatedContracts = enrichedContracts.filter(contract => {
+            return (
+                contract.candidateInstitute === newOffer.InstituteID || // SELF / CHILD / PARENT
+                contract.baseInstitute === newOffer.InstituteID        // newOffer is the base of contract
+            );
+        });
+
+        if (relatedContracts.length === 0) {
+            return [{ sourceData, case: "NO_MATCH" }];
+        }
+
+        // 2. Extract institute sets
+        const newOfferIds = [newOffer.InstituteID, ...(newOffer.childInstitutes || [])]; // all institutes in new offer
+        const contractIds = relatedContracts
+            .map(c => c.candidateInstitute) // all candidate institutes from contracts
+            .filter((v, i, a) => a.indexOf(v) === i); // unique
+
+        // 3. CASES
+
+        // Case 1: Single customer exact match
+        if (newOfferIds.length === 1 && contractIds.length === 1 && newOfferIds[0] === contractIds[0]) {
+            return [{ sourceData, case: "CASE_1", contracts: relatedContracts }];
+        }
+
+        // Case 2: New single customer matches existing assortment
+        if (newOfferIds.length === 1 && contractIds.length > 1) {
+            return [{ sourceData, case: "CASE_2", contracts: relatedContracts }];
+        }
+
+        // Case 3: Matching contract on same assortment (all institutes match exactly)
+        if (arraysEqual(newOfferIds.sort(), contractIds.sort())) {
+            return [{ sourceData, case: "CASE_3", contracts: relatedContracts }];
+        }
+
+        // Case 4: Overlapping customers in different assortments
+        if (newOfferIds.some(id => contractIds.includes(id)) && !arraysEqual(newOfferIds.sort(), contractIds.sort())) {
+            return [{ sourceData, case: "CASE_4", contracts: relatedContracts }];
+        }
+
+        // Case 5: Single customer in new assortment matches existing single contract
+        if (newOfferIds.length > 1 && contractIds.length === 1 && contractIds[0] === newOffer.baseInstitute) {
+            return [{ sourceData, case: "CASE_5", contracts: relatedContracts }];
+        }
+
+        return [{ sourceData, case: "UNCLASSIFIED", contracts: relatedContracts }];
+    }*/
+    
+    function classifyContracts(sourceData, enrichedContracts) {
+        if (!sourceData.length) return [];
+
+        // use first record just for matching
+        const newOffer = sourceData[0];
+
+        const { ProductCode, InstituteID, AssortmentReference } = newOffer;
+
+        // filter contracts only on same ProductCode
+        const relevantContracts = enrichedContracts.filter(
+            c => c.ProductCode === ProductCode
+        );
+
+        if (relevantContracts.length === 0) {
+            return { sourceData, case: "NO_MATCH" };
+        }
+
+        // ---- CASE 1 ----
+        // contract is single-customer with candidate + base = newOffer.InstituteID
+        const case1Contracts = relevantContracts.filter(
+            c =>
+                c.candidateInstitute === InstituteID &&
+                c.baseInstitute === InstituteID
+        );
+        if (case1Contracts.length > 0) {
+            return { sourceData, case: "CASE_1", contracts: case1Contracts };
+        }
+
+        // ---- CASE 2 ----
+        // newOffer.InstituteID appears as a child in some contract assortment
+        const case2Contracts = relevantContracts.filter(
+            c => c.baseInstitute !== InstituteID && c.candidateInstitute === InstituteID
+        );
+        if (case2Contracts.length > 0) {
+            return { sourceData, case: "CASE_2", contracts: case2Contracts };
+        }
+
+        // ---- CASE 3 ----
+        // assortment reference matches on both new offer and contract
+        const case3Contracts = relevantContracts.filter(
+            c => c.AssortmentReference && c.AssortmentReference === AssortmentReference
+        );
+        if (case3Contracts.length > 0) {
+            return { sourceData, case: "CASE_3", contracts: case3Contracts };
+        }
+
+        // ---- CASE 4 ----
+        // (ignored for now)
+        // const case4Contracts = ...
+        // return [{ sourceData, case: "CASE_4", contracts: case4Contracts }];
+
+        // ---- CASE 5 ----
+        // newOffer.InstituteID is a parent, contract is single customer child of that parent
+        const case5Contracts = relevantContracts.filter(
+            c =>
+                c.baseInstitute === InstituteID &&
+                c.candidateInstitute !== InstituteID
+        );
+        if (case5Contracts.length > 0) {
+            return { sourceData, case: "CASE_5", contracts: case5Contracts };
+        }
+
+        return { sourceData, case: "UNCLASSIFIED", contracts: relevantContracts };
+    }
+
+    // // helper function to compare arrays
+    // function arraysEqual(a, b) {
+    //     if (a.length !== b.length) return false;
+    //     return a.every((v, i) => v === b[i]);
+    // }
+
+    function decideContractAction(existingContract, newOffer) {
+        const existingType = existingContract.ContractType;
+        const newType = newOffer.ContractType;
+
+        if (existingType === "Tender" && newType === "Tender") {
+            return "CREATE_NEW"; 
+        }
+
+        if (existingType === "Commercial Agreement" && 
+            (newType === "Tender" || newType === "Commercial Agreement")) {
+            return "END_AND_CREATE_NEW"; 
+        }
+
+        return "CREATE_NEW";
+    }
+
+    async function processContractsForCreation(tx, processedData) {
+        const { sourceData, case: caseType, contracts } = processedData;
+
+        // Use first record for contract action decision
+        const newOffer = sourceData[0];
+
+        // CASE_1 and CASE_3 logic
+        if (caseType === "CASE_1" || caseType === "CASE_3") {
+            for (const contract of contracts) {
+                const action = decideContractAction(contract, newOffer);
+
+                if (action === "CREATE_NEW") {
+                    await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
+                } else if (action === "END_AND_CREATE_NEW") {
+                    const prevDay = d => new Date(new Date(d).setDate(new Date(d).getDate() - 1)).toISOString().slice(0, 10);
+                    await expireExistingContract(tx, 'ES', "ConditionContract", {ExistingContractNumber: contract.ContractNumber, ExpireDate: prevDay(newOffer.ConditionValidityStartDate)});
+                    await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
+                }
+            }
+        }
+        // NO_MATCH or UNCLASSIFIED
+        else if (caseType === "NO_MATCH" || caseType === "UNCLASSIFIED") {
+            await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
+        }
+    }
+
 
     srv.on('createCCMContract', async (req) => {
         const tx = cds.tx(req);
@@ -74,7 +282,11 @@ module.exports = (srv) => {
                 );
             })) : Promise.resolve([]);
 
-            const invoicePromise = createCCMContract(tx, 'ES', "ConditionContract", sourceData);
+            const processedData = await preprocessContracts(tx, sourceData);
+
+            const invoicePromise = await processContractsForCreation(tx, processedData);
+
+            //const invoicePromise = createCCMContract(tx, 'ES', "ConditionContract", sourceData);
 
             const [invoiceResponse, rebateResponses] = await Promise.all([invoicePromise, rebatePromise]);
 
@@ -282,6 +494,58 @@ module.exports = (srv) => {
                 current = current[key];
             }
         });
+    }
+
+    async function expireExistingContract(tx, countryCode, resource, sourceData) {
+        try {
+            const apiConfig = await tx.run(SELECT.one.from(APIDefinition).where({ Provider: 'ConditionContract', CountryCode: countryCode, Resource: resource, Name: 'ExpireExistingInvoicePrice' }));
+            const apiBodyMappings = await tx.run(SELECT.from(APIBody).where({ APIDefinition_ID: apiConfig.ID }));
+            if (!apiBodyMappings) {
+                throw new Error("ERR_MISSING_PARAMETER:API body Mappings not found");
+            }
+            const body = buildExpiryPayloadFromMappings(sourceData, apiBodyMappings);
+            if (!body) {
+                throw new Error("ERR_MISSING_PARAMETER:API Body not found");
+            }
+            const oauthAuth = await tx.run(SELECT.one.from(APIConfigOAuth, apiConfig.OAuth_ID));
+            const url = `${apiConfig.Host}${apiConfig.BasePath}${apiConfig.ResourcePath}`;
+
+            const oauthCredentials = await getBearerToken(oauthAuth);
+
+            return axios({
+                method: 'patch',
+                url: url,
+                headers: {
+                    'Authorization': `Bearer ${oauthCredentials.data.access_token}`,
+                    'Content-Type': 'application/json'
+                },
+                data: JSON.stringify(body)
+            });
+        } catch (error) {
+            throw error
+        }
+    }
+
+    function buildExpiryPayloadFromMappings(sourceData, apiBodyMappings) {
+        const finalResult = {};
+
+        for (const { Source, Target } of apiBodyMappings) {
+
+            if (Target.endsWith("ConditionContract.ConditionContractType.ConditionContract")) {
+                setNestedValue(finalResult, Target, sourceData.ExistingContractNumber);
+                continue;
+            }
+
+            if (Target.endsWith("ConditionContract.ConditionContractType.CndnContrValidTo")) {
+                setNestedValue(finalResult, Target, sourceData.ExpireDate);
+                continue;
+            }
+
+            setNestedValue(finalResult, Target, "");
+
+        }
+
+        return finalResult;
     }
 
 

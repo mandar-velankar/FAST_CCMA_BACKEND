@@ -52,6 +52,7 @@ entity CCMContract: cuid, managed, temporal{
   CCMContractEndDate: Date;
   PreviousContractNumber: String;
   ContractNumber: String;
+  ContractStatus: String;
   ItemGUID: String;
   Synchronized: Boolean default false;
   Notified: Boolean;
