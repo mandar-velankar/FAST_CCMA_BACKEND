@@ -14,7 +14,10 @@ const {
     APIDefinition,
     APIBody,
     ContractPayloadView,
-    APIConfigOAuth
+    ContractRebatePayloadView,
+    SettlementsDate,
+    APIConfigOAuth,
+    ContractItemGUID
 } = cds.entities("ConditionContract");
 
 
@@ -47,18 +50,89 @@ module.exports = (srv) => {
             const sourceData = await tx.run(SELECT.from(ContractPayloadView).where({
                 CCMContractID: CCMContractID, FastConditionContractID: FastCCMContractId, ProductCode: ProductCode
             }));
-            const response = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
-            const contractNumber = response?.data?.ConditionContract;
+            const rebateSourceData = await tx.run(SELECT.from(ContractRebatePayloadView).where({
+                CCMContractID: CCMContractID, FastConditionContractID: FastCCMContractId, ProductCode: ProductCode
+            }));
+
+            const rebateSettlementData = await tx.run(SELECT.from(SettlementsDate).where({
+                CCMContractID: CCMContractID
+            }));
+
+            const rebatePromise = rebateSourceData.length > 0
+            ? Promise.all(rebateSettlementData.map(async (settle) => {
+                const fromDate = settle.FromDate;
+                const toDate = settle.ToDate;
+                const SettlementID = settle.SettlementID;
+
+                // Pass dates into createRebateContract
+                return createRebateContract(
+                    tx,
+                    'ES',
+                    "ConditionContract",
+                    rebateSourceData,
+                    { fromDate, toDate, SettlementID }
+                );
+            })) : Promise.resolve([]);
+
+            const invoicePromise = createCCMContract(tx, 'ES', "ConditionContract", sourceData);
+
+            const [invoiceResponse, rebateResponses] = await Promise.all([invoicePromise, rebatePromise]);
+
+            const contractNumber = invoiceResponse?.data?.ConditionContract;
             if (contractNumber) {
-                console.log("Payload sent to SAP:", JSON.stringify(JSON.parse(response?.config?.data), null, 2));
+                console.log("Payload sent to SAP:", JSON.stringify(JSON.parse(invoiceResponse?.config?.data), null, 2));
                 const contractInfo = await tx.run(SELECT.one.from(CCMContract).where({ ID: CCMContractID, ContractNumber: {"!=": null} }));
                 if(contractInfo){
                     await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber}).where({ ID: CCMContractID }));
                 }
                 await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, Synchronized: true }).where({ ID: CCMContractID }));
             }
-            console.log("Response from SAP:", response.data);
-            return req.reply("CCM Contract " + contractNumber + " created successfully into SAP");
+
+            let bvheaders = invoiceResponse?.data?.bvheader || [];
+            if (!Array.isArray(bvheaders)) {
+                bvheaders = [bvheaders]; 
+            }
+
+            if (bvheaders.length) {
+                const inserts = bvheaders.map((bvh) => ({
+                    CCMContract_ID: CCMContractID,
+                    ConditionDocument: bvh.ConditionDocument,
+                    CustomerID: bvh.customer,
+                    FieldCombination: bvh.FieldCombination,
+                    ItemGUID: bvh.itemguid,
+                    createdAt: new Date(),
+                    createdBy: req.user.id,
+                }));
+
+                await tx.run(INSERT.into(ContractItemGUID).entries(inserts));
+            }
+            console.log("Invoice response from SAP:", invoiceResponse?.data);
+
+            if (Array.isArray(rebateResponses)) {
+                for (const rebateResp of rebateResponses) {
+                    const rebateContractNumber = rebateResp?.data?.ConditionContract;
+                    const externalDocRefID = rebateResp?.data?.ExternalDocumentReferenceID;
+
+                    if (rebateContractNumber && externalDocRefID) {
+                        // Find the matching settlement row
+                        const settlement = rebateSettlementData.find(s => s.SettlementID === externalDocRefID);
+
+                        if (settlement) {
+                            await tx.run(
+                                UPDATE(SettlementsDate)
+                                    .with({ RebateContractNumber: rebateContractNumber, Synchronized: true })
+                                    .where({ SettlementID: settlement.SettlementID })
+                            );
+
+                            console.log("Rebate payload sent to SAP:", JSON.stringify(rebateResp?.config?.data, null, 2));
+                            console.log("Rebate response from SAP:", rebateResp?.data);
+                        } else {
+                            console.warn(`No matching settlement found for ExternalDocumentReferenceID: ${externalDocRefID}`);
+                        }
+                    }
+                }
+            }
+            return req.reply("CCM Invoice Contract " + contractNumber + " + " + rebateResponses.length + " Rebate Contracts created successfully into SAP");
         } catch (error) {
             let statusCode = 500;
             let userMessage = "Unexpected server error. Please contact the application support team.";
@@ -90,9 +164,58 @@ module.exports = (srv) => {
         }
     });
 
+    function updatePayloadWithDates(payload, fromDate, toDate, SettlementID) {
+        // Replace top-level contract dates
+        payload.ConditionContract.ConditionContractType.CndnContrValidFrom = fromDate;
+        payload.ConditionContract.ConditionContractType.CndnContrValidTo = toDate;
+        payload.ConditionContract.ConditionContractType.CndnContrSourceDoc = SettlementID;
+        payload.ConditionContract.ConditionContractType.ExternalDocumentReferenceID = SettlementID;
+
+        // Replace in each condition record
+        const condRecords = payload.ConditionContract.ConditionContractType._CndnContrCndnRecord?.[1]?.CndnContrConditionRecordType || [];
+        condRecords.forEach(rec => { rec.ConditionValidityStartDate = fromDate; 
+            rec.ConditionValidityEndDate = toDate;
+        });
+
+        return payload;
+    }
+
+    async function createRebateContract(tx, countryCode, resource, sourceData, rebateSettlementData) {
+        try {
+            const apiConfig = await tx.run(SELECT.one.from(APIDefinition).where({ Provider: 'ConditionContract', CountryCode: countryCode, Resource: resource, Name: 'Rebate' }));
+            const apiBodyMappings = await tx.run(SELECT.from(APIBody).where({ APIDefinition_ID: apiConfig.ID }));
+            if (!apiBodyMappings) {
+                throw new Error("ERR_MISSING_PARAMETER:API body Mappings not found");
+            }
+            let body = buildRebatePayloadFromMappings(sourceData, apiBodyMappings, rebateSettlementData);
+            if (!body) {
+                throw new Error("ERR_MISSING_PARAMETER:API Body not found");
+            }
+            // Update dates according to settlement period
+            body = updatePayloadWithDates(body, rebateSettlementData.fromDate, rebateSettlementData.toDate, rebateSettlementData.SettlementID);
+
+            const oauthAuth = await tx.run(SELECT.one.from(APIConfigOAuth, apiConfig.OAuth_ID));
+            const url = `${apiConfig.Host}${apiConfig.BasePath}${apiConfig.ResourcePath}`;
+
+            const oauthCredentials = await getBearerToken(oauthAuth);
+
+            return axios({
+                method: 'post',
+                url: url,
+                headers: {
+                    'Authorization': `Bearer ${oauthCredentials.data.access_token}`,
+                    'Content-Type': 'application/json'
+                },
+                data: JSON.stringify(body)
+            });
+        } catch (error) {
+            throw error
+        }
+    }
+
     async function createCCMContract(tx, countryCode, resource, sourceData) {
         try {
-            const apiConfig = await tx.run(SELECT.one.from(APIDefinition).where({ Provider: 'ConditionContract', CountryCode: countryCode, Resource: resource }));
+            const apiConfig = await tx.run(SELECT.one.from(APIDefinition).where({ Provider: 'ConditionContract', CountryCode: countryCode, Resource: resource, Name: 'InvoicePrice' }));
             const apiBodyMappings = await tx.run(SELECT.from(APIBody).where({ APIDefinition_ID: apiConfig.ID }));
             if (!apiBodyMappings) {
                 throw new Error("ERR_MISSING_PARAMETER:API body Mappings not found");
@@ -119,7 +242,7 @@ module.exports = (srv) => {
             throw error
         }
     }
-
+    
     async function getBearerToken(oauthAuth) {
 
         if (oauthAuth.OAuthProvider && oauthAuth.ClientID && oauthAuth.ClientSecret && oauthAuth.Scope) {
@@ -160,6 +283,231 @@ module.exports = (srv) => {
             }
         });
     }
+
+
+    function buildRebatePayloadFromMappings(sourceData, apiBodyMappings, rebateSettlementData) {
+        const finalResult = {};
+        const salesGroupMap = { Pharma: 'PH', Radiology: 'RD' };
+        const scaleTypes = {YAW2: 'D', YAW1: 'A'};
+
+        // split static vs dynamic
+        const staticMappings = apiBodyMappings.filter(m => !m.Source.startsWith('ContractRebatePayloadView.'));
+        const dynamicMappings = apiBodyMappings.filter(m => m.Source.startsWith('ContractRebatePayloadView.'));
+
+        const staticConditionRecord = {};
+        const staticBVHeader = {}; 
+
+        for (const { Source, Target } of staticMappings) {
+            const key = Target.split('.').pop();
+
+            if (Target.includes('CndnContrConditionRecordType')) {
+                staticConditionRecord[key] = Source;
+            } else if (Target.includes('bvheader')) {
+                staticBVHeader[key] = Source;
+            } else {
+                setNestedValue(finalResult, Target, Source);
+            }
+        }
+
+        let conditionRecord = { ...staticConditionRecord };
+        const conditionRecords = [];
+        const bvheaderList = [];
+
+        // --- Build YRA1 from first row only ---
+        if (sourceData.length > 0) {
+            const firstRow = sourceData[0];
+            for (const { Source, Target } of dynamicMappings) {
+                const field = Source.replace('ContractRebatePayloadView.', '');
+                let value = firstRow[field];
+                if (value === undefined || value === null) continue;
+                const key = Target.split('.').pop();
+
+                if (Target.includes('CndnContrConditionRecordType')) {
+                    conditionRecord[key] = value;
+                } else if (Target.includes('bvheader')) {
+                    continue;
+                } else if (Target.includes('CndnContrConditionRecordScaleType')) {
+                    continue;
+                } else {
+                    setNestedValue(finalResult, Target, value);
+                }
+            }
+
+            // --- Force YRA1 ---
+            conditionRecord.ConditionType = 'YRA1';
+
+            // --- Apply PriceConditionCode to YRA1 ---
+            if (firstRow.PriceConditionCode) {
+                conditionRecord.PricingScaleType = scaleTypes[firstRow.PriceConditionCode] || firstRow.PriceConditionCode;
+            }
+
+            conditionRecords.push(conditionRecord);
+        }
+
+        // --- Build YRS1 with scales from ALL rows ---
+        const yrs1Record = { ...conditionRecords[0], ConditionType: 'YRS1' };
+
+        // --- Apply MaxDiscount override on YRS1 ---
+        if (sourceData[0].MaxDiscount != null) {
+            yrs1Record.ConditionRateRatio = Math.round(sourceData[0].MaxDiscount * 100 * 100) / 100;
+        }
+
+        // --- Apply PriceConditionCode override on YRS1 ---
+        if (sourceData[0].PriceConditionCode) {
+            yrs1Record.PricingScaleType = scaleTypes[sourceData[0].PriceConditionCode] || sourceData[0].PriceConditionCode;
+        }
+
+        yrs1Record._CndnContrScCndnRecord = [
+            "",
+            {
+                CndnContrConditionRecordScaleType: sourceData.map((sRow, idx) => {
+                    const scaleObj = {};
+                    for (const { Source, Target } of apiBodyMappings) {
+                        if (!Target.includes('CndnContrConditionRecordScaleType')) continue;
+                        const key = Target.split('.').pop();
+                        if (key === 'ConditionScaleLine') {
+                            scaleObj[key] = idx + 1;
+                            continue;
+                        }
+                        if (Source.startsWith('ContractRebatePayloadView.')) {
+                            const field = Source.replace('ContractRebatePayloadView.', '');
+                            scaleObj[key] = sRow[field] ?? "";
+                        } else {
+                            scaleObj[key] = Source;
+                        }
+                    }
+
+                    // --- Apply Discount override on each scale line ---
+                    if (sRow.Discount != null) {
+                        scaleObj.ConditionRateRatio = Math.round(sRow.Discount * 100 * 100) / 100;
+                    }
+
+                    // --- Apply PriceConditionCode override on each scale line ---
+                    if (sRow.PriceConditionCode) {
+                        scaleObj.PricingScaleType = scaleTypes[sRow.PriceConditionCode] || sRow.PriceConditionCode;
+                    }
+
+                    return scaleObj;
+                })
+            }
+        ];
+
+        conditionRecords.push(yrs1Record);
+
+        // --- Fields to remove ---
+        const removeFromYRA1Only = [
+            'PricingScaleBasis',
+            'CndnScaleQuantityUnitISOCode',
+            'ConditionScaleQuantityUnit',
+            'ConditionRateRatio'
+        ];
+
+        const removeFromBoth = [
+            'ConditionScaleLine',
+            'CndnScaleQuantityUnitSAPCode',
+            'ConditionRateRatioUnitSAPCode',
+            'ConditionScaleQuantity'
+        ];
+
+        // --- Cleanup YRA1 ---
+        [...removeFromYRA1Only, ...removeFromBoth].forEach(f => delete conditionRecords[0][f]);
+
+        // --- Cleanup YRS1 ---
+        removeFromBoth.forEach(f => delete conditionRecords[1][f]);
+
+            // --- BV headers ---
+        const bvheaderEntry = { ...staticBVHeader };
+        for (const { Source, Target } of dynamicMappings) {
+            if (!Target.includes('bvheader')) continue;
+            const field = Source.replace('ContractRebatePayloadView.', '');
+            let value = sourceData[0][field];
+            if (value === undefined || value === null) continue;
+            const key = Target.split('.').pop();
+            bvheaderEntry[key] = value;
+        }
+
+        if (sourceData[0].AssortmentReference) {
+            bvheaderEntry['FieldCombination'] = 'Y002';
+            delete bvheaderEntry['customer'];
+
+            bvheaderList.push(bvheaderEntry);
+
+            bvheaderList.push({
+                FieldCombination: "Y047",
+                ConditionDocument: "",
+                incl_excl: "I",
+                EANUPCCode: sourceData[0].EANUPCCode
+            });
+        }else {
+            bvheaderEntry['FieldCombination'] = 'Y001';
+
+            bvheaderList.push(bvheaderEntry);
+
+            bvheaderList.push({
+                FieldCombination: "Y047",
+                ConditionDocument: "",
+                incl_excl: "I",
+                EANUPCCode: sourceData[0].EANUPCCode
+            });
+        }
+
+        for (const { Source, Target } of dynamicMappings) {
+            const field = Source.replace('ContractRebatePayloadView.', '');
+            let value = sourceData[0][field];
+
+            if (value === undefined || value === null) continue;
+
+            if (field === 'Division' && Target === 'ConditionContract.ConditionContractType.SalesGroup') {
+                value = salesGroupMap[value] || value;
+                setNestedValue(finalResult, Target, value);
+                continue;
+            }
+
+            if (field === 'SAPID' && Target === 'ConditionContract.ConditionContractType.CndnContrSourceDoc') {
+                if(sourceData[0].ContractType.toLowerCase() === 'tender'){
+                    value = "CO-".concat(sourceData[0].Reference.replace(/ /g,'-'));
+                }
+                // Commercial Agreement
+                if(sourceData[0].ContractType.toLowerCase() === 'commercial agreement'){
+                    value = "OF-".concat(sourceData[0].TenderID); 
+                }
+                setNestedValue(finalResult, Target, value);
+                continue;
+            }
+
+            if (field === 'SAPID' && Target === 'ConditionContract.ConditionContractType.ExternalDocumentReferenceID') {
+                if(sourceData[0].ContractType.toLowerCase() === 'tender'){
+                    value = "CO-".concat(sourceData[0].Reference.replace(/ /g,'-'));
+                }
+                // Commercial Agreement
+                if(sourceData[0].ContractType.toLowerCase() === 'commercial agreement'){
+                    value = "OF-".concat(sourceData[0].TenderID); 
+                }
+                setNestedValue(finalResult, Target, value);
+                continue;
+            }
+        }
+
+        // --- Final assembly ---
+        if (conditionRecords.length > 0) {
+            setNestedValue(finalResult, 'ConditionContract.ConditionContractType._CndnContrCndnRecord', [
+                "",
+                { CndnContrConditionRecordType: conditionRecords }
+            ]);
+        }
+
+        setNestedValue(finalResult, 'ConditionContract.conditioncontract', {
+            "MarketIncentiveID": sourceData[0]?.MarketIncentiveID || "10.10.730.40"
+        });
+
+        if (bvheaderList.length > 0) {
+            setNestedValue(finalResult, 'ConditionContract.bvheader', bvheaderList);
+        }
+
+        return finalResult;
+    }
+
+
 
     function buildPayloadFromMappings(sourceData, apiBodyMappings) {
         const finalResult = {};
@@ -261,6 +609,9 @@ module.exports = (srv) => {
             }
 
             if (Object.keys(conditionRecord).length > 0) {
+                if (conditionRecord.ConditionType === 'YD02') {
+                    delete conditionRecord.ConditionRateAmount;
+                }
                 if (conditionRecord.ConditionType === 'YP10') {
                     delete conditionRecord.ConditionRateRatioUnit;
                     delete conditionRecord.ConditionRateRatio;
@@ -314,7 +665,6 @@ module.exports = (srv) => {
 
         return finalResult;
     }
-
 
 
     srv.before(['UPDATE', 'CREATE'], "CCMContractInformationDetailView", async (req) => {
@@ -459,6 +809,35 @@ module.exports = (srv) => {
                  FastConditionContractID: FastCCMContractId
             }));
 
+            const rebateSourceData = await tx.run(SELECT.from(ContractRebatePayloadView).where({
+                FastConditionContractID: FastCCMContractId
+            }));
+
+            const rebateContractIDs = [...new Set(rebateSourceData.map(item => item.CCMContractID))];
+
+            const rebateSettlementData = await tx.run(SELECT.from(SettlementsDate).where({
+                CCMContractID: {in: rebateContractIDs}
+            }));
+
+            const rebatePromise = rebateSourceData.length > 0
+            ? Promise.all(rebateSettlementData.map(async (settle) => {
+                const fromDate = settle.FromDate;
+                const toDate = settle.ToDate;
+                const SettlementID = settle.SettlementID;
+
+                const filteredRebateData = rebateSourceData.filter(r => r.CCMContractID === settle.CCMContractID);
+
+                // Pass dates into createRebateContract
+                return createRebateContract(
+                    tx,
+                    'ES',
+                    "ConditionContract",
+                    filteredRebateData,
+                    { fromDate, toDate, SettlementID }
+                );
+            })) : Promise.resolve([]);
+
+
             // Grouping the source data by ContractID
             const grouped = Object.values(
                 sourceData.reduce((acc, item) => {
@@ -471,19 +850,38 @@ module.exports = (srv) => {
                 }, {})
             );
 
-            for (const ct of grouped) {
-                const response = await createAllCCMContracts(tx, 'ES', "ConditionContract", ct);
-                const contractNumber = response?.data?.ConditionContract?.ConditionContractType?.ConditionContract;
+            const invoicePromises = grouped.map(ct => createCCMContract(tx, 'ES', "ConditionContract", ct));
+            
+            const [invoiceResponses, rebateResponses] = await Promise.all([
+                Promise.all(invoicePromises),
+                rebatePromise
+            ]);
+
+            const createdContractNumbers = [];
+            for (let i = 0; i < invoiceResponses.length; i++) {
+                const response = invoiceResponses[i];
+                const contractDataGroup = grouped[i];
+                const CCMContractID = contractDataGroup[0].CCMContractID;
+                const contractNumber = response?.data?.ConditionContract;
+
                 if (contractNumber) {
-                    const contractInfo = await tx.run(SELECT.one.from(CCMContract).where({ ID: ct[0].CCMContractID, ContractNumber: {"!=": null} }));
+                    createdContractNumbers.push(contractNumber);
+                    const contractInfo = await tx.run(SELECT.one.from(CCMContract).where({ ID: CCMContractID, ContractNumber: {"!=": null} }));
                     if(contractInfo){
-                        await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber}).where({ ID: ct[0].CCMContractID }));
+                        await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber}).where({ ID: CCMContractID }));
                     }
-                    await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, Synchronized: true }).where({ ID: ct[0].CCMContractID }));
+                    await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, Synchronized: true }).where({ ID: CCMContractID }));
                 }
             }
 
-            return req.reply("");
+            if (Array.isArray(rebateResponses)) {
+                for (const rebateResp of rebateResponses) {
+                    console.log("Rebate payload sent to SAP:", JSON.stringify(rebateResp?.config?.data, null, 2));
+                    console.log("Rebate response from SAP:", rebateResp?.data);
+
+                }
+            }
+            return req.reply(`${createdContractNumbers.length} CCM Invoice Contract(s) and ${rebateResponses.length} Rebate Contract(s) created successfully into SAP.`);
         } catch (error) {
             let statusCode = 500;
             let userMessage = "Unexpected server error. Please contact the application support team.";
@@ -514,30 +912,4 @@ module.exports = (srv) => {
             return req.reject(statusCode, userMessage);
         }
     });
-
-    async function createAllCCMContracts(tx, countryCode, resource, sourceData) {
-        const apiConfig = await tx.run(SELECT.one.from(APIDefinition).where({ Provider: 'ConditionContract', CountryCode: countryCode, Resource: resource }));
-        const apiBodyMappings = await tx.run(SELECT.from(APIBody).where({ APIDefinition_ID: apiConfig.ID }));
-        if (!apiBodyMappings) {
-            throw new Error("ERR_MISSING_PARAMETER:API body Mappings not found");
-        }
-        const body = buildPayloadFromMappings(sourceData, apiBodyMappings);
-        if (!body) {
-            throw new Error("ERR_MISSING_PARAMETER:API Body not found");
-        }
-        const oauthAuth = await tx.run(SELECT.one.from(APIConfigOAuth, apiConfig.OAuth_ID));
-        const url = `${apiConfig.Host}${apiConfig.BasePath}${apiConfig.ResourcePath}`;
-
-        const oauthCredentials = await getBearerToken(oauthAuth);
-
-        return axios({
-            method: 'post',
-            url: url,
-            headers: {
-                'Authorization': `Bearer ${oauthCredentials.data.access_token}`,
-                'Content-Type': 'application/json'
-            },
-            data: JSON.stringify(body)
-        });
-    }
 };

@@ -50,7 +50,7 @@
 				<OverflowToolbar class="sapFDynamicPageAlignContent">
 					
 					<ToolbarSpacer/>
-					<Button text="Synchronize" icon="sap-icon://synchronize" type="Emphasized" press=".onCreateCCMContract" />
+					<Button text="Synchronize" icon="sap-icon://synchronize" type="Emphasized" press=".onCreateCCMContract" enabled="{= !${ui>/hasExistingContract}}"/>
 				</OverflowToolbar>
                 <VBox>
                     <VBox>
