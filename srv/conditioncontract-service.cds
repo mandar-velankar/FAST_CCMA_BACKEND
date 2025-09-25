@@ -296,7 +296,9 @@ entity IdentifyExistingContract as select from FastConditionContracts as fcc
             fcc.TenderID,
             fcc.OfferID,
             fcc.ContractType
-}where ccm.ContractNumber is not null and ccm.Expired = false;
+}where ccm.ContractNumber is not null
+  and ccm.Expired = false
+  and fcc.ContractEndDate >= CURRENT_DATE;
 
 function getInstituteData()                                                                        returns String;
 action   createCCMContract(FastCCMContractId : UUID, CCMContractID : UUID, ProductCode : String) returns String;
