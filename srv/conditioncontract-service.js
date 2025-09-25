@@ -79,7 +79,18 @@ module.exports = (srv) => {
                 }));
         });
 
-        return classifyContracts(sourceData, enrichedContracts);
+        const uniqueContracts = Array.from(
+            new Map(enrichedContracts.map(c => [
+                [
+                    c.CCMContractID,
+                    c.ContractNumber,
+                    c.Product,
+                    c.InstituteID,
+                    c.baseInstitute,
+                    c.candidateInstitute
+                ].join('|'),c])).values());
+
+        return classifyContracts(sourceData, uniqueContracts);
         
     }
 
