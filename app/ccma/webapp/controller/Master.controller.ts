@@ -382,4 +382,18 @@ export default class Master extends BaseController {
 
 	}
 
+	setSelectBrand(event: Event) {
+		let brandID = event.getParameter("selectedItem").getKey();
+		let productSelect = this.byId("idSelectProduct") as Select;
+		productSelect.setSelectedKey("All_Products");
+		productSelect.getBinding("items")?.filter([
+			new Filter({
+				path: "BrandID",
+				operator: FilterOperator.EQ,
+				value1: brandID,
+				caseSensitive: false
+			})
+		]);
+	}
+
 }

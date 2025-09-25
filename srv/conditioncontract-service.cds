@@ -304,4 +304,23 @@ function getInstituteData()                                                     
 action   createCCMContract(FastCCMContractId : UUID, CCMContractID : UUID, ProductCode : String) returns String;
 action   createAllCCMContract(FastCCMContractId : UUID) returns String;
 action   sendFOCToInteractMail(FastCCMContractId : UUID, CCMContractID : UUID, ProductCode : String) returns String;
+
+entity BrandsView as select from CCMContract {
+    key BrandID,
+        BrandName
+}where BrandID is not null
+    and BrandName is not null
+group by BrandID,
+    BrandName;
+
+entity BrandProductsView as select from CCMContract {
+    key BrandID,
+    key ProductCode,
+    ProductName
+}where BrandID is not null
+and ProductCode is not null
+and ProductName is not null
+group by BrandID,
+    ProductCode,
+    ProductName;
 }

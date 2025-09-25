@@ -1193,4 +1193,31 @@ module.exports = (srv) => {
             return req.reject(statusCode, userMessage);
         }
     });
+
+    srv.after("READ", "BrandsView", (data) => {
+        data.unshift({
+            BrandID: "All_Brands",
+            BrandName: "All"
+        });
+    });
+
+    srv.after("READ", "BrandProductsView", (data) => {
+        if (data && data.length > 0) {
+            const deduped = Array.from(
+                new Map(data.map(item => [item.ProductCode, item])).values()
+            );
+
+            // clear original array and push deduped items back
+            data.splice(0, data.length, ...deduped);
+        }
+
+        data.unshift({
+            BrandID: "All_Brands",
+            ProductCode: "All_Products",
+            ProductName: "All"
+        });
+    });
+
+
+
 };
