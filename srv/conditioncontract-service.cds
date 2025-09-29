@@ -300,6 +300,17 @@ entity IdentifyExistingContract as select from FastConditionContracts as fcc
   and ccm.Expired = false
   and fcc.ContractEndDate >= CURRENT_DATE;
 
+entity ExistingContractInfo as select from FastConditionContracts as fcc 
+    inner join CCMContract as ccm on ccm.FastConditionContracts.ID = fcc.ID {
+        key fcc.ID as FastConditionContractID,
+        key ccm.ID as CCMContractID,
+        ccm.ContractNumber,
+        fcc.ContractStartDate as CndnContrValidFrom,
+        fcc.ContractEndDate as CndnContrValidTo,
+        ccm.CCMContractStartDate as ConditionValidityStartDate,
+        ccm.CCMContractEndDate as ConditionValidityEndDate
+}where ccm.ContractNumber is not null and fcc.ContractEndDate < CURRENT_DATE;
+
 function getInstituteData()                                                                        returns String;
 action   createCCMContract(FastCCMContractId : UUID, CCMContractID : UUID, ProductCode : String) returns String;
 action   createAllCCMContract(FastCCMContractId : UUID) returns String;
