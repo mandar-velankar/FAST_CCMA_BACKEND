@@ -163,7 +163,11 @@
                             id="items"
                         >
                             <cells>
-                                <Text text="{OfferID}" />
+                                <VBox>
+                                    <Text text="{OfferID}" />
+                                    <Text text="{SAPID}" />
+                                    <Text text="{ExternalID}" />
+                                </VBox>
                                 <Text text="{Owner}" />
                                 <Text text="{ContractType}" />
                                 <Text text="{Reference}" />
