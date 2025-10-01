@@ -224,10 +224,10 @@ module.exports = (srv) => {
         const existingType = existingContract.ContractType;
         const newType = newOffer.ContractType;
 
-        const existingStart = existingContract.CndnContrValidFrom;
-        const existingEnd   = existingContract.CndnContrValidTo;
-        const newStart      = newOffer.CndnContrValidFrom;
-        const newEnd        = newOffer.CndnContrValidTo;
+        const existingStart = existingContract.ConditionValidityStartDate;
+        const existingEnd   = existingContract.ConditionValidityEndDate;
+        const newStart      = newOffer.ConditionValidityStartDate;
+        const newEnd        = newOffer.ConditionValidityEndDate;
 
         // Case 1: Existing = Tender, New = Tender
         if (existingType === "Tender" && newType === "Tender") {
@@ -303,8 +303,8 @@ module.exports = (srv) => {
 
     async function updateExistingContract(tx, contract, newOffer) {
 
-        const existingEnd = contract.CndnContrValidTo;
-        const newStart   = newOffer.CndnContrValidFrom;
+        const existingEnd = contract.ConditionValidityEndDate;
+        const newStart   = newOffer.ConditionValidityStartDate;
 
         // Skip update if the contract already ended before the new contract starts
         if (existingEnd < newStart) {
@@ -321,6 +321,7 @@ module.exports = (srv) => {
         }
 
         console.log(`Existing contract ${contract.ContractNumber} updated successfully`);
+        await tx.run(UPDATE(CCMContract).with({ CCMContractEndDate: prevDay(newOffer.ConditionValidityStartDate)}).where({ ID: contract.CCMContractID }));
 
         return true;
     }
