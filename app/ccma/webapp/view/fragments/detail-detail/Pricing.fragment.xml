@@ -464,7 +464,7 @@
                                     >
                                         <form:fields>
                                             <m:Input
-                                                value="{MarketIncentiveID}"
+                                                value="{MarketIncentiveDescription}"
                                                 enabled="false"
                                             />
                                         </form:fields>
