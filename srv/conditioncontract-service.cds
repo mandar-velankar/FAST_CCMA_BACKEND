@@ -245,7 +245,8 @@ entity CCMContractRebateFormView                   as
             rebate.Liquidation,
             rebate.RefundDate,
             rebate.PriceConditionCode,
-            rebate.MarketIncentiveID
+            rebate.MarketIncentiveID,
+            rebate.MarketIncentiveDescription
     }
 
 entity CCMContractRebateDiscountConditionTableView as
