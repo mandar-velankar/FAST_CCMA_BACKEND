@@ -1183,6 +1183,15 @@ module.exports = (srv) => {
         const tx = cds.tx(req);
         try {
             const { FastCCMContractId } = req.data;
+
+            // --- EXPIRE existing contracts (applies to all products) ---
+            const existingContractInfo = await tx.run(SELECT.from(ExistingContractInfo));
+            if (existingContractInfo && existingContractInfo.length > 0) {
+                for (const info of existingContractInfo) {
+                    await tx.run(UPDATE(CCMContract).with({ Expired: true }).where({ ID: info.CCMContractID }));
+                }
+            }
+
             const sourceData = await tx.run(SELECT.from(ContractPayloadView).where({
                  FastConditionContractID: FastCCMContractId
             }));
@@ -1228,38 +1237,106 @@ module.exports = (srv) => {
                 }, {})
             );
 
-            const invoicePromises = grouped.map(ct => createCCMContract(tx, 'ES', "ConditionContract", ct));
+            const invoicePromises = grouped.map(async (group) => {
+                const CCMContractID = group[0].CCMContractID;
+
+                // Skip invoice contract creation if PVL (any row in the group)
+                const isPVLContract = group.some(d => d.ConditionType === 'PVL');
+                if (isPVLContract) {
+                    console.log(`Skipping CCMContractID ${CCMContractID}: PVL ConditionType detected.`);
+                    return { lastResponse: null, updatedContracts: [], skippedContracts: [] };
+                }
+
+                // Preprocess and process creation (these helpers should return an object:
+                // { lastResponse, updatedContracts: [], skippedContracts: [] })
+                const processedData = await preprocessContracts(tx, group);
+                return processContractsForCreation(tx, processedData);
+            });
             
             const [invoiceResponses, rebateResponses] = await Promise.all([
                 Promise.all(invoicePromises),
                 rebatePromise
             ]);
 
-            const createdContractNumbers = [];
+            const updatedContractsAll = [];
+            const skippedContractsAll = [];
+            let invoiceCount = 0;
+            
             for (let i = 0; i < invoiceResponses.length; i++) {
-                const response = invoiceResponses[i];
-                const contractDataGroup = grouped[i];
-                const CCMContractID = contractDataGroup[0].CCMContractID;
-                const contractNumber = response?.data?.ConditionContract;
+                const result = invoiceResponses[i] || { lastResponse: null, updatedContracts: [], skippedContracts: [] };
+                const invoiceResult = result.lastResponse;
+                const updatedContracts = result.updatedContracts || [];
+                const skippedContracts = result.skippedContracts || [];
+                const contractGroup = groupedSourceData[i];
+                const CCMContractID = contractGroup[0].CCMContractID;
 
-                if (contractNumber) {
-                    createdContractNumbers.push(contractNumber);
-                    const contractInfo = await tx.run(SELECT.one.from(CCMContract).where({ ID: CCMContractID, ContractNumber: {"!=": null} }));
-                    if(contractInfo){
-                        await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber}).where({ ID: CCMContractID }));
+                // collect for final message
+                updatedContractsAll.push(...updatedContracts);
+                skippedContractsAll.push(...skippedContracts);
+
+                if (invoiceResult) {
+                    const contractNumber = invoiceResult?.data?.ConditionContract;
+                    if (contractNumber) {
+                        invoiceCount++;
+                        console.log(`Payload sent to SAP (CCMContractID: ${CCMContractID}):`, JSON.stringify(JSON.parse(invoiceResult?.config?.data), null, 2));
+                        const contractInfo = await tx.run(SELECT.one.from(CCMContract).where({ ID: CCMContractID, ContractNumber: { "!=": null } }));
+                        if (contractInfo) {
+                            await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber, Expired: false }).where({ ID: CCMContractID }));
+                        }
+                        await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, Synchronized: true, Expired: false }).where({ ID: CCMContractID }));
                     }
-                    await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, Synchronized: true }).where({ ID: CCMContractID }));
+
+                    let bvheaders = invoiceResult?.data?.bvheader || [];
+                    if (!Array.isArray(bvheaders)) bvheaders = [bvheaders];
+
+                    if (bvheaders.length) {
+                        const inserts = bvheaders.map((bvh) => ({
+                            CCMContract_ID: CCMContractID,
+                            ConditionDocument: bvh.ConditionDocument,
+                            CustomerID: bvh.customer,
+                            FieldCombination: bvh.FieldCombination,
+                            ItemGUID: bvh.itemguid,
+                            createdAt: new Date(),
+                            createdBy: req.user.id,
+                        }));
+                        await tx.run(INSERT.into(ContractItemGUID).entries(inserts));
+                    }
+
+                    console.log("Invoice response from SAP:", invoiceResult?.data);
+                    if (updatedContracts.length) console.log("Updated Contracts:", updatedContracts);
+                    if (skippedContracts.length) console.log("Skipped Contracts:", skippedContracts);
+                }else {
+                    console.log(`No invoice contract created for CCMContractID: ${CCMContractID}`);
                 }
             }
 
+            // --- Handle rebate responses
             if (Array.isArray(rebateResponses)) {
                 for (const rebateResp of rebateResponses) {
-                    console.log("Rebate payload sent to SAP:", JSON.stringify(rebateResp?.config?.data, null, 2));
-                    console.log("Rebate response from SAP:", rebateResp?.data);
-
+                    const rebateContractNumber = rebateResp?.data?.ConditionContract;
+                    const externalDocRefID = rebateResp?.data?.ExternalDocumentReferenceID;
+                    if (rebateContractNumber && externalDocRefID) {
+                        const settlement = rebateSettlementData.find(s => s.SettlementID === externalDocRefID);
+                        if (settlement) {
+                            await tx.run(
+                                UPDATE(SettlementsDate)
+                                    .with({ RebateContractNumber: rebateContractNumber, Synchronized: true })
+                                    .where({ SettlementID: settlement.SettlementID })
+                            );
+                            console.log("Rebate payload sent to SAP:", JSON.stringify(rebateResp?.config?.data, null, 2));
+                            console.log("Rebate response from SAP:", rebateResp?.data);
+                        } else {
+                            console.warn(`No matching settlement found for ExternalDocumentReferenceID: ${externalDocRefID}`);
+                        }
+                    }
                 }
             }
-            return req.reply(`${createdContractNumbers.length} CCM Invoice Contract(s) and ${rebateResponses.length} Rebate Contract(s) created successfully into SAP.`);
+
+            const rebateCount = Array.isArray(rebateResponses) ? rebateResponses.length : 0;
+            const updatedMsg = updatedContractsAll.length ? `Updated Contracts: ${[...new Set(updatedContractsAll)].join(", ")}` : "";
+            const skippedMsg = skippedContractsAll.length ? `Skipped Contracts (ended before new offer): ${[...new Set(skippedContractsAll)].join(", ")}` : "";
+
+            return req.reply(`${invoiceCount} CCM Invoice Contract(s) and ${rebateCount} Rebate Contract(s) created/updated successfully into SAP${updatedMsg ? " + " + updatedMsg : ""}${skippedMsg ? " + " + skippedMsg : ""}`);
         } catch (error) {
             let statusCode = 500;
             let userMessage = "Unexpected server error. Please contact the application support team.";
@@ -1267,23 +1344,19 @@ module.exports = (srv) => {
             if (error.response?.data) {
                 console.error("SAP Error Response:", error.response.data);
                 const sapError = error.response.data;
-
                 userMessage =
                     sapError?.error?.message?.value ||
                     sapError?.error?.innererror?.errordetails?.[0]?.message ||
                     sapError?.fault?.faultstring ||
                     sapError?.Exception_Details?.Exception_Message ||
                     "An error occurred while communicating with SAP.";
-
                 userMessage = `SAP Error: ${userMessage}. Please contact the SAP support team.`;
                 statusCode = error.response.status || 502;
-            }
-            else if (error.code && error.message) {
+            } else if (error.code && error.message) {
                 console.error("App Error:", error.message);
                 userMessage = error.message;
                 statusCode = typeof error.code === 'number' ? error.code : 500;
-            }
-            else {
+            } else {
                 console.error("Unhandled Error:", error);
             }
 
