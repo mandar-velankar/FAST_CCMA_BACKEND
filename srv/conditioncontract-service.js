@@ -374,7 +374,7 @@ module.exports = (srv) => {
                     })
                 ) : Promise.resolve([]);
 
-            let invoicePromise = Promise.resolve([{ lastResponse: null, updatedContracts: [], skippedContracts: [] }]);
+            let invoicePromise = Promise.resolve({ lastResponse: null, updatedContracts: [], skippedContracts: [] });
 
             if (!isPVLContract) {
                 // Preprocess and handle invoice contracts only if not PVL
