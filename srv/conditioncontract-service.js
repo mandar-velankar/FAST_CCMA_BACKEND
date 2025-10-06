@@ -178,10 +178,15 @@ module.exports = (srv) => {
         }
 
         // ---- CASE 2 ----
-        // newOffer.InstituteID appears as a child in some contract assortment
+        // New offer has a single InstituteID (child), check if that child belongs to any parent assortment
+        const parentsOfChild = enrichedContracts
+            .filter(c => c.candidateInstitute === InstituteID && c.candidateType === "CHILD")
+            .map(c => c.baseInstitute);
+
         const case2Contracts = relevantContracts.filter(
-            c => c.baseInstitute !== InstituteID && c.candidateInstitute === InstituteID
+            c => parentsOfChild.includes(c.InstituteID)
         );
+
         if (case2Contracts.length > 0) {
             return { sourceData, case: "CASE_2", contracts: case2Contracts };
         }
@@ -201,12 +206,15 @@ module.exports = (srv) => {
         // return [{ sourceData, case: "CASE_4", contracts: case4Contracts }];
 
         // ---- CASE 5 ----
-        // newOffer.InstituteID is a parent, contract is single customer child of that parent
+        // newOffer.InstituteID is parent -> check if any child institute already has a contract
+        const childrenOfParent = enrichedContracts
+            .filter(c => c.baseInstitute === InstituteID && c.candidateType === "CHILD")
+            .map(c => c.candidateInstitute);
+
         const case5Contracts = relevantContracts.filter(
-            c =>
-                c.baseInstitute === InstituteID &&
-                c.candidateInstitute !== InstituteID
+            c => childrenOfParent.includes(c.InstituteID)
         );
+
         if (case5Contracts.length > 0) {
             return { sourceData, case: "CASE_5", contracts: case5Contracts };
         }
@@ -350,6 +358,9 @@ module.exports = (srv) => {
                 CCMContractID: CCMContractID
             }));
 
+            // Skip invoice contract creation if ConditionType is PVL
+            const isPVLContract = sourceData.some(d => d.ConditionType === 'PVL');
+
             //Process Rebate Contracts
             const rebatePromise = rebateSourceData.length > 0
                 ? Promise.all(
@@ -363,10 +374,15 @@ module.exports = (srv) => {
                     })
                 ) : Promise.resolve([]);
 
-            // Preprocess and handle invoice contracts
-            const processedData = await preprocessContracts(tx, sourceData);
+            let invoicePromise = Promise.resolve([{ lastResponse: null, updatedContracts: [], skippedContracts: [] }]);
 
-            const invoicePromise = await processContractsForCreation(tx, processedData);
+            if (!isPVLContract) {
+                // Preprocess and handle invoice contracts only if not PVL
+                const processedData = await preprocessContracts(tx, sourceData);
+                invoicePromise = processContractsForCreation(tx, processedData);
+            } else {
+                console.log("Skipping invoice contract creation (PVL ConditionType detected).");
+            }
 
             //const invoicePromise = createCCMContract(tx, 'ES', "ConditionContract", sourceData);
 
