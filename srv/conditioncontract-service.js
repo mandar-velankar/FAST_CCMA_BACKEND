@@ -17,7 +17,9 @@ const {
     ContractRebatePayloadView,
     SettlementsDate,
     APIConfigOAuth,
-    ContractItemGUID
+    ContractItemGUID,
+    IdentifyExistingContract,
+    ExistingContractInfo
 } = cds.entities("ConditionContract");
 
 
@@ -43,10 +45,308 @@ module.exports = (srv) => {
         }
     })
 
+    async function fetchInstituteData() {
+        const fastbackendAPI = await cds.connect.to("FASTBACKEND_API");
+        const response = await fastbackendAPI.send({
+            method: 'GET',
+            path: `/v2/conditioncontracting/getInstituteData`
+        });
+
+        const institutes = response?.d?.candidateInstituteData || [];
+        return institutes.map(item => ({
+            ...item
+        }));
+    }
+
+    async function preprocessContracts(tx, sourceData) {
+
+        const candidates = await fetchInstituteData();
+
+        const contracts = await tx.run(
+            SELECT.from(IdentifyExistingContract)
+        );
+
+        const enrichedContracts = contracts.flatMap(contract => {
+            return candidates
+                .filter(c =>
+                    String(c.CandidateInstituteID).trim() === String(contract.InstituteID).trim() ||
+                    String(c.BaseInstituteID).trim() === String(contract.InstituteID).trim()
+                )
+                .map(match => ({
+                ...contract,
+                candidateType: match.RelationType,
+                baseInstitute: match.BaseInstituteID,
+                candidateInstitute: match.CandidateInstituteID
+                }));
+        });
+
+        const uniqueContracts = Array.from(
+            new Map(enrichedContracts.map(c => [
+                [
+                    c.CCMContractID,
+                    c.ContractNumber,
+                    c.Product,
+                    c.InstituteID,
+                    c.baseInstitute,
+                    c.candidateInstitute
+                ].join('|'),c])).values());
+
+        return classifyContracts(sourceData, uniqueContracts);
+        
+    }
+
+    /*function classifyContracts(sourceData, enrichedContracts) {
+        
+        if (!sourceData.length) return [];
+
+        // take first record just for matching (all have same InstituteID anyway)
+        const newOffer = sourceData[0];
+        // 1. Find contracts related to this offer via hierarchy (SELF/PARENT/CHILD)
+        const relatedContracts = enrichedContracts.filter(contract => {
+            return (
+                contract.candidateInstitute === newOffer.InstituteID || // SELF / CHILD / PARENT
+                contract.baseInstitute === newOffer.InstituteID        // newOffer is the base of contract
+            );
+        });
+
+        if (relatedContracts.length === 0) {
+            return [{ sourceData, case: "NO_MATCH" }];
+        }
+
+        // 2. Extract institute sets
+        const newOfferIds = [newOffer.InstituteID, ...(newOffer.childInstitutes || [])]; // all institutes in new offer
+        const contractIds = relatedContracts
+            .map(c => c.candidateInstitute) // all candidate institutes from contracts
+            .filter((v, i, a) => a.indexOf(v) === i); // unique
+
+        // 3. CASES
+
+        // Case 1: Single customer exact match
+        if (newOfferIds.length === 1 && contractIds.length === 1 && newOfferIds[0] === contractIds[0]) {
+            return [{ sourceData, case: "CASE_1", contracts: relatedContracts }];
+        }
+
+        // Case 2: New single customer matches existing assortment
+        if (newOfferIds.length === 1 && contractIds.length > 1) {
+            return [{ sourceData, case: "CASE_2", contracts: relatedContracts }];
+        }
+
+        // Case 3: Matching contract on same assortment (all institutes match exactly)
+        if (arraysEqual(newOfferIds.sort(), contractIds.sort())) {
+            return [{ sourceData, case: "CASE_3", contracts: relatedContracts }];
+        }
+
+        // Case 4: Overlapping customers in different assortments
+        if (newOfferIds.some(id => contractIds.includes(id)) && !arraysEqual(newOfferIds.sort(), contractIds.sort())) {
+            return [{ sourceData, case: "CASE_4", contracts: relatedContracts }];
+        }
+
+        // Case 5: Single customer in new assortment matches existing single contract
+        if (newOfferIds.length > 1 && contractIds.length === 1 && contractIds[0] === newOffer.baseInstitute) {
+            return [{ sourceData, case: "CASE_5", contracts: relatedContracts }];
+        }
+
+        return [{ sourceData, case: "UNCLASSIFIED", contracts: relatedContracts }];
+    }*/
+    
+    function classifyContracts(sourceData, enrichedContracts) {
+        if (!sourceData.length) return [];
+
+        // use first record just for matching
+        const newOffer = sourceData[0];
+
+        const { ProductCode, InstituteID, AssortmentReference } = newOffer;
+
+        // filter contracts only on same ProductCode
+        const relevantContracts = enrichedContracts.filter(
+            c => c.ProductCode === ProductCode
+        );
+
+        if (relevantContracts.length === 0) {
+            return { sourceData, case: "NO_MATCH" };
+        }
+
+        // ---- CASE 1 ----
+        // contract is single-customer with candidate + base = newOffer.InstituteID
+        const case1Contracts = relevantContracts.filter(
+            c =>
+                c.candidateInstitute === InstituteID &&
+                c.baseInstitute === InstituteID
+        );
+        if (case1Contracts.length > 0) {
+            return { sourceData, case: "CASE_1", contracts: case1Contracts };
+        }
+
+        // ---- CASE 2 ----
+        // New offer has a single InstituteID (child), check if that child belongs to any parent assortment
+        const parentsOfChild = enrichedContracts
+            .filter(c => c.candidateInstitute === InstituteID && c.candidateType === "CHILD")
+            .map(c => c.baseInstitute);
+
+        const case2Contracts = relevantContracts.filter(
+            c => parentsOfChild.includes(c.InstituteID)
+        );
+
+        if (case2Contracts.length > 0) {
+            return { sourceData, case: "CASE_2", contracts: case2Contracts };
+        }
+
+        // ---- CASE 3 ----
+        // assortment reference matches on both new offer and contract
+        const case3Contracts = relevantContracts.filter(
+            c => c.AssortmentReference && c.AssortmentReference === AssortmentReference
+        );
+        if (case3Contracts.length > 0) {
+            return { sourceData, case: "CASE_3", contracts: case3Contracts };
+        }
+
+        // ---- CASE 4 ----
+        // (ignored for now)
+        // const case4Contracts = ...
+        // return [{ sourceData, case: "CASE_4", contracts: case4Contracts }];
+
+        // ---- CASE 5 ----
+        // newOffer.InstituteID is parent -> check if any child institute already has a contract
+        const childrenOfParent = enrichedContracts
+            .filter(c => c.baseInstitute === InstituteID && c.candidateType === "CHILD")
+            .map(c => c.candidateInstitute);
+
+        const case5Contracts = relevantContracts.filter(
+            c => childrenOfParent.includes(c.InstituteID)
+        );
+
+        if (case5Contracts.length > 0) {
+            return { sourceData, case: "CASE_5", contracts: case5Contracts };
+        }
+
+        return { sourceData, case: "UNCLASSIFIED", contracts: relevantContracts };
+    }
+
+    // // helper function to compare arrays
+    // function arraysEqual(a, b) {
+    //     if (a.length !== b.length) return false;
+    //     return a.every((v, i) => v === b[i]);
+    // }
+
+    function decideContractAction(existingContract, newOffer) {
+        const existingType = existingContract.ContractType;
+        const newType = newOffer.ContractType;
+
+        const existingStart = existingContract.ConditionValidityStartDate;
+        const existingEnd   = existingContract.ConditionValidityEndDate;
+        const newStart      = newOffer.ConditionValidityStartDate;
+        const newEnd        = newOffer.ConditionValidityEndDate;
+
+        // Case 1: Existing = Tender, New = Tender
+        if (existingType === "Tender" && newType === "Tender") {
+            return "CREATE_NEW";
+        }
+
+        // Case 2: Existing = Commercial Agreement, New = Tender
+        if (existingType === "Commercial Agreement" && newType === "Tender") {
+            if (newStart <= existingEnd) {
+                return "UPDATE_AND_CREATE_NEW"; 
+            } else {
+                return "CREATE_NEW";
+            }
+        }
+
+        // Case 3: Existing = Tender, New = Commercial Agreement
+        if (existingType === "Tender" && newType === "Commercial Agreement") {
+            if (newStart > existingEnd) {
+                return "CREATE_NEW";
+            } else {
+                return "NO_ACTION";
+            }
+        }
+
+        // Case 4: Existing = Commercial Agreement, New = Commercial Agreement
+        if (existingType === "Commercial Agreement" && newType === "Commercial Agreement") {
+            if (newStart <= existingEnd) {
+                return "UPDATE_AND_CREATE_NEW"; 
+            } else {
+                return "CREATE_NEW";
+            }
+        }
+
+        return "CREATE_NEW";
+    }
+
+    async function processContractsForCreation(tx, processedData) {
+        const { sourceData, case: caseType, contracts } = processedData;
+        const newOffer = sourceData[0];
+
+        let lastResponse = null;
+        const updatedContracts = [];
+        const skippedContracts = [];
+
+        if (caseType === "CASE_1" || caseType === "CASE_3") {
+            for (const contract of contracts) {
+                const action = decideContractAction(contract, newOffer);
+
+                if (action === "CREATE_NEW") {
+                    lastResponse = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
+                } else if (action === "UPDATE_AND_CREATE_NEW") {
+                    const updated = await updateExistingContract(tx, contract, newOffer);
+                    if (updated) {
+                        updatedContracts.push(contract.ContractNumber);
+                    } else {
+                        skippedContracts.push(contract.ContractNumber); 
+                    }
+
+                    lastResponse = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
+                }
+            }
+        } else if (caseType === "NO_MATCH" || caseType === "UNCLASSIFIED") {
+            // No previous match → always create new
+            lastResponse = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
+        }
+
+        return {
+            lastResponse: lastResponse || null,
+            updatedContracts,
+            skippedContracts
+        };
+    }
+
+    async function updateExistingContract(tx, contract, newOffer) {
+
+        const existingEnd = contract.ConditionValidityEndDate;
+        const newStart   = newOffer.ConditionValidityStartDate;
+
+        // Skip update if the contract already ended before the new contract starts
+        if (existingEnd < newStart) {
+            console.log(`Skipping update: contract ${contract.ContractNumber} ended before new offer start date`);
+            return false;
+        }
+        
+        const prevDay = d => new Date(new Date(d).setDate(new Date(d).getDate() - 1)).toISOString().slice(0, 10);
+
+        const response = await handlExistingContract(tx,'ES',"ConditionContract",{ExistingContractNumber: contract.ContractNumber,ExpireDate: prevDay(newOffer.ConditionValidityStartDate)});
+
+        if (response?.status !== 200) {
+            throw new Error(`Update of ExistingContract failed for ${contract.ContractNumber}`);
+        }
+
+        console.log(`Existing contract ${contract.ContractNumber} updated successfully`);
+        await tx.run(UPDATE(CCMContract).with({ CCMContractEndDate: prevDay(newOffer.ConditionValidityStartDate)}).where({ ID: contract.CCMContractID }));
+
+        return true;
+    }
+
+
     srv.on('createCCMContract', async (req) => {
         const tx = cds.tx(req);
         try {
             const { FastCCMContractId, CCMContractID, ProductCode } = req.data;
+            //Expire Existing Contracts
+            const existingContractInfo = await tx.run(SELECT.from(ExistingContractInfo));
+            if(existingContractInfo && existingContractInfo.length > 0){
+                for(const info of existingContractInfo){
+                    await tx.run(UPDATE(CCMContract).with({ Expired: true}).where({ ID: info.CCMContractID }));
+                }
+            }
+            //Fetch Source Data
             const sourceData = await tx.run(SELECT.from(ContractPayloadView).where({
                 CCMContractID: CCMContractID, FastConditionContractID: FastCCMContractId, ProductCode: ProductCode
             }));
@@ -58,56 +358,70 @@ module.exports = (srv) => {
                 CCMContractID: CCMContractID
             }));
 
+            // Skip invoice contract creation if ConditionType is PVL
+            const isPVLContract = sourceData.some(d => d.ConditionType === 'PVL');
+
+            //Process Rebate Contracts
             const rebatePromise = rebateSourceData.length > 0
-            ? Promise.all(rebateSettlementData.map(async (settle) => {
-                const fromDate = settle.FromDate;
-                const toDate = settle.ToDate;
-                const SettlementID = settle.SettlementID;
+                ? Promise.all(
+                    rebateSettlementData.map(async (settle) => {
+                        const fromDate = settle.FromDate;
+                        const toDate = settle.ToDate;
+                        const SettlementID = settle.SettlementID;
 
-                // Pass dates into createRebateContract
-                return createRebateContract(
-                    tx,
-                    'ES',
-                    "ConditionContract",
-                    rebateSourceData,
-                    { fromDate, toDate, SettlementID }
-                );
-            })) : Promise.resolve([]);
+                        // Pass dates into createRebateContract
+                        return createRebateContract(tx,'ES',"ConditionContract",rebateSourceData,{ fromDate, toDate, SettlementID});
+                    })
+                ) : Promise.resolve([]);
 
-            const invoicePromise = createCCMContract(tx, 'ES', "ConditionContract", sourceData);
+            let invoicePromise = Promise.resolve({ lastResponse: null, updatedContracts: [], skippedContracts: [] });
 
-            const [invoiceResponse, rebateResponses] = await Promise.all([invoicePromise, rebatePromise]);
+            if (!isPVLContract) {
+                // Preprocess and handle invoice contracts only if not PVL
+                const processedData = await preprocessContracts(tx, sourceData);
+                invoicePromise = processContractsForCreation(tx, processedData);
+            } else {
+                console.log("Skipping invoice contract creation (PVL ConditionType detected).");
+            }
 
-            const contractNumber = invoiceResponse?.data?.ConditionContract;
-            if (contractNumber) {
-                console.log("Payload sent to SAP:", JSON.stringify(JSON.parse(invoiceResponse?.config?.data), null, 2));
-                const contractInfo = await tx.run(SELECT.one.from(CCMContract).where({ ID: CCMContractID, ContractNumber: {"!=": null} }));
-                if(contractInfo){
-                    await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber}).where({ ID: CCMContractID }));
+            //const invoicePromise = createCCMContract(tx, 'ES', "ConditionContract", sourceData);
+
+            const [{ lastResponse: invoiceResult, updatedContracts, skippedContracts }, rebateResponses] = await Promise.all([invoicePromise, rebatePromise]);
+
+            if (invoiceResult) {
+                const contractNumber = invoiceResult?.data?.ConditionContract;
+                if (contractNumber) {
+                    console.log("Payload sent to SAP:", JSON.stringify(JSON.parse(invoiceResult?.config?.data), null, 2));
+                    const contractInfo = await tx.run(SELECT.one.from(CCMContract).where({ ID: CCMContractID, ContractNumber: {"!=": null} }));
+                    if(contractInfo){
+                        await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber, Expired: false}).where({ ID: CCMContractID }));
+                    }
+                    await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, Synchronized: true, Expired: false}).where({ ID: CCMContractID }));
                 }
-                await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, Synchronized: true }).where({ ID: CCMContractID }));
+
+                let bvheaders = invoiceResult?.data?.bvheader || [];
+                if (!Array.isArray(bvheaders)) {
+                    bvheaders = [bvheaders]; 
+                }
+
+                if (bvheaders.length) {
+                    const inserts = bvheaders.map((bvh) => ({
+                        CCMContract_ID: CCMContractID,
+                        ConditionDocument: bvh.ConditionDocument,
+                        CustomerID: bvh.customer,
+                        FieldCombination: bvh.FieldCombination,
+                        ItemGUID: bvh.itemguid,
+                        createdAt: new Date(),
+                        createdBy: req.user.id,
+                    }));
+
+                    await tx.run(INSERT.into(ContractItemGUID).entries(inserts));
+                }
+                console.log("Invoice response from SAP:", invoiceResult?.data);
+            }else{
+                console.log("⚠️ No invoice contract created.");
             }
-
-            let bvheaders = invoiceResponse?.data?.bvheader || [];
-            if (!Array.isArray(bvheaders)) {
-                bvheaders = [bvheaders]; 
-            }
-
-            if (bvheaders.length) {
-                const inserts = bvheaders.map((bvh) => ({
-                    CCMContract_ID: CCMContractID,
-                    ConditionDocument: bvh.ConditionDocument,
-                    CustomerID: bvh.customer,
-                    FieldCombination: bvh.FieldCombination,
-                    ItemGUID: bvh.itemguid,
-                    createdAt: new Date(),
-                    createdBy: req.user.id,
-                }));
-
-                await tx.run(INSERT.into(ContractItemGUID).entries(inserts));
-            }
-            console.log("Invoice response from SAP:", invoiceResponse?.data);
-
+            // Process Rebate Responses
             if (Array.isArray(rebateResponses)) {
                 for (const rebateResp of rebateResponses) {
                     const rebateContractNumber = rebateResp?.data?.ConditionContract;
@@ -132,7 +446,19 @@ module.exports = (srv) => {
                     }
                 }
             }
-            return req.reply("CCM Invoice Contract " + contractNumber + " + " + rebateResponses.length + " Rebate Contracts created successfully into SAP");
+            // Compose success message
+            let invoiceMsg = invoiceResult?.data?.ConditionContract ? `CCM Invoice Contract ${invoiceResult.data.ConditionContract}` : "No Invoice Contract";
+
+            let updatedMsg = updatedContracts.length ? `Updated Contracts: ${updatedContracts.join(", ")}` : "";
+
+            let skippedMsg = skippedContracts.length ? `Skipped Contracts (ended before new offer): ${skippedContracts.join(", ")}` : "";
+
+            let rebateMsg = `${rebateResponses.length} Rebate Contract${rebateResponses.length !== 1 ? "s" : ""}`;
+
+            const successMessage = [invoiceMsg, updatedMsg, skippedMsg, rebateMsg].filter(Boolean).join(" + ");
+
+            return req.reply(`${successMessage} created/updated successfully into SAP`);
+
         } catch (error) {
             let statusCode = 500;
             let userMessage = "Unexpected server error. Please contact the application support team.";
@@ -284,10 +610,62 @@ module.exports = (srv) => {
         });
     }
 
+    async function handlExistingContract(tx, countryCode, resource, sourceData) {
+        try {
+            const apiConfig = await tx.run(SELECT.one.from(APIDefinition).where({ Provider: 'ConditionContract', CountryCode: countryCode, Resource: resource, Name: 'UpdateExistingInvoiceContract' }));
+            const apiBodyMappings = await tx.run(SELECT.from(APIBody).where({ APIDefinition_ID: apiConfig.ID }));
+            if (!apiBodyMappings) {
+                throw new Error("ERR_MISSING_PARAMETER:API body Mappings not found");
+            }
+            const body = buildExistingUpdatePayloadFromMappings(sourceData, apiBodyMappings);
+            if (!body) {
+                throw new Error("ERR_MISSING_PARAMETER:API Body not found");
+            }
+            const oauthAuth = await tx.run(SELECT.one.from(APIConfigOAuth, apiConfig.OAuth_ID));
+            const url = `${apiConfig.Host}${apiConfig.BasePath}${apiConfig.ResourcePath}`;
+
+            const oauthCredentials = await getBearerToken(oauthAuth);
+
+            return axios({
+                method: 'patch',
+                url: url,
+                headers: {
+                    'Authorization': `Bearer ${oauthCredentials.data.access_token}`,
+                    'Content-Type': 'application/json'
+                },
+                data: JSON.stringify(body)
+            });
+        } catch (error) {
+            throw error
+        }
+    }
+
+    function buildExistingUpdatePayloadFromMappings(sourceData, apiBodyMappings) {
+        const finalResult = {};
+
+        for (const { Source, Target } of apiBodyMappings) {
+
+            if (Target.endsWith("ConditionContract.ConditionContractType.ConditionContract")) {
+                setNestedValue(finalResult, Target, sourceData.ExistingContractNumber);
+                continue;
+            }
+
+            if (Target.endsWith("ConditionContract.ConditionContractType.CndnContrValidTo")) {
+                setNestedValue(finalResult, Target, sourceData.ExpireDate);
+                continue;
+            }
+
+            setNestedValue(finalResult, Target, "");
+
+        }
+
+        return finalResult;
+    }
+
 
     function buildRebatePayloadFromMappings(sourceData, apiBodyMappings, rebateSettlementData) {
         const finalResult = {};
-        const salesGroupMap = { Pharma: 'PH', Radiology: 'RD' };
+        const salesGroupMap = { "Consumer Health": 'CH', Pharma: 'PH', Radiology: 'RD' };
         const scaleTypes = {YAW2: 'D', YAW1: 'A'};
 
         // split static vs dynamic
@@ -512,7 +890,7 @@ module.exports = (srv) => {
     function buildPayloadFromMappings(sourceData, apiBodyMappings) {
         const finalResult = {};
 
-        const salesGroupMap = { Pharma: 'PH', Radiology: 'RD' };
+        const salesGroupMap = { "Consumer Health": 'CH', Pharma: 'PH', Radiology: 'RD' };
         const conditionTypeMap = {
             DescuentoComercial: 'YD02',
             PrecioNeto: 'YP10',
@@ -805,6 +1183,15 @@ module.exports = (srv) => {
         const tx = cds.tx(req);
         try {
             const { FastCCMContractId } = req.data;
+
+            // --- EXPIRE existing contracts (applies to all products) ---
+            const existingContractInfo = await tx.run(SELECT.from(ExistingContractInfo));
+            if (existingContractInfo && existingContractInfo.length > 0) {
+                for (const info of existingContractInfo) {
+                    await tx.run(UPDATE(CCMContract).with({ Expired: true }).where({ ID: info.CCMContractID }));
+                }
+            }
+
             const sourceData = await tx.run(SELECT.from(ContractPayloadView).where({
                  FastConditionContractID: FastCCMContractId
             }));
@@ -850,38 +1237,106 @@ module.exports = (srv) => {
                 }, {})
             );
 
-            const invoicePromises = grouped.map(ct => createCCMContract(tx, 'ES', "ConditionContract", ct));
+            const invoicePromises = grouped.map(async (group) => {
+                const CCMContractID = group[0].CCMContractID;
+
+                // Skip invoice contract creation if PVL (any row in the group)
+                const isPVLContract = group.some(d => d.ConditionType === 'PVL');
+                if (isPVLContract) {
+                    console.log(`Skipping CCMContractID ${CCMContractID}: PVL ConditionType detected.`);
+                    return { lastResponse: null, updatedContracts: [], skippedContracts: [] };
+                }
+
+                // Preprocess and process creation (these helpers should return an object:
+                // { lastResponse, updatedContracts: [], skippedContracts: [] })
+                const processedData = await preprocessContracts(tx, group);
+                return processContractsForCreation(tx, processedData);
+            });
             
             const [invoiceResponses, rebateResponses] = await Promise.all([
                 Promise.all(invoicePromises),
                 rebatePromise
             ]);
 
-            const createdContractNumbers = [];
+            const updatedContractsAll = [];
+            const skippedContractsAll = [];
+            let invoiceCount = 0;
+            
             for (let i = 0; i < invoiceResponses.length; i++) {
-                const response = invoiceResponses[i];
-                const contractDataGroup = grouped[i];
-                const CCMContractID = contractDataGroup[0].CCMContractID;
-                const contractNumber = response?.data?.ConditionContract;
+                const result = invoiceResponses[i] || { lastResponse: null, updatedContracts: [], skippedContracts: [] };
+                const invoiceResult = result.lastResponse;
+                const updatedContracts = result.updatedContracts || [];
+                const skippedContracts = result.skippedContracts || [];
+                const contractGroup = grouped[i];
+                const CCMContractID = contractGroup[0].CCMContractID;
 
-                if (contractNumber) {
-                    createdContractNumbers.push(contractNumber);
-                    const contractInfo = await tx.run(SELECT.one.from(CCMContract).where({ ID: CCMContractID, ContractNumber: {"!=": null} }));
-                    if(contractInfo){
-                        await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber}).where({ ID: CCMContractID }));
+                // collect for final message
+                updatedContractsAll.push(...updatedContracts);
+                skippedContractsAll.push(...skippedContracts);
+
+                if (invoiceResult) {
+                    const contractNumber = invoiceResult?.data?.ConditionContract;
+                    if (contractNumber) {
+                        invoiceCount++;
+                        console.log(`Payload sent to SAP (CCMContractID: ${CCMContractID}):`, JSON.stringify(JSON.parse(invoiceResult?.config?.data), null, 2));
+                        const contractInfo = await tx.run(SELECT.one.from(CCMContract).where({ ID: CCMContractID, ContractNumber: { "!=": null } }));
+                        if (contractInfo) {
+                            await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber, Expired: false }).where({ ID: CCMContractID }));
+                        }
+                        await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, Synchronized: true, Expired: false }).where({ ID: CCMContractID }));
                     }
-                    await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, Synchronized: true }).where({ ID: CCMContractID }));
+
+                    let bvheaders = invoiceResult?.data?.bvheader || [];
+                    if (!Array.isArray(bvheaders)) bvheaders = [bvheaders];
+
+                    if (bvheaders.length) {
+                        const inserts = bvheaders.map((bvh) => ({
+                            CCMContract_ID: CCMContractID,
+                            ConditionDocument: bvh.ConditionDocument,
+                            CustomerID: bvh.customer,
+                            FieldCombination: bvh.FieldCombination,
+                            ItemGUID: bvh.itemguid,
+                            createdAt: new Date(),
+                            createdBy: req.user.id,
+                        }));
+                        await tx.run(INSERT.into(ContractItemGUID).entries(inserts));
+                    }
+
+                    console.log("Invoice response from SAP:", invoiceResult?.data);
+                    if (updatedContracts.length) console.log("Updated Contracts:", updatedContracts);
+                    if (skippedContracts.length) console.log("Skipped Contracts:", skippedContracts);
+                }else {
+                    console.log(`No invoice contract created for CCMContractID: ${CCMContractID}`);
                 }
             }
 
+            // --- Handle rebate responses
             if (Array.isArray(rebateResponses)) {
                 for (const rebateResp of rebateResponses) {
-                    console.log("Rebate payload sent to SAP:", JSON.stringify(rebateResp?.config?.data, null, 2));
-                    console.log("Rebate response from SAP:", rebateResp?.data);
-
+                    const rebateContractNumber = rebateResp?.data?.ConditionContract;
+                    const externalDocRefID = rebateResp?.data?.ExternalDocumentReferenceID;
+                    if (rebateContractNumber && externalDocRefID) {
+                        const settlement = rebateSettlementData.find(s => s.SettlementID === externalDocRefID);
+                        if (settlement) {
+                            await tx.run(
+                                UPDATE(SettlementsDate)
+                                    .with({ RebateContractNumber: rebateContractNumber, Synchronized: true })
+                                    .where({ SettlementID: settlement.SettlementID })
+                            );
+                            console.log("Rebate payload sent to SAP:", JSON.stringify(rebateResp?.config?.data, null, 2));
+                            console.log("Rebate response from SAP:", rebateResp?.data);
+                        } else {
+                            console.warn(`No matching settlement found for ExternalDocumentReferenceID: ${externalDocRefID}`);
+                        }
+                    }
                 }
             }
-            return req.reply(`${createdContractNumbers.length} CCM Invoice Contract(s) and ${rebateResponses.length} Rebate Contract(s) created successfully into SAP.`);
+
+            const rebateCount = Array.isArray(rebateResponses) ? rebateResponses.length : 0;
+            const updatedMsg = updatedContractsAll.length ? `Updated Contracts: ${[...new Set(updatedContractsAll)].join(", ")}` : "";
+            const skippedMsg = skippedContractsAll.length ? `Skipped Contracts (ended before new offer): ${[...new Set(skippedContractsAll)].join(", ")}` : "";
+
+            return req.reply(`${invoiceCount} CCM Invoice Contract(s) and ${rebateCount} Rebate Contract(s) created/updated successfully into SAP${updatedMsg ? " + " + updatedMsg : ""}${skippedMsg ? " + " + skippedMsg : ""}`);
         } catch (error) {
             let statusCode = 500;
             let userMessage = "Unexpected server error. Please contact the application support team.";
@@ -889,27 +1344,50 @@ module.exports = (srv) => {
             if (error.response?.data) {
                 console.error("SAP Error Response:", error.response.data);
                 const sapError = error.response.data;
-
                 userMessage =
                     sapError?.error?.message?.value ||
                     sapError?.error?.innererror?.errordetails?.[0]?.message ||
                     sapError?.fault?.faultstring ||
                     sapError?.Exception_Details?.Exception_Message ||
                     "An error occurred while communicating with SAP.";
-
                 userMessage = `SAP Error: ${userMessage}. Please contact the SAP support team.`;
                 statusCode = error.response.status || 502;
-            }
-            else if (error.code && error.message) {
+            } else if (error.code && error.message) {
                 console.error("App Error:", error.message);
                 userMessage = error.message;
                 statusCode = typeof error.code === 'number' ? error.code : 500;
-            }
-            else {
+            } else {
                 console.error("Unhandled Error:", error);
             }
 
             return req.reject(statusCode, userMessage);
         }
     });
+
+    srv.after("READ", "BrandsView", (data) => {
+        data.unshift({
+            BrandID: "All_Brands",
+            BrandName: "All"
+        });
+    });
+
+    srv.after("READ", "BrandProductsView", (data) => {
+        if (data && data.length > 0) {
+            const deduped = Array.from(
+                new Map(data.map(item => [item.ProductCode, item])).values()
+            );
+
+            // clear original array and push deduped items back
+            data.splice(0, data.length, ...deduped);
+        }
+
+        data.unshift({
+            BrandID: "All_Brands",
+            ProductCode: "All_Products",
+            ProductName: "All"
+        });
+    });
+
+
+
 };

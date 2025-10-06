@@ -28,6 +28,7 @@
     "start": "cds-serve",
     "watch": "cds-ts w",
     "watch:ts:hybrid": "cds bind --exec npm run watch --profile hybrid",
+    "watch:ts:qa": "cds bind --exec npm run watch --profile qa",
     "watch:ts:mv": "cds bind --exec npm run watch --profile mandar",
     "watch:ts:jp": "cds bind --exec npm run watch --profile jorj",
     "deploy:hana:mv": "cds bind --exec cds deploy --to hana --profile mandar",

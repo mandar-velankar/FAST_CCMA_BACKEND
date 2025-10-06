@@ -279,6 +279,7 @@ entity IdentifyExistingContract as select from FastConditionContracts as fcc
             ccm.ContractNumber,
             ccm.PreviousContractNumber,
             ccm.ItemGUID,
+            ccm.Expired,
             ccm.ProductCode,
             ccm.CCMCustomer.AssortmentReference,
             ccm.CCMCustomer.InstituteID,
@@ -296,10 +297,42 @@ entity IdentifyExistingContract as select from FastConditionContracts as fcc
             fcc.TenderID,
             fcc.OfferID,
             fcc.ContractType
-}where ccm.ContractNumber is not null;
+}where ccm.ContractNumber is not null
+  and ccm.Expired = false
+  and fcc.ContractEndDate >= CURRENT_DATE;
+
+entity ExistingContractInfo as select from FastConditionContracts as fcc 
+    inner join CCMContract as ccm on ccm.FastConditionContracts.ID = fcc.ID {
+        key fcc.ID as FastConditionContractID,
+        key ccm.ID as CCMContractID,
+        ccm.ContractNumber,
+        fcc.ContractStartDate as CndnContrValidFrom,
+        fcc.ContractEndDate as CndnContrValidTo,
+        ccm.CCMContractStartDate as ConditionValidityStartDate,
+        ccm.CCMContractEndDate as ConditionValidityEndDate
+}where ccm.ContractNumber is not null and fcc.ContractEndDate < CURRENT_DATE;
 
 function getInstituteData()                                                                        returns String;
 action   createCCMContract(FastCCMContractId : UUID, CCMContractID : UUID, ProductCode : String) returns String;
 action   createAllCCMContract(FastCCMContractId : UUID) returns String;
 action   sendFOCToInteractMail(FastCCMContractId : UUID, CCMContractID : UUID, ProductCode : String) returns String;
+
+entity BrandsView as select from CCMContract {
+    key BrandID,
+        BrandName
+}where BrandID is not null
+    and BrandName is not null
+group by BrandID,
+    BrandName;
+
+entity BrandProductsView as select from CCMContract {
+    key BrandID,
+    key ProductCode,
+    ProductName
+}where BrandID is not null
+and ProductCode is not null
+and ProductName is not null
+group by BrandID,
+    ProductCode,
+    ProductName;
 }
