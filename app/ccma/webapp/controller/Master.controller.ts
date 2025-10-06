@@ -124,6 +124,20 @@ export default class Master extends BaseController {
 				value1: sSearch,
 				caseSensitive: false
 			}));
+			
+			orFilters.push(new Filter({
+				path: "SAPID",
+				operator: FilterOperator.Contains,
+				value1: sSearch,
+				caseSensitive: false
+			}));
+
+			orFilters.push(new Filter({
+				path: "ExternalID",
+				operator: FilterOperator.Contains,
+				value1: sSearch,
+				caseSensitive: false
+			}));
 
 			orFilters.push(new Filter({
 				path: "Reference",
@@ -316,7 +330,7 @@ export default class Master extends BaseController {
 		let oSel;
 
 		const filters = {
-            "ID": "OfferID",
+            "ID": ["OfferID", "SAPID", "ExternalID"],
             "Owner": "Owner",
             "Classification": "ContractType",
             "Reference": "Reference",
@@ -339,14 +353,24 @@ export default class Master extends BaseController {
 			// Date filters
 			let reg = /[0-9]+[-][0-9]{2}[-][0-9]{2}/g;
 			if (query.search(reg) == 0) {
-				oTableSearchStatus = [new Filter({
+				oTableSearchStatus = Array.isArray(oSel) ? oSel.map(item => new Filter({
+					path: item, 
+					operator: FilterOperator.EQ, 
+					value1: query,
+					caseSensitive: false
+				})) : [new Filter({
 					path: oSel, 
 					operator: FilterOperator.EQ, 
 					value1: query,
 					caseSensitive: false
 				})];
 			}else {
-				oTableSearchStatus = [new Filter({
+				oTableSearchStatus = Array.isArray(oSel) ? oSel.map(item => new Filter({
+					path: item, 
+					operator: FilterOperator.Contains, 
+					value1: query,
+					caseSensitive: false
+				})) : [new Filter({
 					path: oSel, 
 					operator: FilterOperator.Contains, 
 					value1: query,
@@ -354,7 +378,7 @@ export default class Master extends BaseController {
 				})];
 			}
 			const aNewFilters = aExistingFilters ? [...aExistingFilters] : [];
-			aNewFilters.push(oTableSearchStatus[0]);
+			aNewFilters.push(oTableSearchStatus.length > 1 ? new Filter(oTableSearchStatus, false) : oTableSearchStatus[0]);
 
 			// Apply the new filter set properly
 			binding.filter(aNewFilters, FilterType.Application); 
@@ -380,6 +404,20 @@ export default class Master extends BaseController {
 			// this.byId("vsdFilterBar").setVisible(false);
 		}
 
+	}
+
+	setSelectBrand(event: Event) {
+		let brandID = event.getParameter("selectedItem").getKey();
+		let productSelect = this.byId("idSelectProduct") as Select;
+		productSelect.setSelectedKey("All_Products");
+		productSelect.getBinding("items")?.filter([
+			new Filter({
+				path: "BrandID",
+				operator: FilterOperator.EQ,
+				value1: brandID,
+				caseSensitive: false
+			})
+		]);
 	}
 
 }
