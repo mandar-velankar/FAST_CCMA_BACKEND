@@ -1267,7 +1267,7 @@ module.exports = (srv) => {
                 const invoiceResult = result.lastResponse;
                 const updatedContracts = result.updatedContracts || [];
                 const skippedContracts = result.skippedContracts || [];
-                const contractGroup = groupedSourceData[i];
+                const contractGroup = grouped[i];
                 const CCMContractID = contractGroup[0].CCMContractID;
 
                 // collect for final message
