@@ -335,4 +335,49 @@ and ProductName is not null
 group by BrandID,
     ProductCode,
     ProductName;
+
+
+entity ExistingContractInvoicePrices as select from FastConditionContracts as fcc 
+    inner join CCMContract as ccm on ccm.FastConditionContracts.ID = fcc.ID 
+    inner join CCMMaterial as mat on mat.CCMContract.ID = ccm.ID and mat.ActiveRecord = 1{
+            fcc.ID as FastConditionContractID,
+            ccm.ID as CCMContractID,
+            ccm.ContractNumber,
+            ccm.Expired,
+            ccm.ProductCode,
+            ccm.CCMCustomer.InstituteID,
+            fcc.ContractStartDate as CndnContrValidFrom,
+            fcc.ContractEndDate as CndnContrValidTo,
+        key fcc.CustomerID as Customer,
+            ccm.CCMContractStartDate as ConditionValidityStartDate,
+            ccm.CCMContractEndDate as ConditionValidityEndDate,
+        key mat.MaterialNumber as Product,
+            fcc.TenderID,
+            fcc.OfferID,
+            fcc.ContractType,
+            ccm.PriceConditionInvoice.YP00,
+            ccm.PriceConditionInvoice.YP04,
+            ccm.PriceConditionInvoice.YP10,
+            ccm.PriceConditionInvoice.YD75,
+            ccm.PriceConditionInvoice.YD30,
+            ccm.PriceConditionInvoice.YD06,
+            ccm.PriceConditionInvoice.YD02,
+            ccm.PriceConditionInvoice.Tax,
+            ccm.PriceConditionInvoice.ConfidentialPrice,
+            ccm.PriceConditionInvoice.RoyalDecree,
+            ccm.PriceConditionInvoice.RoyalDecreeValue,
+            ccm.PriceConditionInvoice.RoyalDecreeIncl,
+            ccm.PriceConditionInvoice.NetPriceWithoutTaxAfterDeductionRD,
+            ccm.PriceConditionInvoice.NetPriceWithTaxAfterDeductionRD,
+            ccm.PriceConditionInvoice.NetPriceWithoutTax,
+            ccm.PriceConditionInvoice.NetPriceWithTax,
+            ccm.PriceConditionInvoice.MaximumPrice,
+            ccm.PriceConditionInvoice.RentalPrice,
+            ccm.PriceConditionInvoice.AnnualValue,
+}where ccm.ContractNumber is not null
+  and ccm.Expired = false
+  and fcc.ContractEndDate >= CURRENT_DATE;
+
+
+
 }
