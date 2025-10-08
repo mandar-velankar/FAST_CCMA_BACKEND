@@ -66,6 +66,7 @@ export default class Detail extends BaseController {
         this.bindTable();
         this.bindContractInformationForm();
         this.bindCustomerForm();
+        this.bindOwners();
     }
 
     /**
@@ -249,6 +250,7 @@ export default class Detail extends BaseController {
                 });
                 await that.getModel()?.submitBatch("ContractTable")
                 that.onContractInformationFormCancelBtnPress();
+                that.publishEventEmitter("ContractMasterTableChannel", "updateContractMasterTable");
                 return;
             }
 
@@ -304,6 +306,31 @@ export default class Detail extends BaseController {
         }
 
         MessageBox.error(message);
+    }
+
+    public bindOwners(){
+        BusyIndicator.show();
+        const getOwnersContextBinding = this.getModel()?.bindContext("/getESUsers(...)");
+        getOwnersContextBinding?.execute().then(
+            () => {
+                const actionContext = getOwnersContextBinding.getBoundContext();
+                this.onbindOwnersSuccess(actionContext?.getObject());
+            },
+            (error: any) => {
+                this.onbindOwnersFail(error);
+            }
+        );
+    }
+
+    public onbindOwnersSuccess(res: any): void {
+        BusyIndicator.hide();
+        const uiModel = this.getModel("ui") as JSONModel;
+        uiModel.setProperty("/owners", res?.value || []);
+    }
+
+    private onbindOwnersFail(error: any): void {
+        BusyIndicator.hide();
+        console.error("Error in getESUsers:", error);
     }
 
 
