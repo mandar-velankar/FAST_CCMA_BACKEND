@@ -123,11 +123,26 @@ export default class Detail extends BaseController {
                 $$updateGroupId: "contractInformationDetailDetail"
             },
             events: {
-                dataReceived: (event: any) => {
+                dataReceived: async (event: any) => {
                     const uiModel = this.getModel("ui") as JSONModel;
                     const items = event.getSource().getBoundContext()?.getObject();
                     uiModel.setProperty("/ProductName", items.ProductName);
                     uiModel.setProperty("/hasExistingContract", items.ContractNumber ? true : false );
+                  
+                    let showExtensionFields = false;
+
+                    if (items?.ContractType === "Tender") {
+                        uiModel.setProperty("/showExtensionFields", showExtensionFields);
+                    } else {
+                        try {
+                            const conditionType = await this.fetchConditionTypesByContractID(items?.ID);
+                            const isPVL = conditionType === "PVL";
+                            uiModel.setProperty("/showExtensionFields", !isPVL);
+                        } catch (error) {
+                            console.error("Error fetching condition type for contract:", items?.ID, error);
+                            uiModel.setProperty("/showExtensionFields", false);
+                        }
+                    }
                 }
             }
         });
@@ -799,5 +814,18 @@ export default class Detail extends BaseController {
                 break;
         }
         return settlementDates;
+    }
+
+    private async fetchConditionTypesByContractID(contractID: string): Promise<string> {
+
+        const sPath = `/CCMContractPricingFormView(CCMContractID='${contractID}')`;
+        const context = this.getModel()?.bindContext(sPath);
+
+        return context?.requestObject()?.then((oObject: any) => {
+            return oObject?.ConditionType || "";
+        }).catch(err => {
+            console.error("Error fetching ConditionType for contract", contractID, err);
+            return "";
+        });
     }
 }

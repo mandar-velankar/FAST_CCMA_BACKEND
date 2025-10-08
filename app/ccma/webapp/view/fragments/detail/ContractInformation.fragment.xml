@@ -104,13 +104,13 @@
 						</form:fields>
 					</form:FormElement>
 
-                    <form:FormElement label="{i18n>ContractInformationFragment.Extension}" >
+                    <form:FormElement label="{i18n>ContractInformationFragment.Extension}" visible="{ui>/showExtensionFields}">
 						<form:fields>
 							<CheckBox enabled="{= ${ui>/ContractInformationForm/editMode}}" selected="{path:'Extension'}"/>
 						</form:fields>
 					</form:FormElement>
 
-                    <form:FormElement label="{i18n>ContractInformationFragment.ExtensionPeriod}" >
+                    <form:FormElement label="{i18n>ContractInformationFragment.ExtensionPeriod}" visible="{ui>/showExtensionFields}">
 						<form:fields>
 							<StepInput
 								value="{path: 'ExtensionPeriod'}"
@@ -135,7 +135,12 @@
 							</Select>
 						</form:fields>
 					</form:FormElement>
-					<form:FormElement label="{CCMContract/ContractNumber}" visible="false">
+					<form:FormElement label="Contract Type" visible="false">
+						<form:fields>
+							<Text text="{ContractType}" visible="false"/>
+						</form:fields>
+					</form:FormElement>
+					<form:FormElement label="Contract Number" visible="false">
 						<form:fields>
 							<Text text="{CCMContract/ContractNumber}" visible="false"/>
 						</form:fields>
