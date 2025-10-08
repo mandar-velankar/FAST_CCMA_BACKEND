@@ -1,6 +1,6 @@
 using {com.bayer.SXTENDER.ccma} from '../db/schema';
 
-service ConditionContract {
+service ConditionContract @(requires:['f_tndr_cag_admin','f_tndr_cag_ccma_user','f_tndr_cag_technical_user','authenticated-user']){
 
 
     entity FastConditionContracts                 as projection on ccma.FastConditionContracts;
