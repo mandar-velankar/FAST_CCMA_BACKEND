@@ -122,6 +122,18 @@
 							/>
 						</form:fields>
 					</form:FormElement>
+					<form:FormElement label="{i18n>ContractInformationFragment.Owner}" >
+						<form:fields>
+							<Select id="idOwnerSelect" 
+									enabled="{= ${ui>/ContractInformationForm/editMode}}" 
+									change=".onOwnerChange" 
+									selectedKey="{Owner}">
+								<core:Item key="Mandar Velankar" text="Mandar Velankar" />
+								<core:Item key="Vasudevan M" text="Vasudevan M" />
+								<core:Item key="Vibha Pandey" text="Vibha Pandey" />
+							</Select>
+						</form:fields>
+					</form:FormElement>
 					<form:FormElement label="{CCMContract/ContractNumber}" visible="false">
 						<form:fields>
 							<Text text="{CCMContract/ContractNumber}" visible="false"/>

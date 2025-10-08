@@ -1388,6 +1388,38 @@ module.exports = (srv) => {
         });
     });
 
+    async function getUserCountries() {
+        const fastbackendAPI = await cds.connect.to("FASTBACKEND_API");
+        const response = await fastbackendAPI.send({
+            method: 'GET',
+            path: `/v2/conditioncontracting/getUserCountries`
+        });
 
+        const userCountries = response?.d?.userCountries || [];
+        return userCountries.map(item => ({
+            ...item
+        }));
+    }
 
+    srv.on('getESUsers', async (req) => {
+        const tx = cds.tx(req);
+        try {
+            const userCountries = await getUserCountries();
+            const grouped = userCountries.reduce((acc, user) => {
+                const { CWID, CountryCode } = user;
+                acc[CWID] = acc[CWID] || { entries: [] };
+                acc[CWID].entries.push(user);
+                acc[CWID].countries = acc[CWID].entries.map(e => e.CountryCode);
+                return acc;
+            }, {});
+
+            // Keep users who have exactly one country and it's 'ES'
+            const exclusiveESUsers = Object.values(grouped).filter(g => g.countries.length === 1 && g.countries[0] === 'ES').flatMap(g => g.entries);
+
+            return exclusiveESUsers;
+
+        }catch(error){
+                return req.reject(403, "Failed to fetch user countries")
+        }
+    });
 };

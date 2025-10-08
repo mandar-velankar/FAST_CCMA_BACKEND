@@ -312,7 +312,8 @@ entity ExistingContractInfo as select from FastConditionContracts as fcc
         ccm.CCMContractEndDate as ConditionValidityEndDate
 }where ccm.ContractNumber is not null and fcc.ContractEndDate < CURRENT_DATE;
 
-function getInstituteData()                                                                        returns String;
+function getInstituteData() returns String;
+function getESUsers() returns String;
 action   createCCMContract(FastCCMContractId : UUID, CCMContractID : UUID, ProductCode : String) returns String;
 action   createAllCCMContract(FastCCMContractId : UUID) returns String;
 action   sendFOCToInteractMail(FastCCMContractId : UUID, CCMContractID : UUID, ProductCode : String) returns String;
