@@ -42,6 +42,7 @@ entity CCMContract: cuid, managed, temporal{
   CountryCode : String;
   ProductName: String;
   UoM: String;
+  PackFactor: Double;
   NewMaterialNumber: String;
   BrandID: String;
   BrandName: String;

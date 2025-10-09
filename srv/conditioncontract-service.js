@@ -968,6 +968,14 @@ module.exports = (srv) => {
                     value = Math.round(value * 100 * 100) / 100;
                 }
 
+                if (field === 'YP10' && Target.endsWith('ConditionRateAmount')) {
+                    if(row.UoM === 'Pack'){
+                        value = value * 10000;
+                    } else {
+                        value = value * row.PackFactor * 10000;
+                    }
+                }
+
                 const pathSegments = Target.split('.');
                 const key = pathSegments[pathSegments.length - 1];
 
@@ -976,7 +984,7 @@ module.exports = (srv) => {
                         conditionRecord['ConditionCalculationType'] = 'C';
                         conditionRecord['ConditionQuantityUnit'] = 'PC';
                         conditionRecord['ConditionQuantityUnitISOCode'] = 'PCE';
-                        conditionRecord['ConditionQuantity'] = row.RequestedVolume || 1;
+                        conditionRecord['ConditionQuantity'] = 10000;
                     }
                     conditionRecord[key] = value;
                 } else if (Target.includes('bvheader')) {
