@@ -81,7 +81,7 @@ entity ContractItemGUID : cuid, managed {
 entity CCMCustomer: cuid, managed, temporal{
   InstituteID: String;
   AssortmentReference: String;
-  CustomerID: Integer;
+  CustomerID: String;
   CountryCode: String;
   InstituteType: String;
   InstituteName: String;
