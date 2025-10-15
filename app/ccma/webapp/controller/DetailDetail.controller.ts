@@ -155,9 +155,19 @@ export default class Detail extends BaseController {
 
     public bindPricingForm() {
         const ccmCustomerInfo = this.byId("idNewPricingForm");
+        const ccmPricingInfo = this.byId("idNewPricingFormCCM");
         const path = `/CCMContractPricingFormView(CCMContractID='${this.contractId}')`; 
+        const ccpPricingpath = `/CCMContractPricingFormView(CCMContractID='${this.contractId}')`; 
+
         ccmCustomerInfo?.bindElement({
             path: path,
+            parameters: {
+                $$updateGroupId: "PricingFormDetailDetail"
+            }
+        });
+
+        ccmPricingInfo?.bindElement({
+            path: ccpPricingpath,
             parameters: {
                 $$updateGroupId: "PricingFormDetailDetail"
             }
