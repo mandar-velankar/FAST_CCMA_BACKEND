@@ -312,13 +312,14 @@ entity ExistingContractInfo as select from FastConditionContracts as fcc
         fcc.ContractEndDate as CndnContrValidTo,
         ccm.CCMContractStartDate as ConditionValidityStartDate,
         ccm.CCMContractEndDate as ConditionValidityEndDate
-}where ccm.ContractNumber is not null and fcc.ContractEndDate < CURRENT_DATE;
+}where ccm.ContractNumber is not null and fcc.ContractEndDate < CURRENT_DATE and ccm.Cancelled = false and ccm.Expired = false;
 
 function getInstituteData() returns String;
 function getESUsers() returns String;
 action   createCCMContract(FastCCMContractId : UUID, CCMContractID : UUID, ProductCode : String) returns String;
 action   createAllCCMContract(FastCCMContractId : UUID) returns String;
 action   sendFOCToInteractMail(FastCCMContractId : UUID, CCMContractID : UUID, ProductCode : String) returns String;
+action   terminateCCMContract(FastCCMContractId : UUID, CCMContractID : UUID, ProductCode : String, TerminationDate: Date, CancellationNote: String) returns String;
 
 entity BrandsView as select from CCMContract {
     key BrandID,
