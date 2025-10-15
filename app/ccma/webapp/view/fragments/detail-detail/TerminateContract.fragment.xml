@@ -13,7 +13,7 @@
                 <TextArea
                     id="cancellationNote"
                     width="100%"
-                    placeholder="Add note (mandatory)" />
+                    placeholder="Add note" />
                 <Label
                     text="End Date"
                     design="Bold" />
