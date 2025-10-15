@@ -1430,4 +1430,52 @@ module.exports = (srv) => {
                 return req.reject(403, "Failed to fetch user countries")
         }
     });
+
+    srv.on('terminateCCMContract', async (req) => {
+        const tx = cds.tx(req);
+        try {
+            const { FastCCMContractId, CCMContractID, ProductCode, TerminationDate, CancellationNote } = req.data;
+            
+            const sourceData = await tx.run(SELECT.from(CCMContract).where({ID: CCMContractID}));
+            const response = await handlExistingContract(tx, 'ES', "ConditionContract", {ExistingContractNumber: sourceData.ContractNumber,ExpireDate: TerminationDate});
+            
+            if (response?.status !== 200) {
+                throw new Error(`Termination of ExistingContract failed for ${sourceData.ContractNumber}`);
+            }
+
+            console.log(`Contract ${sourceData[0].ContractNumber} terminated successfully. End date updated to ${TerminationDate} in SAP.`);
+            await tx.run(UPDATE(CCMContract).with({ CCMContractEndDate: TerminationDate, CancellationComment: CancellationNote, Cancelled: true}).where({ ID: CCMContractID }));
+
+            return req.reply(`Contract ${sourceData[0].ContractNumber} terminated successfully. End date updated to ${TerminationDate} in SAP.`);
+
+        } catch (error) {
+            let statusCode = 500;
+            let userMessage = "Unexpected server error. Please contact the application support team.";
+
+            if (error.response?.data) {
+                console.error("SAP Error Response:", error.response.data);
+                const sapError = error.response.data;
+
+                userMessage =
+                    sapError?.error?.message?.value ||
+                    sapError?.error?.innererror?.errordetails?.[0]?.message ||
+                    sapError?.fault?.faultstring ||
+                    sapError?.Exception_Details?.Exception_Message ||
+                    "An error occurred while communicating with SAP.";
+
+                userMessage = `SAP Error: ${userMessage}. Please contact the SAP support team.`;
+                statusCode = error.response.status || 502;
+            }
+            else if (error.code && error.message) {
+                console.error("App Error:", error.message);
+                userMessage = error.message;
+                statusCode = typeof error.code === 'number' ? error.code : 500;
+            }
+            else {
+                console.error("Unhandled Error:", error);
+            }
+
+            return req.reject(statusCode, userMessage);
+        }
+    });
 };

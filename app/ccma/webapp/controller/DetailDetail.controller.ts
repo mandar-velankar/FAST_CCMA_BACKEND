@@ -16,6 +16,10 @@ import Table from "sap/m/Table";
 import Fragment from "sap/ui/core/Fragment";
 import Dialog from "sap/m/Dialog";
 import * as formatter from "com/bayer/tender/ccma/model/formatter";
+import DatePicker from "sap/m/DatePicker";
+import TextArea from "sap/m/TextArea";
+import UI5Date from "sap/ui/core/date/UI5Date";
+import { ui } from "sap/ushell/library";
 export type TDetailDetailRouteParameters = {
     id: string;
     productPackId: string;
@@ -128,6 +132,7 @@ export default class Detail extends BaseController {
                     const items = event.getSource().getBoundContext()?.getObject();
                     uiModel.setProperty("/ProductName", items.ProductName);
                     uiModel.setProperty("/hasExistingContract", items.ContractNumber ? true : false );
+                    uiModel.setProperty("/hasCancelled", items.Cancelled);
                   
                     let showExtensionFields = false;
 
@@ -827,5 +832,106 @@ export default class Detail extends BaseController {
             console.error("Error fetching ConditionType for contract", contractID, err);
             return "";
         });
+    }
+
+    public async onTerminateCCMContract(): Promise<void> {
+        const that = this;
+
+        
+        MessageBox.warning("Are you sure you want to terminate this contract?", {
+            title: "Terminate Contract",
+            actions: [MessageBox.Action.OK, MessageBox.Action.CANCEL],
+            emphasizedAction: MessageBox.Action.OK,
+            onClose: async function (action) {
+                if (action === MessageBox.Action.OK) {
+                    
+                    let dialog = that.byId("idTerminateContractDialog") as Dialog;
+
+                    if (!dialog) {
+                        dialog = (await Fragment.load({
+                            id: that.getView()?.getId(),
+                            name: "com.bayer.tender.ccma.view.fragments.detail-detail.TerminateContract",
+                            controller: that 
+                        })) as Dialog;
+
+                        that.getView()?.addDependent(dialog);
+                    }
+
+                    
+                    const datePicker = that.byId("terminationEndDate") as DatePicker;
+                    if (datePicker) {
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        datePicker.setDateValue(today);
+                        datePicker.setMinDate(today);
+                    }
+
+                    dialog.open();
+                }
+            }
+        });
+    }
+
+    public async onConfirmTermination() {
+        const that = this;
+        const dialog = this.byId("idTerminateContractDialog") as Dialog;
+        const terminationDate = (this.byId("terminationEndDate") as DatePicker)?.getDateValue();
+        const cancellationNote = (this.byId("cancellationNote") as TextArea)?.getValue();
+        this.terminateCCMContract(terminationDate, cancellationNote);
+    }
+
+    public onCancelTermination() {
+        let dialog = this.byId("idTerminateContractDialog") as Dialog;
+        if (dialog && dialog.isOpen()) {
+            dialog.close();
+            dialog.destroy();
+        }
+    }
+
+    public terminateCCMContract(terminationDate: any, cancellationNote: string): void {
+
+        terminationDate = new Date(terminationDate);
+        const local = new Date(terminationDate.getTime() - terminationDate.getTimezoneOffset() * 60000);
+        BusyIndicator.show();
+        const terminateContractContextBinding = this.getModel()?.bindContext("/terminateCCMContract(...)");
+        terminateContractContextBinding?.setParameter("FastCCMContractId", this.id);
+        terminateContractContextBinding?.setParameter("CCMContractID", this.contractId);
+        terminateContractContextBinding?.setParameter("ProductCode", this.productPackID);
+        terminateContractContextBinding?.setParameter("TerminationDate", terminationDate ? local.toISOString().split('T')[0] : null);
+        terminateContractContextBinding?.setParameter("CancellationNote", cancellationNote || "");
+        terminateContractContextBinding?.execute().then(
+            () => {
+                const oActionContext = terminateContractContextBinding.getBoundContext();
+                this.terminateCCMContractSuccess(oActionContext?.getObject());
+            },
+            (error: any) => {
+                this.terminateCCMContractFail(error);
+            }
+        );
+    }
+
+    public terminateCCMContractSuccess(res: any): void {
+        MessageBox.success(res?.value);
+        BusyIndicator.hide();
+        (this.getModel("ui")?.setProperty("/hasCancelled", true)) as JSONModel;
+        this.onCancelTermination();
+    }
+
+    public terminateCCMContractFail(res: any): void {
+        BusyIndicator.hide();
+
+        let message = "An unexpected error occurred. Please contact SAP support.";
+
+        if (res?.responseText) {
+            try {
+                const response = JSON.parse(res.responseText);
+                message = response.error?.message?.value || response.message || message;
+            } catch {
+            }
+        } else if (res?.message) {
+            message = res.message;
+        }
+
+        MessageBox.error(message);
     }
 }

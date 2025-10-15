@@ -137,6 +137,11 @@
 							<Text text="{ContractType}" visible="false"/>
 						</form:fields>
 					</form:FormElement>		
+					<form:FormElement label="Cancelled" visible="false">
+						<form:fields>
+							<Text text="{Cancelled}" visible="false"/>
+						</form:fields>
+					</form:FormElement>	
 				</form:formElements>
 			</form:FormContainer>
 		</form:formContainers>
