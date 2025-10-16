@@ -968,6 +968,14 @@ module.exports = (srv) => {
                     value = Math.round(value * 100 * 100) / 100;
                 }
 
+                if (field === 'YP10' && Target.endsWith('ConditionRateAmount')) {
+                    if(row.UoM === 'Pack'){
+                        value = value * 10000;
+                    } else {
+                        value = value * row.PackFactor * 10000;
+                    }
+                }
+
                 const pathSegments = Target.split('.');
                 const key = pathSegments[pathSegments.length - 1];
 
@@ -976,7 +984,7 @@ module.exports = (srv) => {
                         conditionRecord['ConditionCalculationType'] = 'C';
                         conditionRecord['ConditionQuantityUnit'] = 'PC';
                         conditionRecord['ConditionQuantityUnitISOCode'] = 'PCE';
-                        conditionRecord['ConditionQuantity'] = row.RequestedVolume || 1;
+                        conditionRecord['ConditionQuantity'] = 10000;
                     }
                     conditionRecord[key] = value;
                 } else if (Target.includes('bvheader')) {
@@ -1388,6 +1396,86 @@ module.exports = (srv) => {
         });
     });
 
+    async function getUserCountries() {
+        const fastbackendAPI = await cds.connect.to("FASTBACKEND_API");
+        const response = await fastbackendAPI.send({
+            method: 'GET',
+            path: `/v2/conditioncontracting/getUserCountries`
+        });
 
+        const userCountries = response?.d?.userCountries || [];
+        return userCountries.map(item => ({
+            ...item
+        }));
+    }
 
+    srv.on('getESUsers', async (req) => {
+        const tx = cds.tx(req);
+        try {
+            const userCountries = await getUserCountries();
+            const grouped = userCountries.reduce((acc, user) => {
+                const { CWID, CountryCode } = user;
+                acc[CWID] = acc[CWID] || { entries: [] };
+                acc[CWID].entries.push(user);
+                acc[CWID].countries = acc[CWID].entries.map(e => e.CountryCode);
+                return acc;
+            }, {});
+
+            // Keep users who have exactly one country and it's 'ES'
+            const exclusiveESUsers = Object.values(grouped).filter(g => g.countries.length === 1 && g.countries[0] === 'ES').flatMap(g => g.entries);
+
+            return exclusiveESUsers;
+
+        }catch(error){
+                return req.reject(403, "Failed to fetch user countries")
+        }
+    });
+
+    srv.on('terminateCCMContract', async (req) => {
+        const tx = cds.tx(req);
+        try {
+            const { FastCCMContractId, CCMContractID, ProductCode, TerminationDate, CancellationNote } = req.data;
+            
+            const sourceData = await tx.run(SELECT.from(CCMContract).where({ID: CCMContractID}));
+            const response = await handlExistingContract(tx, 'ES', "ConditionContract", {ExistingContractNumber: sourceData.ContractNumber,ExpireDate: TerminationDate});
+            
+            if (response?.status !== 200) {
+                throw new Error(`Termination of ExistingContract failed for ${sourceData.ContractNumber}`);
+            }
+
+            console.log(`Contract ${sourceData[0].ContractNumber} terminated successfully. End date updated to ${TerminationDate} in SAP.`);
+            await tx.run(UPDATE(CCMContract).with({ CCMContractEndDate: TerminationDate, CancellationComment: CancellationNote, Cancelled: true}).where({ ID: CCMContractID }));
+
+            return req.reply(`Contract ${sourceData[0].ContractNumber} terminated successfully. End date updated to ${TerminationDate} in SAP.`);
+
+        } catch (error) {
+            let statusCode = 500;
+            let userMessage = "Unexpected server error. Please contact the application support team.";
+
+            if (error.response?.data) {
+                console.error("SAP Error Response:", error.response.data);
+                const sapError = error.response.data;
+
+                userMessage =
+                    sapError?.error?.message?.value ||
+                    sapError?.error?.innererror?.errordetails?.[0]?.message ||
+                    sapError?.fault?.faultstring ||
+                    sapError?.Exception_Details?.Exception_Message ||
+                    "An error occurred while communicating with SAP.";
+
+                userMessage = `SAP Error: ${userMessage}. Please contact the SAP support team.`;
+                statusCode = error.response.status || 502;
+            }
+            else if (error.code && error.message) {
+                console.error("App Error:", error.message);
+                userMessage = error.message;
+                statusCode = typeof error.code === 'number' ? error.code : 500;
+            }
+            else {
+                console.error("Unhandled Error:", error);
+            }
+
+            return req.reject(statusCode, userMessage);
+        }
+    });
 };

@@ -1,6 +1,6 @@
 using {com.bayer.SXTENDER.ccma} from '../db/schema';
 
-service ConditionContract {
+service ConditionContract @(requires:['f_tndr_cag_admin','f_tndr_cag_ccma_user','f_tndr_cag_technical_user','authenticated-user']){
 
 
     entity FastConditionContracts                 as projection on ccma.FastConditionContracts;
@@ -111,6 +111,8 @@ service ConditionContract {
             pci.YD02,
             pci.YD06,
             pci.YP10,
+            ccm.UoM,
+            ccm.PackFactor,
             pci.RequestedVolume,
             ccm.CCMContractStartDate as ConditionValidityStartDate,
             ccm.CCMContractEndDate as ConditionValidityEndDate,
@@ -310,12 +312,14 @@ entity ExistingContractInfo as select from FastConditionContracts as fcc
         fcc.ContractEndDate as CndnContrValidTo,
         ccm.CCMContractStartDate as ConditionValidityStartDate,
         ccm.CCMContractEndDate as ConditionValidityEndDate
-}where ccm.ContractNumber is not null and fcc.ContractEndDate < CURRENT_DATE;
+}where ccm.ContractNumber is not null and fcc.ContractEndDate < CURRENT_DATE and ccm.Cancelled = false and ccm.Expired = false;
 
-function getInstituteData()                                                                        returns String;
+function getInstituteData() returns String;
+function getESUsers() returns String;
 action   createCCMContract(FastCCMContractId : UUID, CCMContractID : UUID, ProductCode : String) returns String;
 action   createAllCCMContract(FastCCMContractId : UUID) returns String;
 action   sendFOCToInteractMail(FastCCMContractId : UUID, CCMContractID : UUID, ProductCode : String) returns String;
+action   terminateCCMContract(FastCCMContractId : UUID, CCMContractID : UUID, ProductCode : String, TerminationDate: Date, CancellationNote: String) returns String;
 
 entity BrandsView as select from CCMContract {
     key BrandID,
@@ -335,4 +339,49 @@ and ProductName is not null
 group by BrandID,
     ProductCode,
     ProductName;
+
+
+entity ExistingContractInvoicePrices as select from FastConditionContracts as fcc 
+    inner join CCMContract as ccm on ccm.FastConditionContracts.ID = fcc.ID 
+    inner join CCMMaterial as mat on mat.CCMContract.ID = ccm.ID and mat.ActiveRecord = 1{
+            fcc.ID as FastConditionContractID,
+            ccm.ID as CCMContractID,
+            ccm.ContractNumber,
+            ccm.Expired,
+            ccm.ProductCode,
+            ccm.CCMCustomer.InstituteID,
+            fcc.ContractStartDate as CndnContrValidFrom,
+            fcc.ContractEndDate as CndnContrValidTo,
+        key fcc.CustomerID as Customer,
+            ccm.CCMContractStartDate as ConditionValidityStartDate,
+            ccm.CCMContractEndDate as ConditionValidityEndDate,
+        key mat.MaterialNumber as Product,
+            fcc.TenderID,
+            fcc.OfferID,
+            fcc.ContractType,
+            ccm.PriceConditionInvoice.YP00,
+            ccm.PriceConditionInvoice.YP04,
+            ccm.PriceConditionInvoice.YP10,
+            ccm.PriceConditionInvoice.YD75,
+            ccm.PriceConditionInvoice.YD30,
+            ccm.PriceConditionInvoice.YD06,
+            ccm.PriceConditionInvoice.YD02,
+            ccm.PriceConditionInvoice.Tax,
+            ccm.PriceConditionInvoice.ConfidentialPrice,
+            ccm.PriceConditionInvoice.RoyalDecree,
+            ccm.PriceConditionInvoice.RoyalDecreeValue,
+            ccm.PriceConditionInvoice.RoyalDecreeIncl,
+            ccm.PriceConditionInvoice.NetPriceWithoutTaxAfterDeductionRD,
+            ccm.PriceConditionInvoice.NetPriceWithTaxAfterDeductionRD,
+            ccm.PriceConditionInvoice.NetPriceWithoutTax,
+            ccm.PriceConditionInvoice.NetPriceWithTax,
+            ccm.PriceConditionInvoice.MaximumPrice,
+            ccm.PriceConditionInvoice.RentalPrice,
+            ccm.PriceConditionInvoice.AnnualValue,
+}where ccm.ContractNumber is not null
+  and ccm.Expired = false
+  and fcc.ContractEndDate >= CURRENT_DATE;
+
+
+
 }
