@@ -42,6 +42,7 @@ entity CCMContract: cuid, managed, temporal{
   CountryCode : String;
   ProductName: String;
   UoM: String;
+  PackFactor: Double;
   NewMaterialNumber: String;
   BrandID: String;
   BrandName: String;
@@ -59,6 +60,8 @@ entity CCMContract: cuid, managed, temporal{
   Extension: Boolean;
   ExtensionPeriod: String;
   CreationDate: Date;
+  Cancelled: Boolean default false;
+  CancellationComment: String;
   CCMCustomer: Composition of CCMCustomer on CCMCustomer.CCMContract = $self;
   CCMMaterial: Composition of many CCMMaterial on CCMMaterial.CCMContract = $self;
   CurrentInvoicePrice: Composition of CurrentInvoicePrice on CurrentInvoicePrice.CCMContract = $self;
@@ -80,7 +83,7 @@ entity ContractItemGUID : cuid, managed {
 entity CCMCustomer: cuid, managed, temporal{
   InstituteID: String;
   AssortmentReference: String;
-  CustomerID: Integer;
+  CustomerID: String;
   CountryCode: String;
   InstituteType: String;
   InstituteName: String;

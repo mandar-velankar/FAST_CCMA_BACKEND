@@ -66,6 +66,7 @@ export default class Detail extends BaseController {
         this.bindTable();
         this.bindContractInformationForm();
         this.bindCustomerForm();
+        this.bindOwners();
     }
 
     /**
@@ -109,13 +110,37 @@ export default class Detail extends BaseController {
                 $$updateGroupId: "ContractInformationDetail"
             },
             events: {
-                dataReceived: (event: any) => {
+                dataReceived: async (event: any) => {
                     const uiModel = this.getModel("ui") as JSONModel;
                     const items = event.getSource().getBoundContext()?.getObject();
                     let bAllContractsHaveNumber = items?.CCMContract?.every(function (contract) {
                         return !!contract.ContractNumber;
                     });
                     uiModel.setProperty("/hasExistingContract", bAllContractsHaveNumber);
+
+                    const contractIDs: string[] = items?.CCMContract?.map((c: any) => c.ID) || [];
+
+                    let showExtensionFields = false;
+                    if(items?.ContractType === "Tender"){
+                        uiModel.setProperty("/showExtensionFields", showExtensionFields);
+                    }else{
+                        try {
+                            const allConditionTypes = await Promise.all(
+                                contractIDs.map(id => this.fetchConditionTypesByContractID(id))
+                            );
+
+                            const flatConditionTypes = allConditionTypes.flat();
+
+                            const allPVL =
+                                flatConditionTypes.length > 0 &&
+                                flatConditionTypes.every(type => type === "PVL");
+
+                            uiModel.setProperty("/showExtensionFields", !allPVL);
+                        } catch (error) {
+                            console.error("Error fetching condition types:", error);
+                            uiModel.setProperty("/showExtensionFields", false);
+                        }
+                    } 
                 }
             }
             
@@ -249,6 +274,7 @@ export default class Detail extends BaseController {
                 });
                 await that.getModel()?.submitBatch("ContractTable")
                 that.onContractInformationFormCancelBtnPress();
+                that.publishEventEmitter("ContractMasterTableChannel", "updateContractMasterTable");
                 return;
             }
 
@@ -306,5 +332,42 @@ export default class Detail extends BaseController {
         MessageBox.error(message);
     }
 
+    public bindOwners(){
+        BusyIndicator.show();
+        const getOwnersContextBinding = this.getModel()?.bindContext("/getESUsers(...)");
+        getOwnersContextBinding?.execute().then(
+            () => {
+                const actionContext = getOwnersContextBinding.getBoundContext();
+                this.onbindOwnersSuccess(actionContext?.getObject());
+            },
+            (error: any) => {
+                this.onbindOwnersFail(error);
+            }
+        );
+    }
+
+    public onbindOwnersSuccess(res: any): void {
+        BusyIndicator.hide();
+        const uiModel = this.getModel("ui") as JSONModel;
+        uiModel.setProperty("/owners", res?.value || []);
+    }
+
+    private onbindOwnersFail(error: any): void {
+        BusyIndicator.hide();
+        console.error("Error in getESUsers:", error);
+    }
+
+    private async fetchConditionTypesByContractID(contractID: string): Promise<string[]> {
+
+        const sPath = `/CCMContractPricingFormView(CCMContractID='${contractID}')`;
+        const context = this.getModel()?.bindContext(sPath);
+
+        return context?.requestObject()?.then((oObject: any) => {
+            return oObject?.ConditionType || "";
+        }).catch(err => {
+            console.error("Error fetching ConditionType for contract", contractID, err);
+            return "";
+        });
+    }
 
 }

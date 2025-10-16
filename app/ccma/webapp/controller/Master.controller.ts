@@ -61,6 +61,8 @@ export default class Master extends BaseController {
 				(this.getOwnerComponent() as Component).oListSelector.setBoundMasterList(this._oList);
 			}
 		});
+
+		this.subscribeEventEmitter("ContractMasterTableChannel", "updateContractMasterTable", this.refreshContractsMasterTable.bind(this));
 	}
 
 	public async onListItemPress(event: Event) {
@@ -419,5 +421,10 @@ export default class Master extends BaseController {
 			})
 		]);
 	}
+
+	public refreshContractsMasterTable () {
+        const contractMasterTable = this.byId("idContractsMasterTable");
+        contractMasterTable?.getBinding("items")?.refresh();
+    }
 
 }

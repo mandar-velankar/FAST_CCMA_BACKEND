@@ -51,6 +51,12 @@
 							<Text id="idInstitute" text="{InstituteName}"/>
 						</form:fields>
 					</form:FormElement>
+
+					<form:FormElement label="{i18n>CustomersFragment.CustomerID}" >
+						<form:fields>
+							<Text id="idCustomer" text="{CustomerID}"/>
+						</form:fields>
+					</form:FormElement>
 				</form:formElements>
 			</form:FormContainer>
 			<form:FormContainer >
