@@ -157,7 +157,7 @@ export default class Detail extends BaseController {
         const ccmCustomerInfo = this.byId("idNewPricingForm");
         const ccmPricingInfo = this.byId("idNewPricingFormCCM");
         const path = `/CCMContractPricingFormView(CCMContractID='${this.contractId}')`; 
-        const ccpPricingpath = `/CCMContractPricingFormView(CCMContractID='${this.contractId}')`; 
+        const ccpPricingpath = `/CurrentCCMPricingView('${this.contractId}')`; 
 
         ccmCustomerInfo?.bindElement({
             path: path,
@@ -944,4 +944,142 @@ export default class Detail extends BaseController {
 
         MessageBox.error(message);
     }
+
+    public onGetCurrentCCMPrice(event: Button$PressEvent): void {
+
+        BusyIndicator.show();
+        const currentCCMPriceBinding = this.getModel()?.bindContext("/getSAPSalesOrderSimulation(...)");
+        currentCCMPriceBinding?.setParameter("CCMContractID", this.contractId);
+        currentCCMPriceBinding?.execute().then(
+            () => {
+                const oActionContext = currentCCMPriceBinding.getBoundContext();
+                this.onGetCurrentCCMPriceSuccess(oActionContext?.getObject());
+            },
+            (error: any) => {
+                this.onGetCurrentCCMPriceFail(error);
+            }
+        );
+    }
+
+    public onGetCurrentCCMPriceSuccess(res: any): void {
+        MessageBox.success(res?.value);
+        BusyIndicator.hide();
+        this.getModel()?.refresh();
+    }
+
+    public onGetCurrentCCMPriceFail(res: any): void {
+        BusyIndicator.hide();
+
+        let message = "An unexpected error occurred. Please contact SAP support.";
+
+        if (res?.responseText) {
+            try {
+                const response = JSON.parse(res.responseText);
+                message = response.error?.message?.value || response.message || message;
+            } catch {
+            }
+        } else if (res?.message) {
+            message = res.message;
+        }
+
+        MessageBox.error(message);
+    }
+
+
+    public onIgnoreCurrentCCMPrice(event: Button$PressEvent): void {
+        const that = this;
+
+        MessageBox.warning("Are you sure you want to apply current invoice price?", {
+            title: "Ignore",
+            actions: [MessageBox.Action.OK, MessageBox.Action.CANCEL],
+            emphasizedAction: MessageBox.Action.OK,
+            onClose: async function (action) {
+                if (action === MessageBox.Action.OK) {
+                    BusyIndicator.show();
+                    const currentCCMPriceBinding = that.getModel()?.bindContext("/ignoreCurrentCCMPrice(...)");
+                    currentCCMPriceBinding?.setParameter("CCMContractID", that.contractId);
+                    currentCCMPriceBinding?.execute().then(
+                        () => {
+                            const oActionContext = currentCCMPriceBinding.getBoundContext();
+                            that.onIgnoreCurrentCCMPriceSuccess(oActionContext?.getObject());
+                        },
+                        (error: any) => {
+                            that.onIgnoreCurrentCCMPriceFail(error);
+                        }
+                    );
+                }
+            }
+        });
+    }
+
+    public onIgnoreCurrentCCMPriceSuccess(res: any): void {
+        MessageBox.success(res?.value);
+        BusyIndicator.hide();
+        const ignoreBtn = this.byId("idIgnoreCurrentCCMPriceButton") as Button;
+        const aInputs = this.byId("idNewPricingFormCCM").findAggregatedObjects(true, (oCtrl) => oCtrl.isA("sap.m.Input"));
+
+        aInputs.forEach((oInput) => {
+            const valueState = oInput.getValueState();
+            if (valueState === "Error" && oInput.hasStyleClass("highlightRedText")) {
+                oInput.setValueState("None");
+                oInput.removeStyleClass("highlightRedText");
+            }
+        });
+
+        ignoreBtn.setEnabled(false);
+        this.getModel()?.refresh();
+    }
+
+    public onIgnoreCurrentCCMPriceFail(res: any): void {
+        BusyIndicator.hide();
+
+        let message = "An unexpected error occurred.";
+
+        if (res?.responseText) {
+            try {
+                const response = JSON.parse(res.responseText);
+                message = response.error?.message?.value || response.message || message;
+            } catch {
+            }
+        } else if (res?.message) {
+            message = res.message;
+        }
+
+        MessageBox.error(message);
+    }
+
+    public onCheckContractPriceDifference(currentPrice: any, path: string, controlID: string) {
+        if (!currentPrice) return "None";
+        const fastPricingContext = this.byId("idNewPricingForm")?.getBindingContext();
+        const ccmPricingContext = this.byId("idNewPricingFormCCM")?.getBindingContext();
+        const ignoreBtn = this.byId("idIgnoreCurrentCCMPriceButton") as Button;
+        const control = this.byId(controlID);
+
+
+        if (!fastPricingContext || !ccmPricingContext) {
+            return "None"; // no context, skip
+        }
+
+        const fastContractPrice = fastPricingContext.getProperty(path);
+        const ccmContractPrice = ccmPricingContext.getProperty(path);
+
+        // Ensure both are valid numbers
+        const nCurrent = parseFloat(ccmContractPrice);
+        const nContract = parseFloat(fastContractPrice);
+
+        // If either value is not a valid number (NaN), skip validation
+        if (isNaN(nCurrent) || isNaN(nContract)) {
+            return "None";
+        }
+
+        // Compare decimals precisely
+        if (nCurrent !== nContract) {
+            ignoreBtn.setEnabled(true);
+            control.addStyleClass("highlightRedText");
+            return "Error"; // highlight red if they differ
+        }
+
+        return "None"; // values match — no error
+    }
+
 }

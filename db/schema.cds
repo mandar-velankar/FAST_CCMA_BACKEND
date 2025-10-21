@@ -101,6 +101,7 @@ entity CCMMaterial: cuid, managed, temporal{
 }
 entity CurrentInvoicePrice: cuid, managed{
   ConditionType: String;
+  Currency: String;
   CountryCode: String;
   SoldToParty: String;
   Material: String;
@@ -112,6 +113,20 @@ entity CurrentInvoicePrice: cuid, managed{
   YD06: Double;
   YD02: Double;
   SapTax: Double;
+  Tax: Double;
+  ConfidentialPrice: Decimal;
+  RoyalDecree                         : String;
+  RoyalDecreeValue                    : Decimal;
+  RoyalDecreeIncl                     : Boolean default false;
+  NetPriceWithoutTaxAfterDeductionRD  : Decimal;
+  NetPriceWithTaxAfterDeductionRD     : Decimal;
+  NetPriceWithoutTax                  : Decimal;
+  NetPriceWithTax                     : Decimal;
+  MaximumPrice                        : Decimal;
+  RequestedVolume                     : Integer;
+  RentalPrice                         : Double;
+  MonthlyRentPerUnit                  : Double;
+  AnnualValue                         : Double;
   CCMContract: Association to CCMContract;
 }
 
