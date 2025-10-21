@@ -777,8 +777,8 @@ module.exports = (srv) => {
         const removeFromYRA1Only = [
             'PricingScaleBasis',
             'CndnScaleQuantityUnitISOCode',
-            'ConditionScaleQuantityUnit',
-            'ConditionRateRatio'
+            'ConditionScaleQuantityUnit'
+            //'ConditionRateRatio'
         ];
 
         const removeFromBoth = [
