@@ -17,6 +17,7 @@ service ConditionContract @(requires:['f_tndr_cag_admin','f_tndr_cag_ccma_user',
     entity APIConfigOAuth                         as projection on ccma.APIConfigOAuth;
     entity APIBody                                as projection on ccma.APIBody;
     entity ContractItemGUID                       as projection on ccma.ContractItemGUID;
+    entity ConditionContractsLog                   as projection on ccma.ConditionContractsLog;
 
 
     entity FastConditionContractsView             as

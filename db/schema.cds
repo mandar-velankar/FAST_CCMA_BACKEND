@@ -240,3 +240,15 @@ entity APIBody: cuid{
   Target: String;
   APIDefinition: Association to APIDefinition;
 }
+
+entity ConditionContractsLog : cuid {
+  ContractNumber        : String;
+  ContractType      : String;
+  ContractReference : String;        
+  PayloadType       : String;         
+  PayloadToSAP      : LargeString; 
+  Synchronized      : Boolean default false;       
+  createdAt         : Date;
+  createdBy         : String;
+  CCMContract: Association to CCMContract;
+}
