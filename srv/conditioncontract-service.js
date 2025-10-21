@@ -391,7 +391,7 @@ module.exports = (srv) => {
             if (invoiceResult) {
                 const contractNumber = invoiceResult?.data?.ConditionContract;
                 if (contractNumber) {
-                    console.log("Payload sent to SAP:", JSON.stringify(JSON.parse(invoiceResult?.config?.data), null, 2));
+                    console.log("Payload sent to SAP:", JSON.stringify(typeof invoiceResult?.config?.data === "string" ? JSON.parse(invoiceResult.config.data) : invoiceResult?.config?.data, null, 2));
                     const contractInfo = await tx.run(SELECT.one.from(CCMContract).where({ ID: CCMContractID, ContractNumber: {"!=": null} }));
                     if(contractInfo){
                         await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber, Expired: false}).where({ ID: CCMContractID }));
@@ -438,7 +438,7 @@ module.exports = (srv) => {
                                     .where({ SettlementID: settlement.SettlementID })
                             );
 
-                            console.log("Rebate payload sent to SAP:", JSON.stringify(rebateResp?.config?.data, null, 2));
+                            console.log("Rebate payload sent to SAP:", JSON.stringify(typeof rebateResp?.config?.data === "string" ? JSON.parse(rebateResp.config.data) : rebateResp?.config?.data, null, 2));
                             console.log("Rebate response from SAP:", rebateResp?.data);
                         } else {
                             console.warn(`No matching settlement found for ExternalDocumentReferenceID: ${externalDocRefID}`);
@@ -866,6 +866,13 @@ module.exports = (srv) => {
             }
         }
 
+        if (sourceData[0].AssortmentReference) {
+            finalResult.ConditionContract.ConditionContractType.CndnContrType = 'YR04';
+            finalResult.ConditionContract.ConditionContractType.CndnContrProcVar = 'YR04';
+        }else {
+            delete finalResult.ConditionContract.ConditionContractType.Customer;
+        }
+        
         // --- Final assembly ---
         if (conditionRecords.length > 0) {
             setNestedValue(finalResult, 'ConditionContract.ConditionContractType._CndnContrCndnRecord', [
