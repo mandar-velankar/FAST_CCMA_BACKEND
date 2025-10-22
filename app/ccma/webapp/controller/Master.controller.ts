@@ -15,6 +15,7 @@ import Popup from "sap/ui/core/Popup";
 import * as formatter from "com/bayer/tender/ccma/model/formatter";
 import Sorter from "sap/ui/model/Sorter";
 import Select from "sap/m/Select";
+import BusyIndicator from "sap/ui/core/BusyIndicator";
 type TContract = {
 	ID: string;
 }
@@ -58,6 +59,7 @@ export default class Master extends BaseController {
 
 		this.getView()?.addEventDelegate({
 			onBeforeFirstShow: () => {
+				this.bindUserCountries();
 				(this.getOwnerComponent() as Component).oListSelector.setBoundMasterList(this._oList);
 			}
 		});
@@ -100,6 +102,18 @@ export default class Master extends BaseController {
 
 	onBypassed() {
 		this._oList.removeSelections(true);
+	}
+
+	public async onCountriesReceived (event: Event) {
+		const uiModel = this.getModel("ui") as JSONModel;
+		const sCountryCode = uiModel.getProperty("/SelectedCountry") || event?.getParameter("data")?.results[0]?.CountryCode || event.getParameter("selectedItem")?.getBindingContext()?.getProperty("CountryCode"); // we default to first country in the list
+		const userFullName = event?.getParameter("data")?.results[0]?.UserName || event.getParameter("selectedItem")?.getBindingContext()?.getProperty("UserName")
+		const userID = event?.getParameter("data")?.results[0]?.CWID || event.getParameter("selectedItem")?.getBindingContext()?.getProperty("CWID")
+		const userEmail = event?.getParameter("data")?.results[0]?.UserEmail || event.getParameter("selectedItem")?.getBindingContext()?.getProperty("UserEmail")
+		uiModel.setProperty("/UserFullName", userFullName);
+		uiModel.setProperty("/UserID", userID);
+		uiModel.setProperty("/UserEmail", userEmail);
+		uiModel.setProperty("/SelectedCountry", sCountryCode);
 	}
 
 	setFilter() {
@@ -425,6 +439,45 @@ export default class Master extends BaseController {
 	public refreshContractsMasterTable () {
         const contractMasterTable = this.byId("idContractsMasterTable");
         contractMasterTable?.getBinding("items")?.refresh();
+    }
+
+	public bindUserCountries(){
+        BusyIndicator.show();
+        const getUserCountriesBinding = this.getModel()?.bindContext("/getUserCountries(...)");
+        getUserCountriesBinding?.execute().then(
+            () => {
+                const actionContext = getUserCountriesBinding.getBoundContext();
+                this.onbindUserCountriesSuccess(actionContext?.getObject());
+            },
+            (error: any) => {
+                this.onbindUserCountriesFail(error);
+            }
+        );
+    }
+
+    public onbindUserCountriesSuccess(res: any): void {
+        BusyIndicator.hide();
+        const uiModel = this.getModel("ui") as JSONModel;
+        let userCountries = res?.value || [];
+
+		// Filter: Application === "STA" OR Application === "ALL"
+		userCountries = userCountries.filter((item: any) =>
+			item?.Application === "CCMA" || item?.Application === "ALL"
+		);
+
+		// Sort by Country.CountryName, safely:
+		userCountries.sort((a: any, b: any) => {
+			const nameA = a?.CountryName || "";
+			const nameB = b?.CountryName || "";
+			return nameA.localeCompare(nameB);
+		});
+
+		uiModel.setProperty("/UserCountries", userCountries);
+    }
+
+    private onbindUserCountriesFail(error: any): void {
+        BusyIndicator.hide();
+        console.error("Error in getUserCountries:", error);
     }
 
 }

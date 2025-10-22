@@ -317,6 +317,7 @@ entity ExistingContractInfo as select from FastConditionContracts as fcc
 
 function getInstituteData() returns String;
 function getESUsers() returns String;
+function getUserCountries() returns String;
 action   createCCMContract(FastCCMContractId : UUID, CCMContractID : UUID, ProductCode : String) returns String;
 action   createAllCCMContract(FastCCMContractId : UUID) returns String;
 action   sendFOCToInteractMail(FastCCMContractId : UUID, CCMContractID : UUID, ProductCode : String) returns String;

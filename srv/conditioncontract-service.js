@@ -1824,4 +1824,17 @@ module.exports = (srv) => {
             NetPriceWithTax: pricing.NetPriceWithTax
         }
     }
+
+    srv.on('getUserCountries', async (req) => {
+        const tx = cds.tx(req);
+        try {
+            let userCountries = await getUserCountries();
+            // Filter for the logged-in user's CWID
+            userCountries = userCountries.filter((c) => c.CWID === req.user.id);
+
+            return userCountries;
+        }catch(error){
+            return req.reject(403, "Failed to fetch user countries")
+        }
+    });
 };
