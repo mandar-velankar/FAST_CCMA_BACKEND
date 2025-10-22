@@ -286,20 +286,23 @@ module.exports = (srv) => {
                 const action = decideContractAction(contract, newOffer);
 
                 if (action === "CREATE_NEW") {
+                    console.log("Process Invoice Contracts");
                     lastResponse = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
                 } else if (action === "UPDATE_AND_CREATE_NEW") {
+                    console.log("Process Update of Existing Contracts");
                     const updated = await updateExistingContract(tx, contract, newOffer);
                     if (updated) {
                         updatedContracts.push(contract.ContractNumber);
                     } else {
                         skippedContracts.push(contract.ContractNumber); 
                     }
-
+                    console.log("Process Invoice Contracts");
                     lastResponse = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
                 }
             }
         } else if (caseType === "NO_MATCH" || caseType === "UNCLASSIFIED") {
             // No previous match → always create new
+            console.log("Process Invoice Contracts");
             lastResponse = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
         }
 
@@ -341,6 +344,7 @@ module.exports = (srv) => {
         try {
             const { FastCCMContractId, CCMContractID, ProductCode } = req.data;
             //Expire Existing Contracts
+            console.log("Expire Existing Contracts");
             const existingContractInfo = await tx.run(SELECT.from(ExistingContractInfo));
             if(existingContractInfo && existingContractInfo.length > 0){
                 for(const info of existingContractInfo){
@@ -363,6 +367,7 @@ module.exports = (srv) => {
             const isPVLContract = sourceData.some(d => d.ConditionType === 'PVL');
 
             //Process Rebate Contracts
+            console.log("Process Rebate Contracts");
             const rebatePromise = rebateSourceData.length > 0
                 ? Promise.all(
                     rebateSettlementData.map(async (settle) => {
@@ -420,7 +425,7 @@ module.exports = (srv) => {
                 }
                 console.log("Invoice response from SAP:", invoiceResult?.data);
             }else{
-                console.log("⚠️ No invoice contract created.");
+                console.log("No invoice contract created.");
             }
             // Process Rebate Responses
             if (Array.isArray(rebateResponses)) {
@@ -476,6 +481,18 @@ module.exports = (srv) => {
                     "An error occurred while communicating with SAP.";
 
                 userMessage = `SAP Error: ${userMessage}. Please contact the SAP support team.`;
+                const inputPayload =
+                    error?.response?.data?.Exception_Details?.InputPayload ||
+                    error?.response?.data?.error?.innererror?.errordetails?.[0]?.InputPayload ||
+                    null;
+
+                if (inputPayload) {
+                    console.error('Input Payload sent to SAP:');
+                    console.error(
+                    typeof inputPayload === 'string' ? inputPayload : JSON.stringify(inputPayload, null, 2));
+                } else {
+                    console.error('No InputPayload found in the SAP error response');
+                }
                 statusCode = error.response.status || 502;
             }
             else if (error.code && error.message) {
@@ -1199,7 +1216,7 @@ module.exports = (srv) => {
         const tx = cds.tx(req);
         try {
             const { FastCCMContractId } = req.data;
-
+            console.log("Expire Existing Contracts");
             // --- EXPIRE existing contracts (applies to all products) ---
             const existingContractInfo = await tx.run(SELECT.from(ExistingContractInfo));
             if (existingContractInfo && existingContractInfo.length > 0) {
@@ -1222,6 +1239,7 @@ module.exports = (srv) => {
                 CCMContractID: {in: rebateContractIDs}
             }));
 
+            console.log("Process Rebate Contracts");
             const rebatePromise = rebateSourceData.length > 0
             ? Promise.all(rebateSettlementData.map(async (settle) => {
                 const fromDate = settle.FromDate;
@@ -1348,11 +1366,17 @@ module.exports = (srv) => {
                 }
             }
 
-            const rebateCount = Array.isArray(rebateResponses) ? rebateResponses.length : 0;
-            const updatedMsg = updatedContractsAll.length ? `Updated Contracts: ${[...new Set(updatedContractsAll)].join(", ")}` : "";
-            const skippedMsg = skippedContractsAll.length ? `Skipped Contracts (ended before new offer): ${[...new Set(skippedContractsAll)].join(", ")}` : "";
+            let invoiceMsg = invoiceResult?.data?.ConditionContract ? `CCM Invoice Contract ${invoiceResult.data.ConditionContract}` : "No Invoice Contract";
 
-            return req.reply(`${invoiceCount} CCM Invoice Contract(s) and ${rebateCount} Rebate Contract(s) created/updated successfully into SAP${updatedMsg ? " + " + updatedMsg : ""}${skippedMsg ? " + " + skippedMsg : ""}`);
+            let updatedMsg = updatedContracts.length ? `Updated Contracts: ${updatedContracts.join(", ")}` : "";
+
+            let skippedMsg = skippedContracts.length ? `Skipped Contracts (ended before new offer): ${skippedContracts.join(", ")}` : "";
+
+            let rebateMsg = `${rebateResponses.length} Rebate Contract${rebateResponses.length !== 1 ? "s" : ""}`;
+
+            const successMessage = [invoiceMsg, updatedMsg, skippedMsg, rebateMsg].filter(Boolean).join(" + ");
+
+            return req.reply(`${successMessage} created/updated successfully into SAP`);
         } catch (error) {
             let statusCode = 500;
             let userMessage = "Unexpected server error. Please contact the application support team.";
@@ -1368,6 +1392,18 @@ module.exports = (srv) => {
                     "An error occurred while communicating with SAP.";
                 userMessage = `SAP Error: ${userMessage}. Please contact the SAP support team.`;
                 statusCode = error.response.status || 502;
+                const inputPayload =
+                    error?.response?.data?.Exception_Details?.InputPayload ||
+                    error?.response?.data?.error?.innererror?.errordetails?.[0]?.InputPayload ||
+                    null;
+
+                if (inputPayload) {
+                    console.error('Input Payload sent to SAP:');
+                    console.error(
+                    typeof inputPayload === 'string' ? inputPayload : JSON.stringify(inputPayload, null, 2));
+                } else {
+                    console.error('No InputPayload found in the SAP error response');
+                }
             } else if (error.code && error.message) {
                 console.error("App Error:", error.message);
                 userMessage = error.message;
@@ -1445,6 +1481,7 @@ module.exports = (srv) => {
             const { FastCCMContractId, CCMContractID, ProductCode, TerminationDate, CancellationNote } = req.data;
             
             const sourceData = await tx.run(SELECT.from(CCMContract).where({ID: CCMContractID}));
+            console.log("Process Terminate Contracts");
             const response = await handlExistingContract(tx, 'ES', "ConditionContract", {ExistingContractNumber: sourceData.ContractNumber,ExpireDate: TerminationDate});
             
             if (response?.status !== 200) {
@@ -1473,6 +1510,18 @@ module.exports = (srv) => {
 
                 userMessage = `SAP Error: ${userMessage}. Please contact the SAP support team.`;
                 statusCode = error.response.status || 502;
+                const inputPayload =
+                    error?.response?.data?.Exception_Details?.InputPayload ||
+                    error?.response?.data?.error?.innererror?.errordetails?.[0]?.InputPayload ||
+                    null;
+
+                if (inputPayload) {
+                    console.error('Input Payload sent to SAP:');
+                    console.error(
+                    typeof inputPayload === 'string' ? inputPayload : JSON.stringify(inputPayload, null, 2));
+                } else {
+                    console.error('No InputPayload found in the SAP error response');
+                }
             }
             else if (error.code && error.message) {
                 console.error("App Error:", error.message);
