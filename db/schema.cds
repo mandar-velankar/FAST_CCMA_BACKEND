@@ -87,7 +87,20 @@ entity CCMCustomer: cuid, managed, temporal{
   CountryCode: String;
   InstituteType: String;
   InstituteName: String;
+  CustomerHierarchy: Composition of many CustomerHierarchy on CustomerHierarchy.ParentInstituteID = InstituteID and CustomerHierarchy.ParentCustomerID = CustomerID;
   CCMContract: Association to CCMContract;
+}
+
+entity CustomerHierarchy: cuid, managed {
+  InstituteID: String;
+  ParentInstituteID: String;
+  CustomerID: String;
+  ParentCustomerID: String;
+  InstituteName: String;
+  ParentInstituteName: String;
+  Excluded: Boolean default false;
+  CCMContractID: UUID;
+  CCMCustomer: Association to CCMCustomer;
 }
 
 entity CCMMaterial: cuid, managed, temporal{
