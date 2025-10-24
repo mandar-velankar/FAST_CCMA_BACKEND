@@ -98,6 +98,7 @@ entity CustomerHierarchy: cuid, managed {
   ParentCustomerID: String;
   InstituteName: String;
   ParentInstituteName: String;
+  AssortmentReference: String;
   Excluded: Boolean default false;
   CCMContractID: UUID;
   CCMCustomer: Association to CCMCustomer;

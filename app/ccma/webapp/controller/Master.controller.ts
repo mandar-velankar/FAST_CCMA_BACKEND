@@ -106,14 +106,15 @@ export default class Master extends BaseController {
 
 	public async onCountriesReceived (event: Event) {
 		const uiModel = this.getModel("ui") as JSONModel;
-		const sCountryCode = uiModel.getProperty("/SelectedCountry") || event?.getParameter("data")?.results[0]?.CountryCode || event.getParameter("selectedItem")?.getBindingContext()?.getProperty("CountryCode"); // we default to first country in the list
-		const userFullName = event?.getParameter("data")?.results[0]?.UserName || event.getParameter("selectedItem")?.getBindingContext()?.getProperty("UserName")
-		const userID = event?.getParameter("data")?.results[0]?.CWID || event.getParameter("selectedItem")?.getBindingContext()?.getProperty("CWID")
-		const userEmail = event?.getParameter("data")?.results[0]?.UserEmail || event.getParameter("selectedItem")?.getBindingContext()?.getProperty("UserEmail")
+		const sCountryCode = uiModel.getProperty("/SelectedCountry") || event?.getParameter("data")?.results[0]?.CountryCode || event.getParameter("selectedItem")?.getBindingContext('ui')?.getProperty("CountryCode"); // we default to first country in the list
+		const userFullName = event?.getParameter("data")?.results[0]?.UserName || event.getParameter("selectedItem")?.getBindingContext('ui')?.getProperty("UserName")
+		const userID = event?.getParameter("data")?.results[0]?.CWID || event.getParameter("selectedItem")?.getBindingContext('ui')?.getProperty("CWID")
+		const userEmail = event?.getParameter("data")?.results[0]?.UserEmail || event.getParameter("selectedItem")?.getBindingContext('ui')?.getProperty("UserEmail")
 		uiModel.setProperty("/UserFullName", userFullName);
 		uiModel.setProperty("/UserID", userID);
 		uiModel.setProperty("/UserEmail", userEmail);
 		uiModel.setProperty("/SelectedCountry", sCountryCode);
+		this.setFilter();
 	}
 
 	setFilter() {
