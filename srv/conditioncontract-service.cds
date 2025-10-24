@@ -302,8 +302,8 @@ entity IdentifyExistingContract as select from FastConditionContracts as fcc
             fcc.OfferID,
             fcc.ContractType
 }where ccm.ContractNumber is not null
-  and ccm.Expired = false
-  and fcc.ContractEndDate >= CURRENT_DATE;
+  and ccm.Expired = false and ccm.Cancelled = false
+  and ccm.CCMContractEndDate >= CURRENT_DATE;
 
 entity ExistingContractInfo as select from FastConditionContracts as fcc 
     inner join CCMContract as ccm on ccm.FastConditionContracts.ID = fcc.ID {
@@ -314,7 +314,7 @@ entity ExistingContractInfo as select from FastConditionContracts as fcc
         fcc.ContractEndDate as CndnContrValidTo,
         ccm.CCMContractStartDate as ConditionValidityStartDate,
         ccm.CCMContractEndDate as ConditionValidityEndDate
-}where ccm.ContractNumber is not null and fcc.ContractEndDate < CURRENT_DATE and ccm.Cancelled = false and ccm.Expired = false;
+}where ccm.ContractNumber is not null and ccm.CCMContractEndDate < CURRENT_DATE and ccm.Cancelled = false and ccm.Expired = false;
 
 function getInstituteData() returns String;
 function getESUsers() returns String;
