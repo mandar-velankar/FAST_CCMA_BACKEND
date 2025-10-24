@@ -1480,7 +1480,7 @@ module.exports = (srv) => {
         try {
             const { FastCCMContractId, CCMContractID, ProductCode, TerminationDate, CancellationNote } = req.data;
             
-            const sourceData = await tx.run(SELECT.from(CCMContract).where({ID: CCMContractID}));
+            const sourceData = await tx.run(SELECT.one.from(CCMContract).where({ID: CCMContractID}));
             console.log("Process Terminate Contracts");
             const response = await handlExistingContract(tx, 'ES', "ConditionContract", {ExistingContractNumber: sourceData.ContractNumber,ExpireDate: TerminationDate});
             
@@ -1488,10 +1488,10 @@ module.exports = (srv) => {
                 throw new Error(`Termination of ExistingContract failed for ${sourceData.ContractNumber}`);
             }
 
-            console.log(`Contract ${sourceData[0].ContractNumber} terminated successfully. End date updated to ${TerminationDate} in SAP.`);
+            console.log(`Contract ${sourceData.ContractNumber} terminated successfully. End date updated to ${TerminationDate} in SAP.`);
             await tx.run(UPDATE(CCMContract).with({ CCMContractEndDate: TerminationDate, CancellationComment: CancellationNote, Cancelled: true}).where({ ID: CCMContractID }));
 
-            return req.reply(`Contract ${sourceData[0].ContractNumber} terminated successfully. End date updated to ${TerminationDate} in SAP.`);
+            return req.reply(`Contract ${sourceData.ContractNumber} terminated successfully. End date updated to ${TerminationDate} in SAP.`);
 
         } catch (error) {
             let statusCode = 500;
