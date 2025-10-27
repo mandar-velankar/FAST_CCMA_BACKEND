@@ -30,11 +30,13 @@
                         text="Country"
                         labelFor="idSlctCountry"
                     />
-                    <Select id="idSlctCountry" change=".setFilter">
-                        <core:Item
-                            key="ES"
-                            text="Spain"
-                        />
+                    <Select
+                        id="idSlctCountry"
+                        selectedKey="{ui>/SelectedCountry}"
+                        items="{ path: 'ui>/UserCountries' }"
+                        change=".onCountriesReceived"
+                    >
+                        <core:Item key="{ui>CountryCode}" text="{ui>CountryName}" />
                     </Select>
                     <Label
                         text="Brand"

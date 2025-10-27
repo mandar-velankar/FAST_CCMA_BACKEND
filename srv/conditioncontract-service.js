@@ -19,7 +19,8 @@ const {
     APIConfigOAuth,
     ContractItemGUID,
     IdentifyExistingContract,
-    ExistingContractInfo
+    ExistingContractInfo,
+    CurrentInvoicePrice
 } = cds.entities("ConditionContract");
 
 
@@ -285,20 +286,23 @@ module.exports = (srv) => {
                 const action = decideContractAction(contract, newOffer);
 
                 if (action === "CREATE_NEW") {
+                    console.log("Process Invoice Contracts");
                     lastResponse = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
                 } else if (action === "UPDATE_AND_CREATE_NEW") {
+                    console.log("Process Update of Existing Contracts");
                     const updated = await updateExistingContract(tx, contract, newOffer);
                     if (updated) {
                         updatedContracts.push(contract.ContractNumber);
                     } else {
                         skippedContracts.push(contract.ContractNumber); 
                     }
-
+                    console.log("Process Invoice Contracts");
                     lastResponse = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
                 }
             }
         } else if (caseType === "NO_MATCH" || caseType === "UNCLASSIFIED") {
             // No previous match → always create new
+            console.log("Process Invoice Contracts");
             lastResponse = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
         }
 
@@ -340,6 +344,7 @@ module.exports = (srv) => {
         try {
             const { FastCCMContractId, CCMContractID, ProductCode } = req.data;
             //Expire Existing Contracts
+            console.log("Expire Existing Contracts");
             const existingContractInfo = await tx.run(SELECT.from(ExistingContractInfo));
             if(existingContractInfo && existingContractInfo.length > 0){
                 for(const info of existingContractInfo){
@@ -362,6 +367,7 @@ module.exports = (srv) => {
             const isPVLContract = sourceData.some(d => d.ConditionType === 'PVL');
 
             //Process Rebate Contracts
+            console.log("Process Rebate Contracts");
             const rebatePromise = rebateSourceData.length > 0
                 ? Promise.all(
                     rebateSettlementData.map(async (settle) => {
@@ -391,7 +397,7 @@ module.exports = (srv) => {
             if (invoiceResult) {
                 const contractNumber = invoiceResult?.data?.ConditionContract;
                 if (contractNumber) {
-                    console.log("Payload sent to SAP:", JSON.stringify(JSON.parse(invoiceResult?.config?.data), null, 2));
+                    console.log("Payload sent to SAP:", JSON.stringify(typeof invoiceResult?.config?.data === "string" ? JSON.parse(invoiceResult.config.data) : invoiceResult?.config?.data, null, 2));
                     const contractInfo = await tx.run(SELECT.one.from(CCMContract).where({ ID: CCMContractID, ContractNumber: {"!=": null} }));
                     if(contractInfo){
                         await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber, Expired: false}).where({ ID: CCMContractID }));
@@ -419,7 +425,7 @@ module.exports = (srv) => {
                 }
                 console.log("Invoice response from SAP:", invoiceResult?.data);
             }else{
-                console.log("⚠️ No invoice contract created.");
+                console.log("No invoice contract created.");
             }
             // Process Rebate Responses
             if (Array.isArray(rebateResponses)) {
@@ -438,7 +444,7 @@ module.exports = (srv) => {
                                     .where({ SettlementID: settlement.SettlementID })
                             );
 
-                            console.log("Rebate payload sent to SAP:", JSON.stringify(rebateResp?.config?.data, null, 2));
+                            console.log("Rebate payload sent to SAP:", JSON.stringify(typeof rebateResp?.config?.data === "string" ? JSON.parse(rebateResp.config.data) : rebateResp?.config?.data, null, 2));
                             console.log("Rebate response from SAP:", rebateResp?.data);
                         } else {
                             console.warn(`No matching settlement found for ExternalDocumentReferenceID: ${externalDocRefID}`);
@@ -475,6 +481,18 @@ module.exports = (srv) => {
                     "An error occurred while communicating with SAP.";
 
                 userMessage = `SAP Error: ${userMessage}. Please contact the SAP support team.`;
+                const inputPayload =
+                    error?.response?.data?.Exception_Details?.InputPayload ||
+                    error?.response?.data?.error?.innererror?.errordetails?.[0]?.InputPayload ||
+                    null;
+
+                if (inputPayload) {
+                    console.error('Input Payload sent to SAP:');
+                    console.error(
+                    typeof inputPayload === 'string' ? inputPayload : JSON.stringify(inputPayload, null, 2));
+                } else {
+                    console.error('No InputPayload found in the SAP error response');
+                }
                 statusCode = error.response.status || 502;
             }
             else if (error.code && error.message) {
@@ -776,8 +794,8 @@ module.exports = (srv) => {
         const removeFromYRA1Only = [
             'PricingScaleBasis',
             'CndnScaleQuantityUnitISOCode',
-            'ConditionScaleQuantityUnit',
-            'ConditionRateRatio'
+            'ConditionScaleQuantityUnit'
+            //'ConditionRateRatio'
         ];
 
         const removeFromBoth = [
@@ -866,6 +884,13 @@ module.exports = (srv) => {
             }
         }
 
+        if (sourceData[0].AssortmentReference) {
+            finalResult.ConditionContract.ConditionContractType.CndnContrType = 'YR04';
+            finalResult.ConditionContract.ConditionContractType.CndnContrProcVar = 'YR04';
+        }else {
+            delete finalResult.ConditionContract.ConditionContractType.Customer;
+        }
+        
         // --- Final assembly ---
         if (conditionRecords.length > 0) {
             setNestedValue(finalResult, 'ConditionContract.ConditionContractType._CndnContrCndnRecord', [
@@ -1191,7 +1216,7 @@ module.exports = (srv) => {
         const tx = cds.tx(req);
         try {
             const { FastCCMContractId } = req.data;
-
+            console.log("Expire Existing Contracts");
             // --- EXPIRE existing contracts (applies to all products) ---
             const existingContractInfo = await tx.run(SELECT.from(ExistingContractInfo));
             if (existingContractInfo && existingContractInfo.length > 0) {
@@ -1214,6 +1239,7 @@ module.exports = (srv) => {
                 CCMContractID: {in: rebateContractIDs}
             }));
 
+            console.log("Process Rebate Contracts");
             const rebatePromise = rebateSourceData.length > 0
             ? Promise.all(rebateSettlementData.map(async (settle) => {
                 const fromDate = settle.FromDate;
@@ -1340,11 +1366,17 @@ module.exports = (srv) => {
                 }
             }
 
-            const rebateCount = Array.isArray(rebateResponses) ? rebateResponses.length : 0;
-            const updatedMsg = updatedContractsAll.length ? `Updated Contracts: ${[...new Set(updatedContractsAll)].join(", ")}` : "";
-            const skippedMsg = skippedContractsAll.length ? `Skipped Contracts (ended before new offer): ${[...new Set(skippedContractsAll)].join(", ")}` : "";
+            let invoiceMsg = invoiceResult?.data?.ConditionContract ? `CCM Invoice Contract ${invoiceResult.data.ConditionContract}` : "No Invoice Contract";
 
-            return req.reply(`${invoiceCount} CCM Invoice Contract(s) and ${rebateCount} Rebate Contract(s) created/updated successfully into SAP${updatedMsg ? " + " + updatedMsg : ""}${skippedMsg ? " + " + skippedMsg : ""}`);
+            let updatedMsg = updatedContracts.length ? `Updated Contracts: ${updatedContracts.join(", ")}` : "";
+
+            let skippedMsg = skippedContracts.length ? `Skipped Contracts (ended before new offer): ${skippedContracts.join(", ")}` : "";
+
+            let rebateMsg = `${rebateResponses.length} Rebate Contract${rebateResponses.length !== 1 ? "s" : ""}`;
+
+            const successMessage = [invoiceMsg, updatedMsg, skippedMsg, rebateMsg].filter(Boolean).join(" + ");
+
+            return req.reply(`${successMessage} created/updated successfully into SAP`);
         } catch (error) {
             let statusCode = 500;
             let userMessage = "Unexpected server error. Please contact the application support team.";
@@ -1360,6 +1392,18 @@ module.exports = (srv) => {
                     "An error occurred while communicating with SAP.";
                 userMessage = `SAP Error: ${userMessage}. Please contact the SAP support team.`;
                 statusCode = error.response.status || 502;
+                const inputPayload =
+                    error?.response?.data?.Exception_Details?.InputPayload ||
+                    error?.response?.data?.error?.innererror?.errordetails?.[0]?.InputPayload ||
+                    null;
+
+                if (inputPayload) {
+                    console.error('Input Payload sent to SAP:');
+                    console.error(
+                    typeof inputPayload === 'string' ? inputPayload : JSON.stringify(inputPayload, null, 2));
+                } else {
+                    console.error('No InputPayload found in the SAP error response');
+                }
             } else if (error.code && error.message) {
                 console.error("App Error:", error.message);
                 userMessage = error.message;
@@ -1436,17 +1480,18 @@ module.exports = (srv) => {
         try {
             const { FastCCMContractId, CCMContractID, ProductCode, TerminationDate, CancellationNote } = req.data;
             
-            const sourceData = await tx.run(SELECT.from(CCMContract).where({ID: CCMContractID}));
+            const sourceData = await tx.run(SELECT.one.from(CCMContract).where({ID: CCMContractID}));
+            console.log("Process Terminate Contracts");
             const response = await handlExistingContract(tx, 'ES', "ConditionContract", {ExistingContractNumber: sourceData.ContractNumber,ExpireDate: TerminationDate});
             
             if (response?.status !== 200) {
                 throw new Error(`Termination of ExistingContract failed for ${sourceData.ContractNumber}`);
             }
 
-            console.log(`Contract ${sourceData[0].ContractNumber} terminated successfully. End date updated to ${TerminationDate} in SAP.`);
+            console.log(`Contract ${sourceData.ContractNumber} terminated successfully. End date updated to ${TerminationDate} in SAP.`);
             await tx.run(UPDATE(CCMContract).with({ CCMContractEndDate: TerminationDate, CancellationComment: CancellationNote, Cancelled: true}).where({ ID: CCMContractID }));
 
-            return req.reply(`Contract ${sourceData[0].ContractNumber} terminated successfully. End date updated to ${TerminationDate} in SAP.`);
+            return req.reply(`Contract ${sourceData.ContractNumber} terminated successfully. End date updated to ${TerminationDate} in SAP.`);
 
         } catch (error) {
             let statusCode = 500;
@@ -1465,6 +1510,18 @@ module.exports = (srv) => {
 
                 userMessage = `SAP Error: ${userMessage}. Please contact the SAP support team.`;
                 statusCode = error.response.status || 502;
+                const inputPayload =
+                    error?.response?.data?.Exception_Details?.InputPayload ||
+                    error?.response?.data?.error?.innererror?.errordetails?.[0]?.InputPayload ||
+                    null;
+
+                if (inputPayload) {
+                    console.error('Input Payload sent to SAP:');
+                    console.error(
+                    typeof inputPayload === 'string' ? inputPayload : JSON.stringify(inputPayload, null, 2));
+                } else {
+                    console.error('No InputPayload found in the SAP error response');
+                }
             }
             else if (error.code && error.message) {
                 console.error("App Error:", error.message);
@@ -1476,6 +1533,308 @@ module.exports = (srv) => {
             }
 
             return req.reject(statusCode, userMessage);
+        }
+    });
+
+
+    srv.on("getSAPSalesOrderSimulation", async (req) => {
+        const tx = cds.tx(req);
+
+        try {
+            const { CCMContractID } = req.data;
+            const ccmContract = await tx.run(SELECT.one.from(CCMContract).columns('*', 'CCMCustomer.CustomerID').where({ ID: CCMContractID }));
+            const material = await tx.run(SELECT.one.from(CCMMaterial).columns('MaterialNumber').where({
+                    CCMContract_ID: CCMContractID, // adjust FK name to your model
+                    ActiveRecord: 1
+                })
+            );
+            const currentInvoicePrice = await tx.run(SELECT.one.from(CurrentInvoicePrice).where({
+                CCMContract_ID: req.data.CCMContractID
+            }));
+
+            if (!ccmContract || !material) return req.reject(404, "Contract is not found");
+
+            const body = updateSAPSalesOrderSimulationRequestBody(ccmContract?.CCMCustomer_CustomerID , material?.MaterialNumber);
+            const response = await getSAPSalesOrderSimulation(tx, ccmContract?.CountryCode, "SalesOrderSimulation", body);
+
+            const pricingElements = response.data.d.to_Item.results[0].to_PricingElement.results;
+            if (!pricingElements) {
+                return req.reject(404, "No Pricing Exist in SAP");
+            }
+            
+            const mappedData = mapPricingElementsToDbFormat(pricingElements, CCMContractID, ccmContract?.CCMCustomer_CustomerID , material?.MaterialNumber, ccmContract?.CountryCode, ccmContract?.PackFactor, ccmContract?.UoM);
+
+            if (!mappedData.ConditionType) {
+                return req.reject(422, "SAP response does not match any FAST ConditionType");
+            }
+            
+            if(currentInvoicePrice){
+                await tx.run(UPDATE(CurrentInvoicePrice).with(mappedData).where({ID: currentInvoicePrice.ID}));
+            }else{
+                await tx.run(INSERT.into(CurrentInvoicePrice).entries(mappedData));
+            }
+
+            return req.reply("Current Pricing were received from SAP");
+        } catch (error) {
+            let statusCode = 500;
+            let userMessage = "Unexpected server error. Please contact the application support team.";
+            
+            if (error.response?.data) {
+                console.error("SAP Error Response:", error.response.data);
+                const sapError = error.response.data;
+
+                userMessage = sapError?.error?.message?.value ||
+                            sapError?.error?.innererror?.errordetails?.[0]?.message ||
+                            sapError?.fault?.faultstring || 
+                            "An error occurred while communicating with SAP.";
+
+                userMessage = `SAP Error: ${userMessage}. Please contact the SAP support team.`;
+
+                statusCode = error.response.status || 502;
+            }
+            else if (error.code && error.message) {
+                console.error("App Error:", error.message);
+                userMessage = error.message;
+                statusCode = typeof error.code === 'number' ? error.code : 500;
+            }				
+            else {
+                console.error("Unhandled Error:", error);
+            }
+            
+            return req.reject(statusCode, userMessage);
+        }
+    });
+
+    function updateSAPSalesOrderSimulationRequestBody (customerID, materialNumber) {
+        let body = getSAPSalesOrderSimulationRequestBody();
+        if (!body) {
+            return false;
+        }
+
+		body["SoldToParty"] = customerID;
+        body["to_Item"][0]["Material"] = materialNumber;
+        return body;
+    }
+
+    async function getSAPSalesOrderSimulation (tx, countryCode, resource, body) {
+        const apiConfig = await tx.run(SELECT.one.from(APIDefinition).where({ Provider: 'SAPSalesOrderSimulation', CountryCode: countryCode, Resource: resource, Name: 'SAPSalesOrderSimulation' }));
+        const oauthAuth = await tx.run(SELECT.one.from(APIConfigOAuth, apiConfig.OAuth_ID));
+        if (!oauthAuth) {
+            throw new Error("ERR_MISSING_PARAMETER:API body Mappings not found");
+        }
+
+        if (!body) {
+            throw new Error("ERR_MISSING_PARAMETER:body");
+        }
+        
+
+        const url = `${apiConfig?.Host}${apiConfig?.BasePath}${apiConfig?.ResourcePath}`;
+
+        const oauthCredentials = await getBearerToken(oauthAuth);
+
+        return axios({
+            method: 'post',
+            url: url,
+            headers: {
+                'Authorization': `Bearer ${oauthCredentials.data.access_token}`,
+                'Content-Type': 'application/json'
+            },
+            data: JSON.stringify(body)
+        });
+	}
+
+    function mapPricingElementsToDbFormat(pricingElements, CCMContractID, customerID, materialNumber, countryCode, packFactor, UoM) {
+		const result = {
+            ConditionType: null,
+            Currency: "EUR",
+            CountryCode: countryCode,
+            SoldToParty: customerID,
+            Material: materialNumber,
+            YP00: 0,
+            YP04: 0,
+            YP10: null,
+            YD75: null,
+            YD30: 0,
+            YD06: 0,
+            YD02: 0,
+            SapTax: 0,
+            Tax: 0,
+            ConfidentialPrice: 0,
+            RoyalDecree: "No",
+            RoyalDecreeValue: 0,
+            RoyalDecreeIncl: true,
+            NetPriceWithoutTaxAfterDeductionRD: null,
+            NetPriceWithTaxAfterDeductionRD: null,
+            NetPriceWithoutTax: null,
+            NetPriceWithTax: null,
+            CCMContract_ID: CCMContractID
+		};
+	
+		const conditions = {};
+	
+		// Iterate through the pricing elements to collect necessary conditions
+		for (const elem of pricingElements) {
+            const { ConditionType, PricingProcedureStep, ConditionRateValue, ConditionAmount, ConditionQuantity } = elem;
+	
+            if (ConditionType) {
+                conditions[ConditionType] = {
+                    ConditionRateValue: parseFloat(ConditionRateValue || 0),
+                    ConditionAmount: parseFloat(ConditionAmount || 0),
+                    ConditionQuantity: parseFloat(ConditionQuantity || 1) 
+                };
+            }
+        
+            // Handle PricingProcedureStep-specific values
+            if (PricingProcedureStep === "330") {
+                result.SAPTAX = parseFloat(ConditionRateValue) / 10000 || 0;
+            }
+        
+            if (PricingProcedureStep === "332") {
+                // if(conditions["YP10"]){
+                // 	result.SAPPriceWithTax = parseFloat((ConditionAmount * conditions["YP10"]?.ConditionQuantity) || 0);
+                // }else{
+                // 	result.SAPPriceWithTax = parseFloat(ConditionAmount || 0);
+                // }
+                result.SAPPriceWithTax = parseFloat(ConditionRateValue || 0);
+            }
+
+            if (PricingProcedureStep === "306") {
+                result.NETPRICEWITHOUTTAX = parseFloat(ConditionAmount || 0);
+            }
+		}
+	
+		// Assign the condition values
+		const YP00 = conditions["YP00"]?.ConditionRateValue || 0;
+		const YP04 = conditions["YP04"] ? Math.abs(conditions["YP04"].ConditionRateValue) / 100 : 0;
+		const YP10 = conditions["YP10"]?.ConditionRateValue ?? null;
+		const YD02 = conditions["YD02"] ? Math.abs(conditions["YD02"].ConditionRateValue) / 100 : 0;
+		const YD06 = conditions["YD06"] ? Math.abs(conditions["YD06"].ConditionRateValue) / 100 : 0;
+		const YD75 = conditions["YD75"]?.ConditionAmount ?? null;
+		const YD30 = conditions["YD30"]?.ConditionRateValue ?? 0;
+	
+		
+
+		result.YP00 = YP00 ? UoM === 'Pack' ? YP00 : (YP00 / packFactor) : 0;
+		result.YP04 = YP04;
+		result.ConfidentialPrice = YP04 ? result.YP00 * (1 - YP04) : result.YP00;
+		result.YD02 = YD02;
+		result.RoyalDecree = YD06 ? "Yes" : "No";
+		result.YD06 = YD06;
+
+		result.RoyalDecreeIncl = YD06 ? false : true;
+		result.YD30 = YD30;
+		result.YP10 = YP10 ? UoM === 'Pack' ? (YP10 / 10000) : (YP10 / 10000 / packFactor) : null;
+		result.RoyalDecreeValue = YD06 && YP10 ? YD06 * result.YP10 : 0;
+
+		const useConfidential = YP04 !== 0;
+		const basePrice = useConfidential ? result.ConfidentialPrice : result.YP00;
+
+		result.YD75 = (basePrice - result.YP10) / basePrice;
+	
+		// Mapped values for NETPRICE fields
+		result.NetPriceWithoutTaxAfterDeductionRD = result.YP10 ? (YD06 ? result.YP10 * (1 - YD06) : result.YP10) : null;
+		result.NetPriceWithTaxAfterDeductionRD = (YD02 || YD30) ? result.SAPPriceWithTax : null;
+		result.NetPriceWithoutTax = YD02 ? result.ConfidentialPrice * (1 - result.YD02) * (1 - result.YD06) : null;  
+		result.NetPriceWithTax = result.SAPPriceWithTax;
+	
+		// Determine the condition type
+		if (YP10) {
+			result.ConditionType = "PrecioNeto";
+		} else if (YD02) {
+			result.ConditionType = "DescuentoComercial";
+		} else if (YP00) {
+			result.ConditionType = "PVL";
+		} else {
+			result.ConditionType = null;
+		}
+	
+		return result;
+	}
+
+    function getSAPSalesOrderSimulationRequestBody () {
+        return {
+			"SalesOrderType": "YCOR",
+			"SalesOrganization": "QFHC",
+			"SoldToParty": "900000352",
+			"to_Pricing": {},
+			"to_Item": [
+				{
+					"Material": "66040304",
+					"RequestedQuantity": "10000",
+					"to_PricingElement": []
+				}
+			]
+		}
+    }
+
+    srv.on("ignoreCurrentCCMPrice", async (req) => {
+        const tx = cds.tx(req);
+        try { 
+            const { CCMContractID } = req.data;
+            const currentCCMPrice = await tx.run(SELECT.one.from(CurrentInvoicePrice).where({ CCMContract_ID: CCMContractID }));
+            const contract = await tx.run(SELECT.one.from(CCMContract).columns("*", "FastConditionContracts.OfferID").where({ ID: CCMContractID }));
+            
+            if (!currentCCMPrice || !contract) return req.reject(404, "Current contract price is not found");
+
+            const mappedCurrentCCMPrice = mapCurrentCCMPrice(currentCCMPrice);
+
+            if (mappedCurrentCCMPrice) {
+                await tx.run(UPDATE(PriceConditionInvoice).with(mappedCurrentCCMPrice).where({ 
+                    OfferID: contract.FastConditionContracts_OfferID,
+                    ProductCode: contract.ProductCode
+                 }));
+            }
+            return "Current CCM price applied successfully."
+        } catch (error) {
+            let statusCode = 500;
+            let userMessage = "Unexpected server error. Please contact the application support team.";
+            
+            if (error.code && error.message) {
+                console.error("App Error:", error.message);
+                userMessage = error.message;
+                statusCode = typeof error.code === 'number' ? error.code : 500;
+            }				
+            else {
+                console.error("Unhandled Error:", error);
+            }
+            
+            return req.reject(statusCode, userMessage);
+        }
+    })
+
+    function mapCurrentCCMPrice (pricing) {
+        return {
+            ConditionType: pricing.ConditionType,
+            YP00: pricing.YP00,
+            YP04: pricing.YP04,
+            YP10: pricing.YP10,
+            YD75: pricing.YD75,
+            YD30: pricing.YD30,
+            YD06: pricing.YD06,
+            YD02: pricing.YD02,
+            SapTax: pricing.SapTax,
+            Tax: pricing.Tax,
+            ConfidentialPrice: pricing.ConfidentialPrice,
+            RoyalDecree: pricing.RoyalDecree,
+            RoyalDecreeValue: pricing.RoyalDecreeValue,
+            RoyalDecreeIncl: pricing.RoyalDecreeIncl,
+            NetPriceWithoutTaxAfterDeductionRD: pricing.NetPriceWithoutTaxAfterDeductionRD,
+            NetPriceWithTaxAfterDeductionRD: pricing.NetPriceWithTaxAfterDeductionRD,
+            NetPriceWithoutTax: pricing.NetPriceWithoutTax,
+            NetPriceWithTax: pricing.NetPriceWithTax
+        }
+    }
+
+    srv.on('getUserCountries', async (req) => {
+        const tx = cds.tx(req);
+        try {
+            let userCountries = await getUserCountries();
+            // Filter for the logged-in user's CWID
+            userCountries = userCountries.filter((c) => c.CWID === req.user.id);
+
+            return userCountries;
+        }catch(error){
+            return req.reject(403, "Failed to fetch user countries")
         }
     });
 };

@@ -1,1 +1,4 @@
 /* Enter your custom styles here */
+.highlightRedText .sapMInputBaseInner {
+  color: red !important;
+}
