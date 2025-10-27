@@ -87,7 +87,21 @@ entity CCMCustomer: cuid, managed, temporal{
   CountryCode: String;
   InstituteType: String;
   InstituteName: String;
+  CustomerHierarchy: Composition of many CustomerHierarchy on CustomerHierarchy.ParentInstituteID = InstituteID and CustomerHierarchy.ParentCustomerID = CustomerID;
   CCMContract: Association to CCMContract;
+}
+
+entity CustomerHierarchy: cuid, managed {
+  InstituteID: String;
+  ParentInstituteID: String;
+  CustomerID: String;
+  ParentCustomerID: String;
+  InstituteName: String;
+  ParentInstituteName: String;
+  AssortmentReference: String;
+  Excluded: Boolean default false;
+  CCMContractID: UUID;
+  CCMCustomer: Association to CCMCustomer;
 }
 
 entity CCMMaterial: cuid, managed, temporal{
@@ -101,6 +115,7 @@ entity CCMMaterial: cuid, managed, temporal{
 }
 entity CurrentInvoicePrice: cuid, managed{
   ConditionType: String;
+  Currency: String;
   CountryCode: String;
   SoldToParty: String;
   Material: String;
@@ -112,6 +127,20 @@ entity CurrentInvoicePrice: cuid, managed{
   YD06: Double;
   YD02: Double;
   SapTax: Double;
+  Tax: Double;
+  ConfidentialPrice: Decimal;
+  RoyalDecree                         : String;
+  RoyalDecreeValue                    : Decimal;
+  RoyalDecreeIncl                     : Boolean default false;
+  NetPriceWithoutTaxAfterDeductionRD  : Decimal;
+  NetPriceWithTaxAfterDeductionRD     : Decimal;
+  NetPriceWithoutTax                  : Decimal;
+  NetPriceWithTax                     : Decimal;
+  MaximumPrice                        : Decimal;
+  RequestedVolume                     : Integer;
+  RentalPrice                         : Double;
+  MonthlyRentPerUnit                  : Double;
+  AnnualValue                         : Double;
   CCMContract: Association to CCMContract;
 }
 
@@ -224,4 +253,16 @@ entity APIBody: cuid{
   Source: String;
   Target: String;
   APIDefinition: Association to APIDefinition;
+}
+
+entity ConditionContractsLog : cuid {
+  ContractNumber        : String;
+  ContractType      : String;
+  ContractReference : String;        
+  PayloadType       : String;         
+  PayloadToSAP      : LargeString; 
+  Synchronized      : Boolean default false;       
+  createdAt         : Date;
+  createdBy         : String;
+  CCMContract: Association to CCMContract;
 }

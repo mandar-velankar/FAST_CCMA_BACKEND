@@ -17,6 +17,8 @@ service ConditionContract @(requires:['f_tndr_cag_admin','f_tndr_cag_ccma_user',
     entity APIConfigOAuth                         as projection on ccma.APIConfigOAuth;
     entity APIBody                                as projection on ccma.APIBody;
     entity ContractItemGUID                       as projection on ccma.ContractItemGUID;
+    entity ConditionContractsLog                   as projection on ccma.ConditionContractsLog;
+    entity CustomerHierarchy                      as projection on ccma.CustomerHierarchy;
 
 
     entity FastConditionContractsView             as
@@ -300,8 +302,8 @@ entity IdentifyExistingContract as select from FastConditionContracts as fcc
             fcc.OfferID,
             fcc.ContractType
 }where ccm.ContractNumber is not null
-  and ccm.Expired = false
-  and fcc.ContractEndDate >= CURRENT_DATE;
+  and ccm.Expired = false and ccm.Cancelled = false
+  and ccm.CCMContractEndDate >= CURRENT_DATE;
 
 entity ExistingContractInfo as select from FastConditionContracts as fcc 
     inner join CCMContract as ccm on ccm.FastConditionContracts.ID = fcc.ID {
@@ -312,14 +314,17 @@ entity ExistingContractInfo as select from FastConditionContracts as fcc
         fcc.ContractEndDate as CndnContrValidTo,
         ccm.CCMContractStartDate as ConditionValidityStartDate,
         ccm.CCMContractEndDate as ConditionValidityEndDate
-}where ccm.ContractNumber is not null and fcc.ContractEndDate < CURRENT_DATE and ccm.Cancelled = false and ccm.Expired = false;
+}where ccm.ContractNumber is not null and ccm.CCMContractEndDate < CURRENT_DATE and ccm.Cancelled = false and ccm.Expired = false;
 
 function getInstituteData() returns String;
 function getESUsers() returns String;
+function getUserCountries() returns String;
 action   createCCMContract(FastCCMContractId : UUID, CCMContractID : UUID, ProductCode : String) returns String;
 action   createAllCCMContract(FastCCMContractId : UUID) returns String;
 action   sendFOCToInteractMail(FastCCMContractId : UUID, CCMContractID : UUID, ProductCode : String) returns String;
 action   terminateCCMContract(FastCCMContractId : UUID, CCMContractID : UUID, ProductCode : String, TerminationDate: Date, CancellationNote: String) returns String;
+action   getSAPSalesOrderSimulation(CCMContractID: UUID) returns String;
+action   ignoreCurrentCCMPrice(CCMContractID: UUID) returns String;
 
 entity BrandsView as select from CCMContract {
     key BrandID,
@@ -382,6 +387,37 @@ entity ExistingContractInvoicePrices as select from FastConditionContracts as fc
   and ccm.Expired = false
   and fcc.ContractEndDate >= CURRENT_DATE;
 
-
-
+entity CurrentCCMPricingView as select from CCMContract as ccmcontract
+    inner join FastConditionContracts as fcc
+        on fcc.ID = ccmcontract.FastConditionContracts.ID
+    inner join PriceConditionInvoice as invoice
+        on ccmcontract.ProductCode = invoice.ProductCode and fcc.OfferID = invoice.OfferID
+    left join CurrentInvoicePrice as currentPrice
+        on currentPrice.CCMContract.ID = ccmcontract.ID{
+    key ccmcontract.ID,
+    ccmcontract.CountryCode,
+    ifnull(currentPrice.ConditionType, invoice.ConditionType) as ConditionType: String,
+    ifnull(currentPrice.Currency, invoice.Currency) as Currency: String,
+    ifnull(currentPrice.YP00, invoice.YP00) as YP00: Double,
+    ifnull(currentPrice.YP04, invoice.YP04) as YP04: Double,
+    ifnull(currentPrice.YP10, invoice.YP10) as YP10: Double,
+    ifnull(currentPrice.YD75, invoice.YD75) as YD75: Double,
+    ifnull(currentPrice.YD30, invoice.YD30) as YD30: Double,
+    ifnull(currentPrice.YD06, invoice.YD06) as YD06: Double,
+    ifnull(currentPrice.YD02, invoice.YD02) as YD02: Double,
+    ifnull(currentPrice.Tax, invoice.Tax) as Tax: Double,
+    ifnull(currentPrice.ConfidentialPrice, invoice.ConfidentialPrice) as ConfidentialPrice: Double,
+    ifnull(currentPrice.RoyalDecree, invoice.RoyalDecree) as RoyalDecree: String,
+    ifnull(currentPrice.RoyalDecreeValue, invoice.RoyalDecreeValue) as RoyalDecreeValue: Decimal,
+    ifnull(currentPrice.RoyalDecreeIncl, invoice.RoyalDecreeIncl) as RoyalDecreeIncl: Boolean,
+    ifnull(currentPrice.NetPriceWithoutTaxAfterDeductionRD, invoice.NetPriceWithoutTaxAfterDeductionRD) as NetPriceWithoutTaxAfterDeductionRD: Decimal,
+    ifnull(currentPrice.NetPriceWithTaxAfterDeductionRD, invoice.NetPriceWithTaxAfterDeductionRD) as NetPriceWithTaxAfterDeductionRD: Decimal,
+    ifnull(currentPrice.NetPriceWithoutTax, invoice.NetPriceWithoutTax) as NetPriceWithoutTax: Decimal,
+    ifnull(currentPrice.NetPriceWithTax, invoice.NetPriceWithTax) as NetPriceWithTax: Decimal,
+    ifnull(currentPrice.MaximumPrice, invoice.MaximumPrice) as MaximumPrice: Decimal,
+    ifnull(currentPrice.RequestedVolume, invoice.RequestedVolume) as RequestedVolume: Integer,
+    ifnull(currentPrice.RentalPrice, invoice.RentalPrice) as RentalPrice: Double,  
+    ifnull(currentPrice.MonthlyRentPerUnit, invoice.MonthlyRentPerUnit) as MonthlyRentPerUnit: Double,
+    ifnull(currentPrice.AnnualValue, invoice.AnnualValue) as AnnualValue: Double
+}
 }

@@ -28,6 +28,15 @@
                                 text="Get Current CCM Price" 
                                 type="Emphasized"
                                 icon="sap-icon://download"
+                                press="onGetCurrentCCMPrice"
+                            />
+                            <m:Button 
+                                id="idIgnoreCurrentCCMPriceButton"
+                                text="Ignore" 
+                                icon="sap-icon://decline" 
+                                type="Emphasized" 
+                                press=".onIgnoreCurrentCCMPrice" 
+                                enabled="false"
                             />
                         </m:Toolbar>
                     </form:toolbar>
@@ -51,22 +60,22 @@
 
                     <form:formContainers>
                         <!-- Container for Current Pricing -->
-                        <form:FormContainer visible="{st>/hasESCurrentPriceCondition}">
+                        <form:FormContainer>
                             <form:formElements>
                                 <form:FormElement>
                                     <form:fields>
-                                        <core:Fragment fragmentName="com.bayer.tender.ccma.view.fragments.detail-detail.CCMContractPricing" type="XML" />
+                                        <core:Fragment fragmentName="com.bayer.tender.ccma.view.fragments.detail-detail.FASTContractPricing" type="XML"/>
                                     </form:fields>
                                 </form:FormElement>
                             </form:formElements>
                         </form:FormContainer>
 
                         <!-- Container for New Pricing -->
-                        <form:FormContainer visible="{st>/hasESCurrentPriceCondition}">
+                        <form:FormContainer>
                             <form:formElements>
                                 <form:FormElement>
                                     <form:fields>
-                                        <core:Fragment fragmentName="com.bayer.tender.ccma.view.fragments.detail-detail.FASTContractPricing" type="XML"/>
+                                        <core:Fragment fragmentName="com.bayer.tender.ccma.view.fragments.detail-detail.CCMContractPricing" type="XML" />
                                     </form:fields>
                                 </form:FormElement>
                             </form:formElements>
