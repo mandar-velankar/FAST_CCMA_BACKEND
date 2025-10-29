@@ -222,7 +222,8 @@ entity SettlementsDate: managed{
   key FromDate               : Date;
   ToDate                     : Date;
   SettlementID               : String; 
-  RebateContractNumber    : String;
+  RebateContractNumber       : String;
+  CreationDate              : Date;
   Synchronized              : Boolean default false;
 }
 

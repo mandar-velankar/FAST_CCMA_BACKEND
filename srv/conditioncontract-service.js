@@ -20,7 +20,8 @@ const {
     ContractItemGUID,
     IdentifyExistingContract,
     ExistingContractInfo,
-    CurrentInvoicePrice
+    CurrentInvoicePrice,
+    CustomerHierarchy
 } = cds.entities("ConditionContract");
 
 
@@ -67,6 +68,8 @@ module.exports = (srv) => {
             SELECT.from(IdentifyExistingContract)
         );
 
+        const customerHierarchy = await tx.run(SELECT.from(CustomerHierarchy))
+
         const enrichedContracts = contracts.flatMap(contract => {
             return candidates
                 .filter(c =>
@@ -92,142 +95,84 @@ module.exports = (srv) => {
                     c.candidateInstitute
                 ].join('|'),c])).values());
 
-        return classifyContracts(sourceData, uniqueContracts);
+        return classifyContracts(sourceData, uniqueContracts, customerHierarchy);
         
     }
-
-    /*function classifyContracts(sourceData, enrichedContracts) {
-        
-        if (!sourceData.length) return [];
-
-        // take first record just for matching (all have same InstituteID anyway)
-        const newOffer = sourceData[0];
-        // 1. Find contracts related to this offer via hierarchy (SELF/PARENT/CHILD)
-        const relatedContracts = enrichedContracts.filter(contract => {
-            return (
-                contract.candidateInstitute === newOffer.InstituteID || // SELF / CHILD / PARENT
-                contract.baseInstitute === newOffer.InstituteID        // newOffer is the base of contract
-            );
-        });
-
-        if (relatedContracts.length === 0) {
-            return [{ sourceData, case: "NO_MATCH" }];
-        }
-
-        // 2. Extract institute sets
-        const newOfferIds = [newOffer.InstituteID, ...(newOffer.childInstitutes || [])]; // all institutes in new offer
-        const contractIds = relatedContracts
-            .map(c => c.candidateInstitute) // all candidate institutes from contracts
-            .filter((v, i, a) => a.indexOf(v) === i); // unique
-
-        // 3. CASES
-
-        // Case 1: Single customer exact match
-        if (newOfferIds.length === 1 && contractIds.length === 1 && newOfferIds[0] === contractIds[0]) {
-            return [{ sourceData, case: "CASE_1", contracts: relatedContracts }];
-        }
-
-        // Case 2: New single customer matches existing assortment
-        if (newOfferIds.length === 1 && contractIds.length > 1) {
-            return [{ sourceData, case: "CASE_2", contracts: relatedContracts }];
-        }
-
-        // Case 3: Matching contract on same assortment (all institutes match exactly)
-        if (arraysEqual(newOfferIds.sort(), contractIds.sort())) {
-            return [{ sourceData, case: "CASE_3", contracts: relatedContracts }];
-        }
-
-        // Case 4: Overlapping customers in different assortments
-        if (newOfferIds.some(id => contractIds.includes(id)) && !arraysEqual(newOfferIds.sort(), contractIds.sort())) {
-            return [{ sourceData, case: "CASE_4", contracts: relatedContracts }];
-        }
-
-        // Case 5: Single customer in new assortment matches existing single contract
-        if (newOfferIds.length > 1 && contractIds.length === 1 && contractIds[0] === newOffer.baseInstitute) {
-            return [{ sourceData, case: "CASE_5", contracts: relatedContracts }];
-        }
-
-        return [{ sourceData, case: "UNCLASSIFIED", contracts: relatedContracts }];
-    }*/
-    
-    function classifyContracts(sourceData, enrichedContracts) {
+  
+    function classifyContracts(sourceData, enrichedContracts, customerHierarchy) {
         if (!sourceData.length) return [];
 
         // use first record just for matching
         const newOffer = sourceData[0];
 
         const { ProductCode, InstituteID, AssortmentReference } = newOffer;
+        const results = [];
 
         // filter contracts only on same ProductCode
-        const relevantContracts = enrichedContracts.filter(
-            c => c.ProductCode === ProductCode
+        let relevantContracts = enrichedContracts.filter(
+            c => c.ProductCode == ProductCode
         );
 
         if (relevantContracts.length === 0) {
-            return { sourceData, case: "NO_MATCH" };
+            return [{ sourceData, case: "NO_MATCH" }];
         }
 
         // ---- CASE 1 ----
-        // contract is single-customer with candidate + base = newOffer.InstituteID
+        //contract is single-customer with candidate + base = newOffer.InstituteID
         const case1Contracts = relevantContracts.filter(
             c =>
-                c.candidateInstitute === InstituteID &&
-                c.baseInstitute === InstituteID
+                c.candidateInstitute == InstituteID &&
+                c.baseInstitute == InstituteID
         );
         if (case1Contracts.length > 0) {
-            return { sourceData, case: "CASE_1", contracts: case1Contracts };
+            results.push({ sourceData, case: "CASE_1", contracts: case1Contracts });
         }
 
-        // ---- CASE 2 ----
-        // New offer has a single InstituteID (child), check if that child belongs to any parent assortment
-        const parentsOfChild = enrichedContracts
-            .filter(c => c.candidateInstitute === InstituteID && c.candidateType === "CHILD")
-            .map(c => c.baseInstitute);
+        // CASE 2 — Child with its Existing Parent Contract
+        const matchedHierarchyCase2  = customerHierarchy.filter(h => (h.InstituteID && h.InstituteID == InstituteID));
 
-        const case2Contracts = relevantContracts.filter(
-            c => parentsOfChild.includes(c.InstituteID)
-        );
+        if (matchedHierarchyCase2.length > 0) {
+            const childIDs = new Set(matchedHierarchyCase2.map(h => h.InstituteID));
 
-        if (case2Contracts.length > 0) {
-            return { sourceData, case: "CASE_2", contracts: case2Contracts };
+            relevantContracts = relevantContracts.filter(c => c.AssortmentReference != null && c.candidateType == 'CHILD');
+
+            const case2Contracts = relevantContracts.filter(c => childIDs.has(String(c.candidateInstitute)));
+
+            if (case2Contracts.length > 0) {
+                results.push({ sourceData, case: "CASE_2", contracts: case2Contracts });
+            }
         }
 
-        // ---- CASE 3 ----
-        // assortment reference matches on both new offer and contract
-        const case3Contracts = relevantContracts.filter(
-            c => c.AssortmentReference && c.AssortmentReference === AssortmentReference
-        );
-        if (case3Contracts.length > 0) {
-            return { sourceData, case: "CASE_3", contracts: case3Contracts };
+
+        if (AssortmentReference) {
+            // ---- CASE 3 ----
+            // assortment reference matches on both new offer and contract
+            const case3Contracts = relevantContracts.filter(c => c.AssortmentReference == AssortmentReference);
+            if (case3Contracts.length > 0) {
+                results.push({ sourceData, case: "CASE_3", contracts: case3Contracts });
+            }
+
+
+            // ---- CASE 5 ----
+            const matchedHierarchyCase5 = customerHierarchy.filter(h => (h.ParentInstituteID && h.ParentInstituteID == InstituteID));
+
+            if (matchedHierarchyCase5.length > 0) {
+                const childIDs = new Set(matchedHierarchyCase5.map(h => h.InstituteID));
+
+                const case5Contracts = relevantContracts.filter(c => childIDs.has(String(c.InstituteID)));
+
+                if (case5Contracts.length > 0) {
+                    results.push({ sourceData, case: "CASE_5", contracts: case5Contracts });
+                }
+            }
         }
 
-        // ---- CASE 4 ----
-        // (ignored for now)
-        // const case4Contracts = ...
-        // return [{ sourceData, case: "CASE_4", contracts: case4Contracts }];
-
-        // ---- CASE 5 ----
-        // newOffer.InstituteID is parent -> check if any child institute already has a contract
-        const childrenOfParent = enrichedContracts
-            .filter(c => c.baseInstitute === InstituteID && c.candidateType === "CHILD")
-            .map(c => c.candidateInstitute);
-
-        const case5Contracts = relevantContracts.filter(
-            c => childrenOfParent.includes(c.InstituteID)
-        );
-
-        if (case5Contracts.length > 0) {
-            return { sourceData, case: "CASE_5", contracts: case5Contracts };
+        if (results.length === 0) {
+            results.push({ sourceData, case: "UNCLASSIFIED", contracts: relevantContracts });
         }
 
-        return { sourceData, case: "UNCLASSIFIED", contracts: relevantContracts };
+        return results;
     }
-
-    // // helper function to compare arrays
-    // function arraysEqual(a, b) {
-    //     if (a.length !== b.length) return false;
-    //     return a.every((v, i) => v === b[i]);
-    // }
 
     function decideContractAction(existingContract, newOffer) {
         const existingType = existingContract.ContractType;
@@ -273,45 +218,79 @@ module.exports = (srv) => {
         return "CREATE_NEW";
     }
 
-    async function processContractsForCreation(tx, processedData) {
-        const { sourceData, case: caseType, contracts } = processedData;
-        const newOffer = sourceData[0];
-
-        let lastResponse = null;
+    async function processContractsForCreation(tx, processedCases) {
+        const responses = [];
         const updatedContracts = [];
         const skippedContracts = [];
 
-        if (caseType === "CASE_1" || caseType === "CASE_3") {
+        for (const item of processedCases) {
+            const { sourceData, case: caseType, contracts } = item;
+            const newOffer = sourceData[0];
+
+            // No matching contracts → always create new
+            if (!contracts || contracts.length === 0) {
+                const res = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
+                responses.push(res);
+                continue;
+            }
+
             for (const contract of contracts) {
                 const action = decideContractAction(contract, newOffer);
 
-                if (action === "CREATE_NEW") {
-                    console.log("Process Invoice Contracts");
-                    lastResponse = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
-                } else if (action === "UPDATE_AND_CREATE_NEW") {
-                    console.log("Process Update of Existing Contracts");
-                    const updated = await updateExistingContract(tx, contract, newOffer);
-                    if (updated) {
-                        updatedContracts.push(contract.ContractNumber);
-                    } else {
-                        skippedContracts.push(contract.ContractNumber); 
-                    }
-                    console.log("Process Invoice Contracts");
-                    lastResponse = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
+                if (action === "NO_ACTION") {
+                    skippedContracts.push(contract.ContractNumber);
+                    continue;
                 }
+
+                // CASE 5: NEW contract always created
+                if (caseType === "CASE_5") {
+                    if (action === "UPDATE_AND_CREATE_NEW") {
+                        // Exclude child from NEW payload
+                        const res = await createCCMContractExcludeCustomer(tx, 'ES', "ConditionContract", sourceData, contract);
+                        responses.push(res);
+                    } else {
+                        const res = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
+                        responses.push(res);
+                    }
+                    continue;
+                }
+
+                // CASE 2: Update = EXCLUDE EXISTING + Create new
+                if (caseType === "CASE_2") {
+                    if (action === "UPDATE_AND_CREATE_NEW") {
+                        const updated = await excludeChildCustomer(tx, contract, newOffer);
+                        if (updated) updatedContracts.push(contract.ContractNumber);
+                        else skippedContracts.push(contract.ContractNumber);
+                    }
+
+                    const res = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
+                    responses.push(res);
+                    continue;
+                }
+
+                // CASE 1 + CASE 3: Update existing + Create new
+                if (["CASE_1", "CASE_3"].includes(caseType)) {
+                    if (action === "UPDATE_AND_CREATE_NEW") {
+                        const updated = await updateExistingContract(tx, contract, newOffer);
+                        if (updated) updatedContracts.push(contract.ContractNumber);
+                        else skippedContracts.push(contract.ContractNumber);
+                    }
+
+                    const res = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
+                    responses.push(res);
+                    continue;
+                }
+
+                // DEFAULT fallback: Always create
+                const res = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
+                responses.push(res);
             }
-        } else if (caseType === "NO_MATCH" || caseType === "UNCLASSIFIED") {
-            // No previous match → always create new
-            console.log("Process Invoice Contracts");
-            lastResponse = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
         }
 
-        return {
-            lastResponse: lastResponse || null,
-            updatedContracts,
-            skippedContracts
-        };
+        return {responses, updatedContracts,skippedContracts};
     }
+
+
 
     async function updateExistingContract(tx, contract, newOffer) {
 
@@ -338,11 +317,148 @@ module.exports = (srv) => {
         return true;
     }
 
+        async function handlExistingContract(tx, countryCode, resource, sourceData) {
+        try {
+            const apiConfig = await tx.run(SELECT.one.from(APIDefinition).where({ Provider: 'ConditionContract', CountryCode: countryCode, Resource: resource, Name: 'UpdateExistingInvoiceContract' }));
+            const apiBodyMappings = await tx.run(SELECT.from(APIBody).where({ APIDefinition_ID: apiConfig.ID }));
+            if (!apiBodyMappings) {
+                throw new Error("ERR_MISSING_PARAMETER:API body Mappings not found");
+            }
+            const body = buildExistingUpdatePayloadFromMappings(sourceData, apiBodyMappings);
+            if (!body) {
+                throw new Error("ERR_MISSING_PARAMETER:API Body not found");
+            }
+            const oauthAuth = await tx.run(SELECT.one.from(APIConfigOAuth, apiConfig.OAuth_ID));
+            const url = `${apiConfig.Host}${apiConfig.BasePath}${apiConfig.ResourcePath}`;
+
+            const oauthCredentials = await getBearerToken(oauthAuth);
+
+            return axios({
+                method: 'patch',
+                url: url,
+                headers: {
+                    'Authorization': `Bearer ${oauthCredentials.data.access_token}`,
+                    'Content-Type': 'application/json'
+                },
+                data: JSON.stringify(body)
+            });
+        } catch (error) {
+            throw error
+        }
+    }
+
+    async function excludeChildCustomer(tx, contract, newOffer) {
+
+        // const existingEnd = contract.ConditionValidityEndDate;
+        // const newStart   = newOffer.ConditionValidityStartDate;
+
+        // // Skip update if the contract already ended before the new contract starts
+        // if (existingEnd < newStart) {
+        //     console.log(`Skipping update: contract ${contract.ContractNumber} ended before new offer start date`);
+        //     return false;
+        // }
+        
+        // const prevDay = d => new Date(new Date(d).setDate(new Date(d).getDate() - 1)).toISOString().slice(0, 10);
+
+        const response = await handleExcludeChildCustomer(tx,'ES',"ConditionContract",{ExistingContractNumber: contract.ContractNumber, customer: newOffer.Customer, validfrom: newOffer.ConditionValidityStartDate, validto:newOffer.ConditionValidityEndDate});
+
+        if (response?.status !== 200) {
+            throw new Error(`Update of ExistingContract failed for ${contract.ContractNumber}`);
+        }
+
+        const customer = await tx.run(SELECT.one.from(CCMCustomer).where({CCMContract_ID: contract.CCMContractID}));
+        await tx.run(UPDATE(CustomerHierarchy).with({ Excluded: true}).where({ CCMCustomer_ID: customer.ID }));
+
+        console.log(`Existing contract ${contract.ContractNumber} updated successfully`);
+
+        return true;
+    }
+
+    async function handleExcludeChildCustomer(tx, countryCode, resource, sourceData) {
+        try {
+            const apiConfig = await tx.run(SELECT.one.from(APIDefinition).where({ Provider: 'ConditionContract', CountryCode: countryCode, Resource: resource, Name: 'ExcludeCustomerExistingInvoiceContract' }));
+            const apiBodyMappings = await tx.run(SELECT.from(APIBody).where({ APIDefinition_ID: apiConfig.ID }));
+            if (!apiBodyMappings) {
+                throw new Error("ERR_MISSING_PARAMETER:API body Mappings not found");
+            }
+            const body = buildExcludeCustomerPayloadFromMappings(sourceData, apiBodyMappings);
+            if (!body) {
+                throw new Error("ERR_MISSING_PARAMETER:API Body not found");
+            }
+            const oauthAuth = await tx.run(SELECT.one.from(APIConfigOAuth, apiConfig.OAuth_ID));
+            const url = `${apiConfig.Host}${apiConfig.BasePath}${apiConfig.ResourcePath}`;
+
+            const oauthCredentials = await getBearerToken(oauthAuth);
+
+            return axios({
+                method: 'post',
+                url: url,
+                headers: {
+                    'Authorization': `Bearer ${oauthCredentials.data.access_token}`,
+                    'Content-Type': 'application/json'
+                },
+                data: JSON.stringify(body)
+            });
+        } catch (error) {
+            throw error
+        }
+    }
+
+    async function createCCMContractExcludeCustomer(tx, countryCode, resource, sourceData, contract) {
+        try {
+            const apiConfig = await tx.run(SELECT.one.from(APIDefinition).where({ Provider: 'ConditionContract', CountryCode: countryCode, Resource: resource, Name: 'InvoicePrice' }));
+            const apiBodyMappings = await tx.run(SELECT.from(APIBody).where({ APIDefinition_ID: apiConfig.ID }));
+            if (!apiBodyMappings) {
+                throw new Error("ERR_MISSING_PARAMETER:API body Mappings not found");
+            }
+            let body = buildPayloadFromMappings(sourceData, apiBodyMappings);
+            if (!body) {
+                throw new Error("ERR_MISSING_PARAMETER:API Body not found");
+            }
+
+            //update Payload to exclude customer
+            body =  updatePayloadToExcludeCustomer(body, contract);
+
+            const oauthAuth = await tx.run(SELECT.one.from(APIConfigOAuth, apiConfig.OAuth_ID));
+            const url = `${apiConfig.Host}${apiConfig.BasePath}${apiConfig.ResourcePath}`;
+
+            const oauthCredentials = await getBearerToken(oauthAuth);
+
+            return axios({
+                method: 'post',
+                url: url,
+                headers: {
+                    'Authorization': `Bearer ${oauthCredentials.data.access_token}`,
+                    'Content-Type': 'application/json'
+                },
+                data: JSON.stringify(body)
+            });
+        } catch (error) {
+            throw error
+        }
+    }
+
+    function updatePayloadToExcludeCustomer(payload, contract) {
+        // Add another entry for bvheader to exclude customer
+        payload.ConditionContract.bvheader.push({
+                FieldCombination: "Y001",
+                ConditionDocument: "",
+                incl_excl: "E",
+                customer: contract.Customer,
+                validfrom: contract.ConditionValidityStartDate,
+                validto: contract.ConditionValidityEndDate
+            });
+
+
+        return payload;
+    }
+
 
     srv.on('createCCMContract', async (req) => {
         const tx = cds.tx(req);
         try {
             const { FastCCMContractId, CCMContractID, ProductCode } = req.data;
+            const today = new Date().toISOString().split("T")[0];
             //Expire Existing Contracts
             console.log("Expire Existing Contracts");
             const existingContractInfo = await tx.run(SELECT.from(ExistingContractInfo));
@@ -380,7 +496,7 @@ module.exports = (srv) => {
                     })
                 ) : Promise.resolve([]);
 
-            let invoicePromise = Promise.resolve({ lastResponse: null, updatedContracts: [], skippedContracts: [] });
+            let invoicePromise = Promise.resolve({ lastResponse: [], updatedContracts: [], skippedContracts: [] });
 
             if (!isPVLContract) {
                 // Preprocess and handle invoice contracts only if not PVL
@@ -392,38 +508,45 @@ module.exports = (srv) => {
 
             //const invoicePromise = createCCMContract(tx, 'ES', "ConditionContract", sourceData);
 
-            const [{ lastResponse: invoiceResult, updatedContracts, skippedContracts }, rebateResponses] = await Promise.all([invoicePromise, rebatePromise]);
+            const [{ lastResponse: invoiceResults, updatedContracts, skippedContracts }, rebateResponses] = await Promise.all([invoicePromise, rebatePromise]);
 
-            if (invoiceResult) {
-                const contractNumber = invoiceResult?.data?.ConditionContract;
-                if (contractNumber) {
-                    console.log("Payload sent to SAP:", JSON.stringify(typeof invoiceResult?.config?.data === "string" ? JSON.parse(invoiceResult.config.data) : invoiceResult?.config?.data, null, 2));
-                    const contractInfo = await tx.run(SELECT.one.from(CCMContract).where({ ID: CCMContractID, ContractNumber: {"!=": null} }));
-                    if(contractInfo){
-                        await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber, Expired: false}).where({ ID: CCMContractID }));
+            let createdInvoiceContracts = [];
+
+            if (Array.isArray(invoiceResults) && invoiceResults.length > 0) {
+                for (const invoiceResult of invoiceResults) {
+                    if (!invoiceResult) continue;
+
+                    const contractNumber = invoiceResult?.data?.ConditionContract;
+                    if (contractNumber) {
+                        createdInvoiceContracts.push(contractNumber);
+                        console.log("Payload sent to SAP:", JSON.stringify(typeof invoiceResult?.config?.data === "string" ? JSON.parse(invoiceResult.config.data) : invoiceResult?.config?.data, null, 2));
+                        const contractInfo = await tx.run(SELECT.one.from(CCMContract).where({ ID: CCMContractID, ContractNumber: {"!=": null} }));
+                        if(contractInfo){
+                            await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber, Expired: false}).where({ ID: CCMContractID }));
+                        }
+                        await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, Synchronized: true, Expired: false, CreationDate: today}).where({ ID: CCMContractID }));
                     }
-                    await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, Synchronized: true, Expired: false}).where({ ID: CCMContractID }));
-                }
 
-                let bvheaders = invoiceResult?.data?.bvheader || [];
-                if (!Array.isArray(bvheaders)) {
-                    bvheaders = [bvheaders]; 
-                }
+                    let bvheaders = invoiceResult?.data?.bvheader || [];
+                    if (!Array.isArray(bvheaders)) {
+                        bvheaders = [bvheaders]; 
+                    }
 
-                if (bvheaders.length) {
-                    const inserts = bvheaders.map((bvh) => ({
-                        CCMContract_ID: CCMContractID,
-                        ConditionDocument: bvh.ConditionDocument,
-                        CustomerID: bvh.customer,
-                        FieldCombination: bvh.FieldCombination,
-                        ItemGUID: bvh.itemguid,
-                        createdAt: new Date(),
-                        createdBy: req.user.id,
-                    }));
+                    if (bvheaders.length) {
+                        const inserts = bvheaders.map((bvh) => ({
+                            CCMContract_ID: CCMContractID,
+                            ConditionDocument: bvh.ConditionDocument,
+                            CustomerID: bvh.customer,
+                            FieldCombination: bvh.FieldCombination,
+                            ItemGUID: bvh.itemguid,
+                            createdAt: new Date(),
+                            createdBy: req.user.id,
+                        }));
 
-                    await tx.run(INSERT.into(ContractItemGUID).entries(inserts));
+                        await tx.run(INSERT.into(ContractItemGUID).entries(inserts));
+                    }
+                    console.log("Invoice response from SAP:", invoiceResult?.data);
                 }
-                console.log("Invoice response from SAP:", invoiceResult?.data);
             }else{
                 console.log("No invoice contract created.");
             }
@@ -438,11 +561,8 @@ module.exports = (srv) => {
                         const settlement = rebateSettlementData.find(s => s.SettlementID === externalDocRefID);
 
                         if (settlement) {
-                            await tx.run(
-                                UPDATE(SettlementsDate)
-                                    .with({ RebateContractNumber: rebateContractNumber, Synchronized: true })
-                                    .where({ SettlementID: settlement.SettlementID })
-                            );
+                            await tx.run(UPDATE(SettlementsDate).with({ RebateContractNumber: rebateContractNumber, Synchronized: true, CreationDate: today })
+                                    .where({ SettlementID: settlement.SettlementID }));
 
                             console.log("Rebate payload sent to SAP:", JSON.stringify(typeof rebateResp?.config?.data === "string" ? JSON.parse(rebateResp.config.data) : rebateResp?.config?.data, null, 2));
                             console.log("Rebate response from SAP:", rebateResp?.data);
@@ -453,7 +573,7 @@ module.exports = (srv) => {
                 }
             }
             // Compose success message
-            let invoiceMsg = invoiceResult?.data?.ConditionContract ? `CCM Invoice Contract ${invoiceResult.data.ConditionContract}` : "No Invoice Contract";
+            let invoiceMsg = createdInvoiceContracts.length ? `CCM Invoice Contract(s): ${createdInvoiceContracts.join(", ")}` : "No Invoice Contracts";
 
             let updatedMsg = updatedContracts.length ? `Updated Contracts: ${updatedContracts.join(", ")}` : "";
 
@@ -628,34 +748,60 @@ module.exports = (srv) => {
         });
     }
 
-    async function handlExistingContract(tx, countryCode, resource, sourceData) {
-        try {
-            const apiConfig = await tx.run(SELECT.one.from(APIDefinition).where({ Provider: 'ConditionContract', CountryCode: countryCode, Resource: resource, Name: 'UpdateExistingInvoiceContract' }));
-            const apiBodyMappings = await tx.run(SELECT.from(APIBody).where({ APIDefinition_ID: apiConfig.ID }));
-            if (!apiBodyMappings) {
-                throw new Error("ERR_MISSING_PARAMETER:API body Mappings not found");
-            }
-            const body = buildExistingUpdatePayloadFromMappings(sourceData, apiBodyMappings);
-            if (!body) {
-                throw new Error("ERR_MISSING_PARAMETER:API Body not found");
-            }
-            const oauthAuth = await tx.run(SELECT.one.from(APIConfigOAuth, apiConfig.OAuth_ID));
-            const url = `${apiConfig.Host}${apiConfig.BasePath}${apiConfig.ResourcePath}`;
+    function buildExcludeCustomerPayloadFromMappings(sourceData, apiBodyMappings) {
+        const finalResult = {};
+        let bvheaderEntry = {};
 
-            const oauthCredentials = await getBearerToken(oauthAuth);
+        for (const { Source, Target } of apiBodyMappings) {
 
-            return axios({
-                method: 'patch',
-                url: url,
-                headers: {
-                    'Authorization': `Bearer ${oauthCredentials.data.access_token}`,
-                    'Content-Type': 'application/json'
-                },
-                data: JSON.stringify(body)
-            });
-        } catch (error) {
-            throw error
+            if (Target.includes("ConditionContract.bvheader")) {
+
+                if (!finalResult.ConditionContract) finalResult.ConditionContract = {};
+                if (!Array.isArray(finalResult.ConditionContract.bvheader)) {
+                    finalResult.ConditionContract.bvheader = [];
+                }
+
+                if (Target.endsWith("ConditionContract.bvheader.ConditionDocument")) {
+                    bvheaderEntry.ConditionDocument = sourceData.ExistingContractNumber;
+                    continue;
+                }
+
+                if (Target.endsWith("ConditionContract.bvheader.FieldCombination")) {
+                    bvheaderEntry.FieldCombination = Source;
+                    continue;
+                }
+
+                if (Target.endsWith("ConditionContract.bvheader.incl_excl")) {
+                    bvheaderEntry.incl_excl = Source;
+                    continue;
+                }
+
+                if (Target.endsWith("ConditionContract.bvheader.customer")) {
+                    bvheaderEntry.customer = sourceData.customer;
+                    continue;
+                }
+
+                if (Target.endsWith("ConditionContract.bvheader.validfrom")) {
+                    bvheaderEntry.validfrom = sourceData.validfrom;
+                    continue;
+                }
+
+                if (Target.endsWith("ConditionContract.bvheader.validto")) {
+                    bvheaderEntry.validto = sourceData.validto;
+                    continue;
+                }
+
+            } else {
+                // Other fields set normally via mapping
+                setNestedValue(finalResult, Target, "");
+            }
         }
+
+        if (Object.keys(bvheaderEntry).length > 0) {
+            finalResult.ConditionContract.bvheader.push(bvheaderEntry);
+        }
+
+        return finalResult;
     }
 
     function buildExistingUpdatePayloadFromMappings(sourceData, apiBodyMappings) {
@@ -1216,6 +1362,7 @@ module.exports = (srv) => {
         const tx = cds.tx(req);
         try {
             const { FastCCMContractId } = req.data;
+            const today = new Date().toISOString().split("T")[0];
             console.log("Expire Existing Contracts");
             // --- EXPIRE existing contracts (applies to all products) ---
             const existingContractInfo = await tx.run(SELECT.from(ExistingContractInfo));
@@ -1297,8 +1444,8 @@ module.exports = (srv) => {
             let invoiceCount = 0;
             
             for (let i = 0; i < invoiceResponses.length; i++) {
-                const result = invoiceResponses[i] || { lastResponse: null, updatedContracts: [], skippedContracts: [] };
-                const invoiceResult = result.lastResponse;
+                const result = invoiceResponses[i] || { lastResponse: [], updatedContracts: [], skippedContracts: [] };
+                const invoiceResults = result.lastResponse || [];
                 const updatedContracts = result.updatedContracts || [];
                 const skippedContracts = result.skippedContracts || [];
                 const contractGroup = grouped[i];
@@ -1308,38 +1455,46 @@ module.exports = (srv) => {
                 updatedContractsAll.push(...updatedContracts);
                 skippedContractsAll.push(...skippedContracts);
 
-                if (invoiceResult) {
-                    const contractNumber = invoiceResult?.data?.ConditionContract;
-                    if (contractNumber) {
-                        invoiceCount++;
-                        console.log(`Payload sent to SAP (CCMContractID: ${CCMContractID}):`, JSON.stringify(JSON.parse(invoiceResult?.config?.data), null, 2));
-                        const contractInfo = await tx.run(SELECT.one.from(CCMContract).where({ ID: CCMContractID, ContractNumber: { "!=": null } }));
-                        if (contractInfo) {
-                            await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber, Expired: false }).where({ ID: CCMContractID }));
+                let createdInvoiceContracts = [];
+
+                if (Array.isArray(invoiceResults) && invoiceResults.length > 0) {
+                    for (const invoiceResult of invoiceResults) {
+                        if (!invoiceResult) continue;
+
+                        const contractNumber = invoiceResult?.data?.ConditionContract;
+                        if (contractNumber) {
+                            createdInvoiceContracts.push(contractNumber);
+                            console.log("Payload sent to SAP:", JSON.stringify(typeof invoiceResult?.config?.data === "string" ? JSON.parse(invoiceResult.config.data) : invoiceResult?.config?.data, null, 2));
+                            const contractInfo = await tx.run(SELECT.one.from(CCMContract).where({ ID: CCMContractID, ContractNumber: {"!=": null} }));
+                            if(contractInfo){
+                                await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber, Expired: false}).where({ ID: CCMContractID }));
+                            }
+                            await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, Synchronized: true, Expired: false, CreationDate: today}).where({ ID: CCMContractID }));
                         }
-                        await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, Synchronized: true, Expired: false }).where({ ID: CCMContractID }));
+
+                        let bvheaders = invoiceResult?.data?.bvheader || [];
+                        if (!Array.isArray(bvheaders)) {
+                            bvheaders = [bvheaders]; 
+                        }
+
+                        if (bvheaders.length) {
+                            const inserts = bvheaders.map((bvh) => ({
+                                CCMContract_ID: CCMContractID,
+                                ConditionDocument: bvh.ConditionDocument,
+                                CustomerID: bvh.customer,
+                                FieldCombination: bvh.FieldCombination,
+                                ItemGUID: bvh.itemguid,
+                                createdAt: new Date(),
+                                createdBy: req.user.id,
+                            }));
+
+                            await tx.run(INSERT.into(ContractItemGUID).entries(inserts));
+                        }
+                        console.log("Invoice response from SAP:", invoiceResult?.data);
+                        if (updatedContracts.length) console.log("Updated Contracts:", updatedContracts);
+                        if (skippedContracts.length) console.log("Skipped Contracts:", skippedContracts);
                     }
-
-                    let bvheaders = invoiceResult?.data?.bvheader || [];
-                    if (!Array.isArray(bvheaders)) bvheaders = [bvheaders];
-
-                    if (bvheaders.length) {
-                        const inserts = bvheaders.map((bvh) => ({
-                            CCMContract_ID: CCMContractID,
-                            ConditionDocument: bvh.ConditionDocument,
-                            CustomerID: bvh.customer,
-                            FieldCombination: bvh.FieldCombination,
-                            ItemGUID: bvh.itemguid,
-                            createdAt: new Date(),
-                            createdBy: req.user.id,
-                        }));
-                        await tx.run(INSERT.into(ContractItemGUID).entries(inserts));
-                    }
-
-                    console.log("Invoice response from SAP:", invoiceResult?.data);
-                    if (updatedContracts.length) console.log("Updated Contracts:", updatedContracts);
-                    if (skippedContracts.length) console.log("Skipped Contracts:", skippedContracts);
-                }else {
+                }else{
                     console.log(`No invoice contract created for CCMContractID: ${CCMContractID}`);
                 }
             }
@@ -1354,7 +1509,7 @@ module.exports = (srv) => {
                         if (settlement) {
                             await tx.run(
                                 UPDATE(SettlementsDate)
-                                    .with({ RebateContractNumber: rebateContractNumber, Synchronized: true })
+                                    .with({ RebateContractNumber: rebateContractNumber, Synchronized: true, CreationDate: today })
                                     .where({ SettlementID: settlement.SettlementID })
                             );
                             console.log("Rebate payload sent to SAP:", JSON.stringify(rebateResp?.config?.data, null, 2));
@@ -1366,11 +1521,11 @@ module.exports = (srv) => {
                 }
             }
 
-            let invoiceMsg = invoiceResult?.data?.ConditionContract ? `CCM Invoice Contract ${invoiceResult.data.ConditionContract}` : "No Invoice Contract";
+            let invoiceMsg = createdInvoiceContracts.length ? `CCM Invoice Contract(s): ${createdInvoiceContracts.join(", ")}` : "No Invoice Contracts";
 
-            let updatedMsg = updatedContracts.length ? `Updated Contracts: ${updatedContracts.join(", ")}` : "";
+            let updatedMsg = updatedContractsAll.length ? `Updated Contracts: ${updatedContractsAll.join(", ")}` : "";
 
-            let skippedMsg = skippedContracts.length ? `Skipped Contracts (ended before new offer): ${skippedContracts.join(", ")}` : "";
+            let skippedMsg = skippedContractsAll.length ? `Skipped Contracts (ended before new offer): ${skippedContractsAll.join(", ")}` : "";
 
             let rebateMsg = `${rebateResponses.length} Rebate Contract${rebateResponses.length !== 1 ? "s" : ""}`;
 
