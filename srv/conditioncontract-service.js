@@ -1542,9 +1542,10 @@ module.exports = (srv) => {
 
         try {
             const { CCMContractID } = req.data;
-            const ccmContract = await tx.run(SELECT.one.from(CCMContract).columns('*', 'CCMCustomer.CustomerID').where({ ID: CCMContractID }));
+            const ccmContract = await tx.run(SELECT.one.from(CCMContract).columns('*', 'CCMCustomer.CustomerID', 'CCMCustomer.InstituteType').where({ ID: CCMContractID }));
+            const fastContractPrice = await tx.run(SELECT.one.from(PriceConditionInvoice).where({ CCMContract_ID: CCMContractID }));
             const material = await tx.run(SELECT.one.from(CCMMaterial).columns('MaterialNumber').where({
-                    CCMContract_ID: CCMContractID, // adjust FK name to your model
+                    CCMContract_ID: CCMContractID,
                     ActiveRecord: 1
                 })
             );
@@ -1554,6 +1555,7 @@ module.exports = (srv) => {
 
             if (!ccmContract || !material) return req.reject(404, "Contract is not found");
 
+            const masterPrice = await getProductMasterPrice(ccmContract?.CountryCode, ccmContract?.ProductCode);
             const body = updateSAPSalesOrderSimulationRequestBody(ccmContract?.CCMCustomer_CustomerID , material?.MaterialNumber);
             const response = await getSAPSalesOrderSimulation(tx, ccmContract?.CountryCode, "SalesOrderSimulation", body);
 
@@ -1562,7 +1564,7 @@ module.exports = (srv) => {
                 return req.reject(404, "No Pricing Exist in SAP");
             }
             
-            const mappedData = mapPricingElementsToDbFormat(pricingElements, CCMContractID, ccmContract?.CCMCustomer_CustomerID , material?.MaterialNumber, ccmContract?.CountryCode, ccmContract?.PackFactor, ccmContract?.UoM);
+            const {mappedData, priceUpdateStatuses} = mapPricingElementsToDbFormat(pricingElements, fastContractPrice, CCMContractID, material?.MaterialNumber, ccmContract, masterPrice);
 
             if (!mappedData.ConditionType) {
                 return req.reject(422, "SAP response does not match any FAST ConditionType");
@@ -1573,6 +1575,8 @@ module.exports = (srv) => {
             }else{
                 await tx.run(INSERT.into(CurrentInvoicePrice).entries(mappedData));
             }
+
+            await tx.run(UPDATE(FastConditionContracts).with({ ...priceUpdateStatuses }).where({ ID: ccmContract.FastConditionContracts_ID }));
 
             return req.reply("Current Pricing were received from SAP");
         } catch (error) {
@@ -1643,26 +1647,26 @@ module.exports = (srv) => {
         });
 	}
 
-    function mapPricingElementsToDbFormat(pricingElements, CCMContractID, customerID, materialNumber, countryCode, packFactor, UoM) {
+    function mapPricingElementsToDbFormat(pricingElements, fastContractPrice, CCMContractID, materialNumber, contract, masterPrice) {
 		const result = {
-            ConditionType: null,
+            ConditionType: fastContractPrice.ConditionType || null,
             Currency: "EUR",
-            CountryCode: countryCode,
-            SoldToParty: customerID,
+            CountryCode: contract?.CountryCode,
+            SoldToParty: contract?.CCMCustomer_CustomerID,
             Material: materialNumber,
-            YP00: 0,
-            YP04: 0,
-            YP10: null,
-            YD75: null,
-            YD30: 0,
-            YD06: 0,
-            YD02: 0,
+            YP00: fastContractPrice.YP00 || null,
+            YP04: fastContractPrice.YP04 || null,
+            YP10: fastContractPrice.YP10 || null,
+            YD75: fastContractPrice.YD75 || null,
+            YD30: fastContractPrice.YD30 || null,
+            YD06: fastContractPrice.YD06 || null,
+            YD02: fastContractPrice.YD02 || null,
             SapTax: 0,
-            Tax: 0,
-            ConfidentialPrice: 0,
-            RoyalDecree: "No",
-            RoyalDecreeValue: 0,
-            RoyalDecreeIncl: true,
+            Tax: fastContractPrice.Tax || null,
+            ConfidentialPrice: fastContractPrice.ConfidentialPrice || null,
+            RoyalDecree: fastContractPrice.RoyalDecree || null,
+            RoyalDecreeValue: fastContractPrice.RoyalDecreeValue || null,
+            RoyalDecreeIncl: fastContractPrice.RoyalDecreeIncl || null,
             NetPriceWithoutTaxAfterDeductionRD: null,
             NetPriceWithTaxAfterDeductionRD: null,
             NetPriceWithoutTax: null,
@@ -1711,31 +1715,32 @@ module.exports = (srv) => {
 		const YD06 = conditions["YD06"] ? Math.abs(conditions["YD06"].ConditionRateValue) / 100 : 0;
 		const YD75 = conditions["YD75"]?.ConditionAmount ?? null;
 		const YD30 = conditions["YD30"]?.ConditionRateValue ?? 0;
-	
-		
+        
+        if (fastContractPrice?.YP00 !== YP00 || fastContractPrice?.YP04 !== YP04) {
+            result.YP00 = YP00 ? contract.UoM === 'Pack' ? YP00 : (YP00 / contract.PackFactor) : 0;
+            result.YP04 = YP04;
+            result.ConfidentialPrice = YP04 ? result.YP00 * (1 - YP04) : result.YP00;
+            // result.YD02 = YD02;
+            // result.RoyalDecree = YD06 ? "Yes" : "No";
+            // result.YD06 = YD06;
 
-		result.YP00 = YP00 ? UoM === 'Pack' ? YP00 : (YP00 / packFactor) : 0;
-		result.YP04 = YP04;
-		result.ConfidentialPrice = YP04 ? result.YP00 * (1 - YP04) : result.YP00;
-		result.YD02 = YD02;
-		result.RoyalDecree = YD06 ? "Yes" : "No";
-		result.YD06 = YD06;
+            // result.RoyalDecreeIncl = YD06 ? false : true;
+            // result.YD30 = YD30;
+            // result.YP10 = YP10 ? UoM === 'Pack' ? (YP10 / 10000) : (YP10 / 10000 / contract.PackFactor) : null;
+            // result.RoyalDecreeValue = YD06 && YP10 ? YD06 * result.YP10 : 0;
 
-		result.RoyalDecreeIncl = YD06 ? false : true;
-		result.YD30 = YD30;
-		result.YP10 = YP10 ? UoM === 'Pack' ? (YP10 / 10000) : (YP10 / 10000 / packFactor) : null;
-		result.RoyalDecreeValue = YD06 && YP10 ? YD06 * result.YP10 : 0;
+            const useConfidential = YP04 !== 0;
+            const basePrice = useConfidential ? result.ConfidentialPrice : result.YP00;
 
-		const useConfidential = YP04 !== 0;
-		const basePrice = useConfidential ? result.ConfidentialPrice : result.YP00;
+            result.YD75 = (basePrice - result.YP10) / basePrice;
+        
+            // Mapped values for NETPRICE fields
+            // result.NetPriceWithoutTaxAfterDeductionRD = result.YP10 ? (YD06 ? result.YP10 * (1 - YD06) : result.YP10) : null;
+            // result.NetPriceWithTaxAfterDeductionRD = (YD02 || YD30) ? result.SAPPriceWithTax : null;
+            // result.NetPriceWithoutTax = YD02 ? result.ConfidentialPrice * (1 - result.YD02) * (1 - result.YD06) : null;  
+            // result.NetPriceWithTax = result.SAPPriceWithTax;
+        }
 
-		result.YD75 = (basePrice - result.YP10) / basePrice;
-	
-		// Mapped values for NETPRICE fields
-		result.NetPriceWithoutTaxAfterDeductionRD = result.YP10 ? (YD06 ? result.YP10 * (1 - YD06) : result.YP10) : null;
-		result.NetPriceWithTaxAfterDeductionRD = (YD02 || YD30) ? result.SAPPriceWithTax : null;
-		result.NetPriceWithoutTax = YD02 ? result.ConfidentialPrice * (1 - result.YD02) * (1 - result.YD06) : null;  
-		result.NetPriceWithTax = result.SAPPriceWithTax;
 	
 		// Determine the condition type
 		if (YP10) {
@@ -1747,9 +1752,65 @@ module.exports = (srv) => {
 		} else {
 			result.ConditionType = null;
 		}
+
+        const priceUpdateStatuses = {
+            "hasUpdatedPVL": YP00 !== fastContractPrice.YP00,
+            "hasUpdatedConfidentialPrice": YP04 !== fastContractPrice.YP04,
+            "hasNetPriceAbovePVL": false,
+            "hasNetPriceBelowFloorPrice": false
+        }
+
+        const prafFields = {
+            "Private Account": "PRAF_Private",
+            "Public Account": "PRAF_Public"
+        }
+
+        const praf = masterPrice ? masterPrice[prafFields[contract.CCMCustomer_InstituteType]] : 0;
+        const prafValue = contract.UoM === 'Pack' ? praf : (praf / contract.PackFactor);
+
+        if (result.ConditionType === "PrecioNeto") {
+            if (YP10) {
+                const netPrice = YD06 ? applyDiscounts(YP10, YD06) : YP10;
+
+                // Compare PRaF value vs Floor Price
+                priceUpdateStatuses.hasNetPriceBelowFloorPrice = prafValue > netPrice;
+
+                // Compare vs PVL
+                if (YP00) {
+                    priceUpdateStatuses.hasNetPriceAbovePVL = netPrice > YP00;
+                }
+
+                // Compare vs YP04
+                if (YP04) {
+                    priceUpdateStatuses.hasNetPriceAbovePVL = netPrice > YP04;
+                }
+            }
+        }
+
+        if (result.ConditionType === "DescuentoComercial") {
+            if (YD02) {
+                for (const basePrice of [YP00, YP04]) {
+                    if (!basePrice) continue;
+
+                    const discountedPrice = YD06
+                        ? applyDiscounts(basePrice, YD02, YD06)
+                        : applyDiscounts(basePrice, YD02);
+
+                    priceUpdateStatuses.hasNetPriceBelowFloorPrice = prafValue > discountedPrice;
+                }
+            }
+        }
 	
-		return result;
+		return {
+            mappedData: result,
+            priceUpdateStatuses
+        };
 	}
+
+    function applyDiscounts(price, ...discounts) {
+        const totalDiscount = discounts.reduce((sum, d) => sum + (d || 0), 0);
+        return price * (1 - totalDiscount);
+    }
 
     function getSAPSalesOrderSimulationRequestBody () {
         return {
@@ -1783,6 +1844,13 @@ module.exports = (srv) => {
                     OfferID: contract.FastConditionContracts_OfferID,
                     ProductCode: contract.ProductCode
                  }));
+
+                await tx.run(UPDATE(FastConditionContracts).with({ 
+                    hasUpdatedPVL: false,
+                    hasUpdatedConfidentialPrice: false,
+                    hasNetPriceAbovePVL: false,
+                    hasNetPriceBelowFloorPrice: false 
+                }).where({ ID: contract.FastConditionContracts_ID }));
             }
             return "Current CCM price applied successfully."
         } catch (error) {
@@ -1823,6 +1891,16 @@ module.exports = (srv) => {
             NetPriceWithoutTax: pricing.NetPriceWithoutTax,
             NetPriceWithTax: pricing.NetPriceWithTax
         }
+    }
+    
+    async function getProductMasterPrice(countryCode, productCode) {
+        const fastbackendAPI = await cds.connect.to("FASTBACKEND_API");
+        const response = await fastbackendAPI.send({
+            method: 'GET',
+            path: `/v2/conditioncontracting/MasterPrices?$filter=CountryCode eq '${countryCode}' and ProductPackId eq ${productCode}`,
+        });
+
+        return response?.d[0];
     }
 
     srv.on('getUserCountries', async (req) => {
