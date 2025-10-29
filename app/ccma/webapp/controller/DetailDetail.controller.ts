@@ -170,7 +170,8 @@ export default class Detail extends BaseController {
         ccmCustomerInfo?.bindElement({
             path: path,
             parameters: {
-                $$updateGroupId: "PricingFormDetailDetail"
+                $$updateGroupId: "PricingFormDetailDetail",
+                $select: "Synchronized"
             },
             events: {
                 dataReceived: () => {
@@ -1066,8 +1067,9 @@ export default class Detail extends BaseController {
         const getCurrentCCMPriceBtn = this.byId("idGetCurrentCCMPriceButton") as Button;
         const pricingContext = this.byId("idNewPricingForm")?.getBindingContext();
         const conditionType = pricingContext?.getProperty("ConditionType");
+        const isContractSynchronized = pricingContext?.getProperty("Synchronized");
         if (!pricingContext || !conditionType) return false;
-        getCurrentCCMPriceBtn.setEnabled(conditionType !== "PVL" && conditionType !== "DescuentoEspecial");
+        getCurrentCCMPriceBtn.setEnabled(conditionType !== "PVL" && conditionType !== "DescuentoEspecial" && isContractSynchronized);
     }
 
     public onCheckContractPriceDifference(currentPrice: any, path: string, controlID: string) {

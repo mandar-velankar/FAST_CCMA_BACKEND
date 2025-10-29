@@ -179,6 +179,7 @@ entity CCMContractPricingFormView                  as
         on ccmcontract.ProductCode = invoice.ProductCode and fcc.OfferID = invoice.OfferID
     {
         key ccmcontract.ID as CCMContractID,
+            ccmcontract.Synchronized,
             invoice.ConditionType,
             invoice.CountryCode,
             invoice.YP00,
