@@ -53,6 +53,7 @@ entity CCMContract: cuid, managed, temporal{
   CCMContractEndDate: Date;
   PreviousContractNumber: String;
   ContractNumber: String;
+  ContractReferene: String;
   Expired: Boolean;
   ItemGUID: String;
   Synchronized: Boolean default false;
@@ -265,5 +266,5 @@ entity ConditionContractsLog : cuid {
   Synchronized      : Boolean default false;       
   createdAt         : Date;
   createdBy         : String;
-  CCMContract: Association to CCMContract;
+  CCMContractID: UUID;
 }

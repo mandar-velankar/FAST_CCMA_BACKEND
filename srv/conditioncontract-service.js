@@ -517,6 +517,7 @@ module.exports = (srv) => {
                     if (!invoiceResult) continue;
 
                     const contractNumber = invoiceResult?.data?.ConditionContract;
+                    const contractReference = invoiceResult?.data?.ExternalDocumentReferenceID;
                     if (contractNumber) {
                         createdInvoiceContracts.push(contractNumber);
                         console.log("Payload sent to SAP:", JSON.stringify(typeof invoiceResult?.config?.data === "string" ? JSON.parse(invoiceResult.config.data) : invoiceResult?.config?.data, null, 2));
@@ -524,7 +525,7 @@ module.exports = (srv) => {
                         if(contractInfo){
                             await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber, Expired: false}).where({ ID: CCMContractID }));
                         }
-                        await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, Synchronized: true, Expired: false, CreationDate: today}).where({ ID: CCMContractID }));
+                        await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, ContractReferene: contractReference, Synchronized: true, Expired: false, CreationDate: today}).where({ ID: CCMContractID }));
                     }
 
                     let bvheaders = invoiceResult?.data?.bvheader || [];
@@ -545,7 +546,7 @@ module.exports = (srv) => {
 
                         await tx.run(INSERT.into(ContractItemGUID).entries(inserts));
                     }
-                    console.log("Invoice response from SAP:", invoiceResult?.data);
+                    //console.log("Invoice response from SAP:", invoiceResult?.data);
                 }
             }else{
                 console.log("No invoice contract created.");
@@ -565,7 +566,7 @@ module.exports = (srv) => {
                                     .where({ SettlementID: settlement.SettlementID }));
 
                             console.log("Rebate payload sent to SAP:", JSON.stringify(typeof rebateResp?.config?.data === "string" ? JSON.parse(rebateResp.config.data) : rebateResp?.config?.data, null, 2));
-                            console.log("Rebate response from SAP:", rebateResp?.data);
+                            //console.log("Rebate response from SAP:", rebateResp?.data);
                         } else {
                             console.warn(`No matching settlement found for ExternalDocumentReferenceID: ${externalDocRefID}`);
                         }

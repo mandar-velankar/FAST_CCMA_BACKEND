@@ -420,5 +420,57 @@ entity CurrentCCMPricingView as select from CCMContract as ccmcontract
     ifnull(currentPrice.RentalPrice, invoice.RentalPrice) as RentalPrice: Double,  
     ifnull(currentPrice.MonthlyRentPerUnit, invoice.MonthlyRentPerUnit) as MonthlyRentPerUnit: Double,
     ifnull(currentPrice.AnnualValue, invoice.AnnualValue) as AnnualValue: Double
-}
+};
+
+entity CCMContractsCreatedNotificationMailJobView as
+    select from FastConditionContracts as fcc
+        inner join CCMContract as ccm on ccm.FastConditionContracts.ID = fcc.ID
+        inner join CCMMaterial as mat on mat.CCMContract.ID = ccm.ID and mat.ActiveRecord = 1
+    {
+        fcc.ID as FastConditionContractID,
+        ccm.ID as CCMContractID,
+        fcc.CustomerID as InstituteID,
+        ccm.CCMCustomer.InstituteName,
+        mat.MaterialNumber,
+        ccm.ProductName as PRODUCTPACKNAME,
+        fcc.OfferID,
+        fcc.Division,
+        'Invoice' as ContractType,
+        ccm.ContractNumber as ContractNumber,
+        ccm.CCMContractStartDate as EffectiveDate,
+        ccm.CCMContractEndDate as ExpiryDate,
+        ccm.CreationDate as ContractCreationDate,
+        ccm.ContractReferene,
+        fcc.TenderID,
+        fcc.ContractType as Classification
+    }
+    where ccm.ContractNumber is not null
+      and ccm.ContractNumber <> ''
+      and ccm.Expired = false
+      and ccm.Cancelled = false
+
+union select from FastConditionContracts as fcc
+        inner join CCMContract as ccm on ccm.FastConditionContracts.ID = fcc.ID
+        inner join SettlementsDate as rebate on rebate.CCMContractID = ccm.ID
+        inner join CCMMaterial as mat on mat.CCMContract.ID = ccm.ID and mat.ActiveRecord = 1
+    {
+        fcc.ID as FastConditionContractID,
+        ccm.ID as CCMContractID,
+        fcc.CustomerID as InstituteID,
+        ccm.CCMCustomer.InstituteName,
+        mat.MaterialNumber,
+        ccm.ProductName as PRODUCTPACKNAME,
+        fcc.OfferID,
+        fcc.Division,
+        'Rebate' as ContractType,
+        rebate.RebateContractNumber as ContractNumber,
+        rebate.FromDate as EffectiveDate,
+        rebate.ToDate as ExpiryDate,
+        rebate.CreationDate as ContractCreationDate,
+        rebate.SettlementID as ContractReferene,
+        fcc.TenderID,
+        fcc.ContractType as Classification
+    }
+    where rebate.RebateContractNumber is not null
+      and rebate.RebateContractNumber <> '';
 }
