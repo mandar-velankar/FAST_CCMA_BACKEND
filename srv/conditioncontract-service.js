@@ -883,6 +883,10 @@ module.exports = (srv) => {
                 conditionRecord.PricingScaleType = scaleTypes[firstRow.PriceConditionCode] || firstRow.PriceConditionCode;
             }
 
+            if (firstRow.MaxDiscount != null) {
+                conditionRecord.ConditionRateRatio = Math.round(firstRow.MaxDiscount * 100 * 100) / 100;
+            }
+
             conditionRecords.push(conditionRecord);
         }
 
@@ -1612,16 +1616,26 @@ module.exports = (srv) => {
         const tx = cds.tx(req);
         try {
             const userCountries = await getUserCountries();
-            const grouped = userCountries.reduce((acc, user) => {
-                const { CWID, CountryCode } = user;
-                acc[CWID] = acc[CWID] || { entries: [] };
-                acc[CWID].entries.push(user);
-                acc[CWID].countries = acc[CWID].entries.map(e => e.CountryCode);
-                return acc;
-            }, {});
+            const userCountryMap = new Map();
+            for (const user of userCountries) {
+                if (!userCountryMap.has(user.CWID)) {
+                    userCountryMap.set(user.CWID, new Set());
+                }
+                userCountryMap.get(user.CWID).add(user.CountryCode);
+            }
 
-            // Keep users who have exactly one country and it's 'ES'
-            const exclusiveESUsers = Object.values(grouped).filter(g => g.countries.length === 1 && g.countries[0] === 'ES').flatMap(g => g.entries);
+            const exclusiveESCWIDs = new Set(
+            [...userCountryMap.entries()]
+                .filter(([_, countries]) => countries.size === 1 && countries.has('ES'))
+                .map(([CWID]) => CWID)
+            );
+
+            // Filter original list — keep only users whose CWID is in the exclusive ES list
+            let exclusiveESUsers = userCountries.filter(user => exclusiveESCWIDs.has(user.CWID));
+
+            exclusiveESUsers = Array.from(
+                new Map(exclusiveESUsers.map(user => [user.CWID, user])).values()
+            );
 
             return exclusiveESUsers;
 
