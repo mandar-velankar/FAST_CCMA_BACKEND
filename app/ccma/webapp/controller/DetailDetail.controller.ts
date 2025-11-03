@@ -136,7 +136,7 @@ export default class Detail extends BaseController {
                     uiModel.setProperty("/hasExistingContract", items.ContractNumber ? true : false );
                     uiModel.setProperty("/hasCancelled", items.Cancelled);
                     uiModel.setProperty(
-                        "/isIgnoreContractPriceBtnEnabled", 
+                        "/isIgnoreContractPriceBtnEnabled", items.FastConditionContracts.hasNetPriceAbovePVL ? false :
                         items.FastConditionContracts.hasUpdatedPVL || 
                         items.FastConditionContracts.hasUpdatedConfidentialPrice || 
                         items.FastConditionContracts.hasNetPriceBelowFloorPrice
@@ -978,6 +978,7 @@ export default class Detail extends BaseController {
     public onGetCurrentCCMPriceSuccess(res: any): void {
         MessageBox.success(res?.value);
         BusyIndicator.hide();
+        this.getModel().resetChanges("ContractInformationDetail");
         this.getModel()?.refresh();
     }
 
