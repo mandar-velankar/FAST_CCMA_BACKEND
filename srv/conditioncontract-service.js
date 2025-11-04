@@ -1885,36 +1885,26 @@ module.exports = (srv) => {
 		const YD06 = conditions["YD06"] ? Math.abs(conditions["YD06"].ConditionRateValue) / 100 : 0;
 		const YD75 = conditions["YD75"]?.ConditionAmount ?? null;
 		const YD30 = conditions["YD30"]?.ConditionRateValue ?? 0;
-        
-        if (fastContractPrice?.YP00 !== YP00 || fastContractPrice?.YP04 !== YP04) {
-            result.YP00 = YP00 ? contract.UoM === 'Pack' ? YP00 : (YP00 / contract.PackFactor) : fastContractPrice.YP00;
-            result.YP04 = YP04 ? YP04 : fastContractPrice.YP04;
-            result.ConfidentialPrice = YP04 ? result.YP00 * (1 - YP04) : result.YP00;
 
-            const useConfidential = YP04 !== 0;
-            const basePrice = useConfidential ? result.ConfidentialPrice : result.YP00;
-
-            result.YD75 = (basePrice - result.YP10) / basePrice;
+        const isPVLUpdated = !!(YP00 && fastContractPrice?.YP00 !== YP00);
+        const isConfidentialPriceUpdated = !!(YP04 && fastContractPrice?.YP04 !== YP04);
         
-            // Mapped values for NETPRICE fields
-            result.NetPriceWithoutTax = YD02 ? result.ConfidentialPrice * (1 - result.YD02) * (1 - result.YD06) : null;  
-        }
+        result.YP00 = isPVLUpdated ? contract.UoM === 'Pack' ? YP00 : (YP00 / contract.PackFactor) : fastContractPrice.YP00;
+        result.YP04 = isConfidentialPriceUpdated ? YP04 : fastContractPrice.YP04;
+        result.ConfidentialPrice = isConfidentialPriceUpdated ? result.YP00 * (1 - result.YP04) : result.YP00;
+
+        const useConfidential = result.YP04 !== 0;
+        const basePrice = useConfidential ? result.ConfidentialPrice : result.YP00;
+
+        result.YD75 = (basePrice - result.YP10) / basePrice;
+    
+        // Mapped values for NETPRICE fields
+        result.NetPriceWithoutTax = result.YD02 ? result.ConfidentialPrice * (1 - result.YD02) * (1 - result.YD06) : null;  
 
 	
-		// Determine the condition type
-		if (YP10) {
-			result.ConditionType = "PrecioNeto";
-		} else if (YD02) {
-			result.ConditionType = "DescuentoComercial";
-		} else if (YP00) {
-			result.ConditionType = "PVL";
-		} else {
-			result.ConditionType = null;
-		}
-
         const priceUpdateStatuses = {
             "hasUpdatedPVL": Number(YP00) !== Number(fastContractPrice.YP00),
-            "hasUpdatedConfidentialPrice": Number(result.ConfidentialPrice) !== Number(fastContractPrice.ConfidentialPrice),
+            "hasUpdatedConfidentialPrice": Number(YP04) !== Number(fastContractPrice.YP04),
             "hasNetPriceAbovePVL": false,
             "hasNetPriceBelowFloorPrice": false
         }
@@ -1927,34 +1917,30 @@ module.exports = (srv) => {
         const praf = masterPrice ? masterPrice[prafFields[contract.CCMCustomer_InstituteType]] : 0;
         const prafValue = contract.UoM === 'Pack' ? praf : (praf / contract.PackFactor);
 
-        if (result.YP10) {
-            const netPrice = result.YD06 ? applyDiscounts(result.YP10, result.YD06) : result.YP10;
+        const netPrice = result.YD06 ? applyDiscounts(result.YP10, result.YD06) : result.YP10;
 
-            // Compare PRaF value vs Floor Price
-            priceUpdateStatuses.hasNetPriceBelowFloorPrice = prafValue > netPrice;
+        // Compare PRaF value vs Floor Price
+        priceUpdateStatuses.hasNetPriceBelowFloorPrice = prafValue > netPrice;
 
-            // Compare vs PVL
-            if (result.YP00) {
-                priceUpdateStatuses.hasNetPriceAbovePVL = netPrice > result.YP00;
-            }else if (result.YP04) {
-                priceUpdateStatuses.hasNetPriceAbovePVL = netPrice > result.ConfidentialPrice;
-            }else {
-                priceUpdateStatuses.hasNetPriceAbovePVL = netPrice > 0;
-            }
+        // Compare vs PVL
+        if (result.YP00) {
+            priceUpdateStatuses.hasNetPriceAbovePVL = netPrice > result.YP00;
+        }else if (result.YP04) {
+            priceUpdateStatuses.hasNetPriceAbovePVL = netPrice > result.YP04;
+        }else {
+            priceUpdateStatuses.hasNetPriceAbovePVL = netPrice > 0;
         }
 
-        if (result.YD02) {
-            let basePrice = result.YP00;
+        let priceCheckbasePrice = result.YP00;
 
-            if (result.YP00) basePrice = result.YP00;
-            else if (result.YP04) basePrice = result.ConfidentialPrice;
+        if (result.YP00) priceCheckbasePrice = result.YP00;
+        else if (result.YP04) priceCheckbasePrice = result.YP04;
 
-            const discountedPrice = result.YD06
-                ? applyDiscounts(basePrice, result.YD02, result.YD06)
-                : applyDiscounts(basePrice, result.YD02);
+        const discountedPrice = result.YD06
+            ? applyDiscounts(priceCheckbasePrice, result.YD02, result.YD06)
+            : applyDiscounts(priceCheckbasePrice, result.YD02);
 
-            priceUpdateStatuses.hasNetPriceBelowFloorPrice = prafValue > discountedPrice;
-        }
+        priceUpdateStatuses.hasNetPriceBelowFloorPrice = prafValue > discountedPrice;
 	
 		return {
             mappedData: result,
