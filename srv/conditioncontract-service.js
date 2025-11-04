@@ -1819,28 +1819,28 @@ module.exports = (srv) => {
 
     function mapPricingElementsToDbFormat(pricingElements, fastContractPrice, CCMContractID, materialNumber, contract, masterPrice) {
 		const result = {
-            ConditionType: fastContractPrice.ConditionType || null,
+            ConditionType: fastContractPrice.ConditionType,
             Currency: "EUR",
             CountryCode: contract?.CountryCode,
             SoldToParty: contract?.CCMCustomer_CustomerID,
             Material: materialNumber,
-            YP00: fastContractPrice.YP00 || null,
-            YP04: fastContractPrice.YP04 || null,
-            YP10: fastContractPrice.YP10 || null,
-            YD75: fastContractPrice.YD75 || null,
-            YD30: fastContractPrice.YD30 || null,
-            YD06: fastContractPrice.YD06 || null,
-            YD02: fastContractPrice.YD02 || null,
-            SapTax: 0,
+            YP00: fastContractPrice.YP00,
+            YP04: fastContractPrice.YP04,
+            YP10: fastContractPrice.YP10,
+            YD75: fastContractPrice.YD75,
+            YD30: fastContractPrice.YD30,
+            YD06: fastContractPrice.YD06,
+            YD02: fastContractPrice.YD02,
+            SapTax: fastContractPrice.SapTax,
             Tax: fastContractPrice.Tax || null,
-            ConfidentialPrice: fastContractPrice.ConfidentialPrice || null,
+            ConfidentialPrice: fastContractPrice.ConfidentialPrice,
             RoyalDecree: fastContractPrice.RoyalDecree || null,
             RoyalDecreeValue: fastContractPrice.RoyalDecreeValue || null,
             RoyalDecreeIncl: fastContractPrice.RoyalDecreeIncl || null,
-            NetPriceWithoutTaxAfterDeductionRD: null,
-            NetPriceWithTaxAfterDeductionRD: null,
-            NetPriceWithoutTax: null,
-            NetPriceWithTax: null,
+            NetPriceWithoutTaxAfterDeductionRD: fastContractPrice.NetPriceWithoutTaxAfterDeductionRD,
+            NetPriceWithTaxAfterDeductionRD: fastContractPrice.NetPriceWithTaxAfterDeductionRD,
+            NetPriceWithoutTax: fastContractPrice.NetPriceWithoutTax,
+            NetPriceWithTax: fastContractPrice.NetPriceWithTax,
             CCMContract_ID: CCMContractID
 		};
 	
@@ -1899,7 +1899,8 @@ module.exports = (srv) => {
         result.YD75 = (basePrice - result.YP10) / basePrice;
     
         // Mapped values for NETPRICE fields
-        result.NetPriceWithoutTax = result.YD02 ? result.ConfidentialPrice * (1 - result.YD02) * (1 - result.YD06) : null;  
+        result.NetPriceWithoutTax = fastContractPrice.ConditionType === "DescuentoComercial" ? result.ConfidentialPrice * (1 - result.YD02) * (1 - result.YD06) : null;  
+        result.NetPriceWithTax = fastContractPrice.ConditionType === "DescuentoComercial" ? result.NetPriceWithoutTax * (1 + result.Tax) : result.NetPriceWithTax;  
 
 	
         const priceUpdateStatuses = {
@@ -1918,23 +1919,18 @@ module.exports = (srv) => {
         const prafValue = contract.UoM === 'Pack' ? praf : (praf / contract.PackFactor);
 
         const netPrice = result.YD06 ? applyDiscounts(result.YP10, result.YD06) : result.YP10;
+        let priceCheckbasePrice = result.YP00;
 
         // Compare PRaF value vs Floor Price
         priceUpdateStatuses.hasNetPriceBelowFloorPrice = prafValue > netPrice;
 
-        // Compare vs PVL
-        if (result.YP00) {
-            priceUpdateStatuses.hasNetPriceAbovePVL = netPrice > result.YP00;
-        }else if (result.YP04) {
-            priceUpdateStatuses.hasNetPriceAbovePVL = netPrice > result.YP04;
+        if (YP04 > 0) {
+            priceUpdateStatuses.hasNetPriceAbovePVL = netPrice > result.ConfidentialPrice;
+            priceCheckbasePrice = result.ConfidentialPrice;
         }else {
-            priceUpdateStatuses.hasNetPriceAbovePVL = netPrice > 0;
+            priceUpdateStatuses.hasNetPriceAbovePVL = netPrice > result.YP00;
+            priceCheckbasePrice = result.YP00;
         }
-
-        let priceCheckbasePrice = result.YP00;
-
-        if (result.YP00) priceCheckbasePrice = result.YP00;
-        else if (result.YP04) priceCheckbasePrice = result.YP04;
 
         const discountedPrice = result.YD06
             ? applyDiscounts(priceCheckbasePrice, result.YD02, result.YD06)
@@ -2013,22 +2009,10 @@ module.exports = (srv) => {
 
     function mapCurrentCCMPrice (pricing) {
         return {
-            ConditionType: pricing.ConditionType,
             YP00: pricing.YP00,
             YP04: pricing.YP04,
-            YP10: pricing.YP10,
             YD75: pricing.YD75,
-            YD30: pricing.YD30,
-            YD06: pricing.YD06,
-            YD02: pricing.YD02,
-            SapTax: pricing.SapTax,
-            Tax: pricing.Tax,
             ConfidentialPrice: pricing.ConfidentialPrice,
-            RoyalDecree: pricing.RoyalDecree,
-            RoyalDecreeValue: pricing.RoyalDecreeValue,
-            RoyalDecreeIncl: pricing.RoyalDecreeIncl,
-            NetPriceWithoutTaxAfterDeductionRD: pricing.NetPriceWithoutTaxAfterDeductionRD,
-            NetPriceWithTaxAfterDeductionRD: pricing.NetPriceWithTaxAfterDeductionRD,
             NetPriceWithoutTax: pricing.NetPriceWithoutTax,
             NetPriceWithTax: pricing.NetPriceWithTax
         }
