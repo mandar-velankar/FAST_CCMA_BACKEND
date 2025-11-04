@@ -16,6 +16,8 @@ entity FastConditionContracts: cuid, managed {
   Reference: String;
   Status: String;
   Owner: String;
+  OwnerName: String;
+  OwnerEmail: String;
   BrandFilter: String;
   ProductFilter: String;
   Extension: Boolean;

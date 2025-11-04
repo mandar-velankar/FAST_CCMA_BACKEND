@@ -429,6 +429,11 @@ entity CCMContractsCreatedNotificationMailJobView as
     {
         fcc.ID as FastConditionContractID,
         ccm.ID as CCMContractID,
+        fcc.CountryCode,
+        ccm.modifiedBy as CWID,
+        fcc.Owner,
+        fcc.OwnerEmail as UserEmail,
+        fcc.OwnerName,
     key fcc.CustomerID as InstituteID,
         ccm.CCMCustomer.InstituteName,
     key mat.MaterialNumber,
@@ -456,6 +461,11 @@ union select from FastConditionContracts as fcc
     {
         fcc.ID as FastConditionContractID,
         ccm.ID as CCMContractID,
+        fcc.CountryCode,
+        fcc.Owner,
+        fcc.OwnerEmail  as UserEmail,
+        fcc.OwnerName,
+        rebate.modifiedBy as CWID,
     key fcc.CustomerID as InstituteID,
         ccm.CCMCustomer.InstituteName,
     key mat.MaterialNumber,
