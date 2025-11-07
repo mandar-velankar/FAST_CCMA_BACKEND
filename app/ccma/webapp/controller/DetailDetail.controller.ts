@@ -1077,12 +1077,11 @@ export default class Detail extends BaseController {
         if (!currentPrice) return "None";
         const fastPricingContext = this.byId("idNewPricingForm")?.getBindingContext();
         const ccmPricingContext = this.byId("idNewPricingFormCCM")?.getBindingContext();
-        const ignoreBtn = this.byId("idIgnoreCurrentCCMPriceButton") as Button;
         const control = this.byId(controlID);
         control.removeStyleClass("highlightRedText");
 
         if (!fastPricingContext || !ccmPricingContext) {
-            return "None"; // no context, skip
+            return "None";
         }
 
         const fastContractPrice = fastPricingContext.getProperty(path);
@@ -1097,14 +1096,17 @@ export default class Detail extends BaseController {
             return "None";
         }
 
-        // Compare decimals precisely
-        if (nCurrent !== nContract) {
-            // ignoreBtn.setEnabled(true);
+        // --- Dynamic tolerance logic ---
+        // If value is a percentage (less than 1), use tighter tolerance
+        // If it's a price (>= 1), use standard tolerance
+        const tolerance = (Math.abs(nCurrent) < 1) ? 0.000001 : 0.01;
+
+        if (Math.abs(nCurrent - nContract) > tolerance) {
             control.addStyleClass("highlightRedText");
-            return "Error"; // highlight red if they differ
+            return "Error";
         }
 
-        return "None"; // values match — no error
+        return "None";
     }
 
 }
