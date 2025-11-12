@@ -203,7 +203,7 @@ export default class Detail extends BaseController {
             new Filter({
                 path: 'PriceConditionRebateID',
                 operator: FilterOperator.EQ,
-                value1: PriceConditionRebateID
+                value1: PriceConditionRebateID ?? null
             })
         ];
 
@@ -1064,8 +1064,8 @@ export default class Detail extends BaseController {
         const ccmContractPrice = ccmPricingContext.getProperty(path);
 
         // Ensure both are valid numbers
-        const nCurrent = parseFloat(ccmContractPrice);
-        const nContract = parseFloat(fastContractPrice);
+        const nCurrent = parseFloat(ccmContractPrice || 0);
+        const nContract = parseFloat(fastContractPrice || 0);
 
         // If either value is not a valid number (NaN), skip validation
         if (isNaN(nCurrent) || isNaN(nContract)) {
