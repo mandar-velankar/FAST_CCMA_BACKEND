@@ -21,7 +21,8 @@ const {
     IdentifyExistingContract,
     ExistingContractInfo,
     CurrentInvoicePrice,
-    CustomerHierarchy
+    CustomerHierarchy,
+    ConditionContractsLog
 } = cds.entities("ConditionContract");
 
 
@@ -219,7 +220,7 @@ module.exports = (srv) => {
     }
 
     async function processContractsForCreation(tx, processedCases) {
-        const responses = [];
+        const invoiceResults = [];
         const updatedContracts = [];
         const skippedContracts = [];
 
@@ -230,7 +231,7 @@ module.exports = (srv) => {
             // No matching contracts → always create new
             if (!contracts || contracts.length === 0) {
                 const res = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
-                responses.push(res);
+                invoiceResults.push(res);
                 continue;
             }
 
@@ -247,10 +248,10 @@ module.exports = (srv) => {
                     if (action === "UPDATE_AND_CREATE_NEW") {
                         // Exclude child from NEW payload
                         const res = await createCCMContractExcludeCustomer(tx, 'ES', "ConditionContract", sourceData, contract);
-                        responses.push(res);
+                        invoiceResults.push(res);
                     } else {
                         const res = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
-                        responses.push(res);
+                        invoiceResults.push(res);
                     }
                     continue;
                 }
@@ -264,7 +265,7 @@ module.exports = (srv) => {
                     }
 
                     const res = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
-                    responses.push(res);
+                    invoiceResults.push(res);
                     continue;
                 }
 
@@ -277,17 +278,17 @@ module.exports = (srv) => {
                     }
 
                     const res = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
-                    responses.push(res);
+                    invoiceResults.push(res);
                     continue;
                 }
 
                 // DEFAULT fallback: Always create
                 const res = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
-                responses.push(res);
+                invoiceResults.push(res);
             }
         }
 
-        return {responses, updatedContracts,skippedContracts};
+        return {invoiceResults, updatedContracts,skippedContracts};
     }
 
 
@@ -305,13 +306,30 @@ module.exports = (srv) => {
         
         const prevDay = d => new Date(new Date(d).setDate(new Date(d).getDate() - 1)).toISOString().slice(0, 10);
 
-        const response = await handlExistingContract(tx,'ES',"ConditionContract",{ExistingContractNumber: contract.ContractNumber,ExpireDate: prevDay(newOffer.ConditionValidityStartDate)});
+        const {response, body} = await handlExistingContract(tx,'ES',"ConditionContract",{ExistingContractNumber: contract.ContractNumber,ExpireDate: prevDay(newOffer.ConditionValidityStartDate)});
 
         if (response?.status !== 200) {
-            throw new Error(`Update of ExistingContract failed for ${contract.ContractNumber}`);
+            const error = new Error(
+                `Update of ExistingContract failed for ${contract.ContractNumber}`
+            );
+            error.payload = body;
+            throw error;
         }
 
         console.log(`Existing contract ${contract.ContractNumber} updated successfully`);
+
+        const inserts = {
+            ContractNumber        : contract.ContractNumber,
+            ContractType      : contract.ContractType,
+            ContractReference : contract.ContractReference,        
+            PayloadType       : 'UpdateExistingInvoiceContract',         
+            PayloadToSAP      : JSON.stringify(body),
+            Synchronized      : true,    
+            createdAt         : new Date().toISOString(),
+            createdBy         : tx.context.user.id,
+            CCMContractID: contract.CCMContractID
+        }
+        await tx.run(INSERT.into(ConditionContractsLog).entries(inserts));
         await tx.run(UPDATE(CCMContract).with({ CCMContractEndDate: prevDay(newOffer.ConditionValidityStartDate)}).where({ ID: contract.CCMContractID }));
 
         return true;
@@ -333,7 +351,7 @@ module.exports = (srv) => {
 
             const oauthCredentials = await getBearerToken(oauthAuth);
 
-            return axios({
+            const response = await axios({
                 method: 'patch',
                 url: url,
                 headers: {
@@ -342,7 +360,10 @@ module.exports = (srv) => {
                 },
                 data: JSON.stringify(body)
             });
+
+            return {response, body};
         } catch (error) {
+            error.payload = body;
             throw error
         }
     }
@@ -360,13 +381,38 @@ module.exports = (srv) => {
         
         // const prevDay = d => new Date(new Date(d).setDate(new Date(d).getDate() - 1)).toISOString().slice(0, 10);
 
-        const response = await handleExcludeChildCustomer(tx,'ES',"ConditionContract",{ExistingContractNumber: contract.ContractNumber, customer: newOffer.Customer, validfrom: newOffer.ConditionValidityStartDate, validto:newOffer.ConditionValidityEndDate});
+        const {response, body} = await handleExcludeChildCustomer(tx,'ES',"ConditionContract",{ExistingContractNumber: contract.ContractNumber, customer: newOffer.Customer, validfrom: newOffer.ConditionValidityStartDate, validto:newOffer.ConditionValidityEndDate});
 
-        if (response?.status !== 200) {
-            throw new Error(`Update of ExistingContract failed for ${contract.ContractNumber}`);
+        const batchText = response?.data ?? "";
+
+        if (batchText.includes("HTTP/1.1 400")) {
+
+            const msgMatch = batchText.match(/<message[^>]*>([\s\S]*?)<\/message>/);
+            const errMessage = msgMatch ? msgMatch[1] : "Unknown SAP error";
+
+            const codeMatch = batchText.match(/<code[^>]*>([\s\S]*?)<\/code>/);
+            const errCode = codeMatch ? codeMatch[1] : "UNKNOWN_ERROR";
+
+            const error = new Error(
+                `SAP Batch Error for ${contract.ContractNumber}: [${errCode}] ${errMessage}`
+            );
+            error.payload = body;
+            throw error;
         }
 
         const customer = await tx.run(SELECT.one.from(CCMCustomer).where({CCMContract_ID: contract.CCMContractID}));
+        const inserts = {
+            ContractNumber        : contract.ContractNumber,
+            ContractType      : contract.ContractType,
+            ContractReference : contract.ContractReference,        
+            PayloadType       : 'UpdateExistingInvoiceContract_ExcludeCustomer',         
+            PayloadToSAP      : JSON.stringify(body),
+            Synchronized      : true,    
+            createdAt         : new Date().toISOString(),
+            createdBy         : tx.context.user.id,
+            CCMContractID: contract.CCMContractID
+        }
+        await tx.run(INSERT.into(ConditionContractsLog).entries(inserts));
         await tx.run(UPDATE(CustomerHierarchy).with({ Excluded: true}).where({ CCMCustomer_ID: customer.ID }));
 
         console.log(`Existing contract ${contract.ContractNumber} updated successfully`);
@@ -390,7 +436,7 @@ module.exports = (srv) => {
 
             const oauthCredentials = await getBearerToken(oauthAuth);
 
-            return axios({
+            const response = await axios({
                 method: 'post',
                 url: url,
                 headers: {
@@ -399,7 +445,10 @@ module.exports = (srv) => {
                 },
                 data: JSON.stringify(body)
             });
+
+            return {response, body};
         } catch (error) {
+            error.payload = body;
             throw error
         }
     }
@@ -424,6 +473,17 @@ module.exports = (srv) => {
 
             const oauthCredentials = await getBearerToken(oauthAuth);
 
+            const inserts = {
+                ContractType      : sourceData[0].ContractType,
+                ContractReference : sourceData[0].Reference,        
+                PayloadType       : 'CreateInvoiceContract_ExcludeCustomer',         
+                PayloadToSAP      : JSON.stringify(body),  
+                createdAt         : new Date().toISOString(),
+                createdBy         : tx.context.user.id,
+                CCMContractID: sourceData[0].CCMContractID
+            }
+            await tx.run(INSERT.into(ConditionContractsLog).entries(inserts));
+
             return axios({
                 method: 'post',
                 url: url,
@@ -434,6 +494,7 @@ module.exports = (srv) => {
                 data: JSON.stringify(body)
             });
         } catch (error) {
+            error.payload = body;
             throw error
         }
     }
@@ -445,8 +506,8 @@ module.exports = (srv) => {
                 ConditionDocument: "",
                 incl_excl: "E",
                 customer: contract.Customer,
-                validfrom: contract.ConditionValidityStartDate,
-                validto: contract.ConditionValidityEndDate
+                validfrom: `${contract.ConditionValidityStartDate}T00:00:00`,
+                validto: `${contract.ConditionValidityEndDate}T00:00:00`
             });
 
 
@@ -496,7 +557,7 @@ module.exports = (srv) => {
                     })
                 ) : Promise.resolve([]);
 
-            let invoicePromise = Promise.resolve({ lastResponse: [], updatedContracts: [], skippedContracts: [] });
+            let invoicePromise = Promise.resolve({ invoiceResults: [], updatedContracts: [], skippedContracts: [] });
 
             if (!isPVLContract) {
                 // Preprocess and handle invoice contracts only if not PVL
@@ -508,7 +569,7 @@ module.exports = (srv) => {
 
             //const invoicePromise = createCCMContract(tx, 'ES', "ConditionContract", sourceData);
 
-            const [{ lastResponse: invoiceResults, updatedContracts, skippedContracts }, rebateResponses] = await Promise.all([invoicePromise, rebatePromise]);
+            const [{ invoiceResults, updatedContracts, skippedContracts }, rebateResponses] = await Promise.all([invoicePromise, rebatePromise]);
 
             let createdInvoiceContracts = [];
 
@@ -588,6 +649,7 @@ module.exports = (srv) => {
 
         } catch (error) {
             let statusCode = 500;
+            error.request = req;
             let userMessage = "Unexpected server error. Please contact the application support team.";
 
             if (error.response?.data) {
@@ -611,6 +673,7 @@ module.exports = (srv) => {
                     console.error('Input Payload sent to SAP:');
                     console.error(
                     typeof inputPayload === 'string' ? inputPayload : JSON.stringify(inputPayload, null, 2));
+                    error.inputPayload = inputPayload;
                 } else {
                     console.error('No InputPayload found in the SAP error response');
                 }
@@ -624,7 +687,8 @@ module.exports = (srv) => {
             else {
                 console.error("Unhandled Error:", error);
             }
-
+            error.message = userMessage;
+            logError(error);
             return req.reject(statusCode, userMessage);
         }
     });
@@ -693,7 +757,16 @@ module.exports = (srv) => {
             const url = `${apiConfig.Host}${apiConfig.BasePath}${apiConfig.ResourcePath}`;
 
             const oauthCredentials = await getBearerToken(oauthAuth);
-
+            const inserts = {
+                ContractType      : sourceData[0].ContractType,
+                ContractReference : sourceData.Reference,        
+                PayloadType       : 'CreateInvoiceContract',         
+                PayloadToSAP      : JSON.stringify(body),  
+                createdAt         : new Date().toISOString(),
+                createdBy         : tx.context.user.id,
+                CCMContractID: sourceData[0].CCMContractID
+            }
+            await tx.run(INSERT.into(ConditionContractsLog).entries(inserts));
             return axios({
                 method: 'post',
                 url: url,
@@ -704,6 +777,7 @@ module.exports = (srv) => {
                 data: JSON.stringify(body)
             });
         } catch (error) {
+            error.payload = body;
             throw error
         }
     }
@@ -783,12 +857,12 @@ module.exports = (srv) => {
                 }
 
                 if (Target.endsWith("ConditionContract.bvheader.validfrom")) {
-                    bvheaderEntry.validfrom = sourceData.validfrom;
+                    bvheaderEntry.validfrom = `${sourceData.validfrom}T00:00:00`;
                     continue;
                 }
 
                 if (Target.endsWith("ConditionContract.bvheader.validto")) {
-                    bvheaderEntry.validto = sourceData.validto;
+                    bvheaderEntry.validto = `${sourceData.validto}T00:00:00`;
                     continue;
                 }
 
@@ -1539,6 +1613,7 @@ module.exports = (srv) => {
             return req.reply(`${successMessage} created/updated successfully into SAP`);
         } catch (error) {
             let statusCode = 500;
+            error.request = req;
             let userMessage = "Unexpected server error. Please contact the application support team.";
 
             if (error.response?.data) {
@@ -1571,7 +1646,8 @@ module.exports = (srv) => {
             } else {
                 console.error("Unhandled Error:", error);
             }
-
+            error.message = userMessage;
+            logError(error);
             return req.reject(statusCode, userMessage);
         }
     });
@@ -1652,19 +1728,32 @@ module.exports = (srv) => {
             
             const sourceData = await tx.run(SELECT.one.from(CCMContract).where({ID: CCMContractID}));
             console.log("Process Terminate Contracts");
-            const response = await handlExistingContract(tx, 'ES', "ConditionContract", {ExistingContractNumber: sourceData.ContractNumber,ExpireDate: TerminationDate});
+            const {response, body} = await handlExistingContract(tx, 'ES', "ConditionContract", {ExistingContractNumber: sourceData.ContractNumber,ExpireDate: TerminationDate});
             
             if (response?.status !== 200) {
                 throw new Error(`Termination of ExistingContract failed for ${sourceData.ContractNumber}`);
             }
 
             console.log(`Contract ${sourceData.ContractNumber} terminated successfully. End date updated to ${TerminationDate} in SAP.`);
+            const inserts = {
+                ContractNumber        : sourceData.ContractNumber,
+                ContractType      : sourceData.ContractType,
+                ContractReference : sourceData.ContractReference,        
+                PayloadType       : 'TerminateInvoiceContract',         
+                PayloadToSAP      : JSON.stringify(body),
+                Synchronized      : true,    
+                createdAt         : new Date().toISOString(),
+                createdBy         : req.user.id,
+                CCMContractID: CCMContractID
+            }
+            await tx.run(INSERT.into(ConditionContractsLog).entries(inserts));
             await tx.run(UPDATE(CCMContract).with({ CCMContractEndDate: TerminationDate, CancellationComment: CancellationNote, Cancelled: true}).where({ ID: CCMContractID }));
 
             return req.reply(`Contract ${sourceData.ContractNumber} terminated successfully. End date updated to ${TerminationDate} in SAP.`);
 
         } catch (error) {
             let statusCode = 500;
+            error.request = req;
             let userMessage = "Unexpected server error. Please contact the application support team.";
 
             if (error.response?.data) {
@@ -1689,6 +1778,7 @@ module.exports = (srv) => {
                     console.error('Input Payload sent to SAP:');
                     console.error(
                     typeof inputPayload === 'string' ? inputPayload : JSON.stringify(inputPayload, null, 2));
+                    error.inputPayload = inputPayload;
                 } else {
                     console.error('No InputPayload found in the SAP error response');
                 }
@@ -1701,7 +1791,8 @@ module.exports = (srv) => {
             else {
                 console.error("Unhandled Error:", error);
             }
-
+            error.message = userMessage;
+            logError(error);
             return req.reject(statusCode, userMessage);
         }
     });
@@ -2040,4 +2131,18 @@ module.exports = (srv) => {
             return req.reject(403, "Failed to fetch user countries")
         }
     });
+
+    function logError(err) {
+        cds.spawn(async (tx) => {
+            const inserts = {            
+                PayloadToSAP      : err.payload ? JSON.stringify(err.payload) : JSON.stringify(err.inputPayload),
+                Synchronized      : false,    
+                createdAt         : new Date().toISOString(),
+                createdBy         : err.request.user.id,
+                ErrorMessage     : err.message,
+                CCMContractID: err.request.data.CCMContractID
+            }
+            await tx.run(INSERT.into(ConditionContractsLog).entries(inserts));
+        })
+    }
 };

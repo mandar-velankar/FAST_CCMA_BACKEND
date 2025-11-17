@@ -268,5 +268,6 @@ entity ConditionContractsLog : cuid {
   Synchronized      : Boolean default false;       
   createdAt         : Date;
   createdBy         : String;
+  ErrorMessage     : String;
   CCMContractID: UUID;
 }
