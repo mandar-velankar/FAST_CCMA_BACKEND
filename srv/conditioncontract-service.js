@@ -1504,7 +1504,7 @@ module.exports = (srv) => {
                 const isPVLContract = group.some(d => d.ConditionType === 'PVL');
                 if (isPVLContract) {
                     console.log(`Skipping CCMContractID ${CCMContractID}: PVL ConditionType detected.`);
-                    return { lastResponse: null, updatedContracts: [], skippedContracts: [] };
+                    return { invoiceResults: [], updatedContracts: [], skippedContracts: [] };
                 }
 
                 // Preprocess and process creation (these helpers should return an object:
@@ -1523,8 +1523,8 @@ module.exports = (srv) => {
             let invoiceContractNumbers = [];
             
             for (let i = 0; i < invoiceResponses.length; i++) {
-                const result = invoiceResponses[i] || { lastResponse: [], updatedContracts: [], skippedContracts: [] };
-                const invoiceResults = result.lastResponse || [];
+                const result = invoiceResponses[i] || { invoiceResults: [], updatedContracts: [], skippedContracts: [] };
+                const invoiceResults = result.invoiceResults || [];
                 const updatedContracts = result.updatedContracts || [];
                 const skippedContracts = result.skippedContracts || [];
                 const contractGroup = grouped[i];
