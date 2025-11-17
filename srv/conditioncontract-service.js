@@ -728,6 +728,17 @@ module.exports = (srv) => {
 
             const oauthCredentials = await getBearerToken(oauthAuth);
 
+            const inserts = {
+                ContractType      : sourceData[0].ContractType,
+                ContractReference : rebateSettlementData.SettlementID,        
+                PayloadType       : 'CreateRebateContract',         
+                PayloadToSAP      : JSON.stringify(body),  
+                createdAt         : new Date().toISOString(),
+                createdBy         : tx.context.user.id,
+                CCMContractID: sourceData[0].CCMContractID
+            }
+            await tx.run(INSERT.into(ConditionContractsLog).entries(inserts));
+
             return axios({
                 method: 'post',
                 url: url,
@@ -738,6 +749,7 @@ module.exports = (srv) => {
                 data: JSON.stringify(body)
             });
         } catch (error) {
+            error.payload = body;
             throw error
         }
     }
