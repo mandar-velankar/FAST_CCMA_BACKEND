@@ -1520,7 +1520,7 @@ module.exports = (srv) => {
 
             const updatedContractsAll = [];
             const skippedContractsAll = [];
-            let invoiceCount = 0;
+            let invoiceContractNumbers = [];
             
             for (let i = 0; i < invoiceResponses.length; i++) {
                 const result = invoiceResponses[i] || { lastResponse: [], updatedContracts: [], skippedContracts: [] };
@@ -1534,15 +1534,13 @@ module.exports = (srv) => {
                 updatedContractsAll.push(...updatedContracts);
                 skippedContractsAll.push(...skippedContracts);
 
-                let createdInvoiceContracts = [];
-
                 if (Array.isArray(invoiceResults) && invoiceResults.length > 0) {
                     for (const invoiceResult of invoiceResults) {
                         if (!invoiceResult) continue;
 
                         const contractNumber = invoiceResult?.data?.ConditionContract;
                         if (contractNumber) {
-                            createdInvoiceContracts.push(contractNumber);
+                            invoiceContractNumbers.push(contractNumber);
                             console.log("Payload sent to SAP:", JSON.stringify(typeof invoiceResult?.config?.data === "string" ? JSON.parse(invoiceResult.config.data) : invoiceResult?.config?.data, null, 2));
                             const contractInfo = await tx.run(SELECT.one.from(CCMContract).where({ ID: CCMContractID, ContractNumber: {"!=": null} }));
                             if(contractInfo){
@@ -1578,12 +1576,14 @@ module.exports = (srv) => {
                 }
             }
 
+            let rebateCount = 0;
             // --- Handle rebate responses
             if (Array.isArray(rebateResponses)) {
                 for (const rebateResp of rebateResponses) {
                     const rebateContractNumber = rebateResp?.data?.ConditionContract;
                     const externalDocRefID = rebateResp?.data?.ExternalDocumentReferenceID;
                     if (rebateContractNumber && externalDocRefID) {
+                        rebateCount++;
                         const settlement = rebateSettlementData.find(s => s.SettlementID === externalDocRefID);
                         if (settlement) {
                             await tx.run(
@@ -1600,17 +1600,18 @@ module.exports = (srv) => {
                 }
             }
 
-            let invoiceMsg = createdInvoiceContracts.length ? `CCM Invoice Contract(s): ${createdInvoiceContracts.join(", ")}` : "No Invoice Contracts";
+            let invoiceMsg = invoiceContractNumbers.length ? `Invoice Contracts: ${invoiceContractNumbers.join(", ")}` : "No Invoice Contracts";
 
             let updatedMsg = updatedContractsAll.length ? `Updated Contracts: ${updatedContractsAll.join(", ")}` : "";
 
-            let skippedMsg = skippedContractsAll.length ? `Skipped Contracts (ended before new offer): ${skippedContractsAll.join(", ")}` : "";
+            let skippedMsg = skippedContractsAll.length ? `Skipped Contracts: ${skippedContractsAll.join(", ")} (ended before new offer)` : "";
 
-            let rebateMsg = `${rebateResponses.length} Rebate Contract${rebateResponses.length !== 1 ? "s" : ""}`;
+            let rebateMsg = rebateCount ? `${rebateCount} Rebate Contract${rebateCount !== 1 ? "s" : ""}` : "No Rebate Contracts";
 
             const successMessage = [invoiceMsg, updatedMsg, skippedMsg, rebateMsg].filter(Boolean).join(" + ");
 
             return req.reply(`${successMessage} created/updated successfully into SAP`);
+            
         } catch (error) {
             let statusCode = 500;
             error.request = req;
