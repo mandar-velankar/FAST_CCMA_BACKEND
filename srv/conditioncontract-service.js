@@ -335,14 +335,15 @@ module.exports = (srv) => {
         return true;
     }
 
-        async function handlExistingContract(tx, countryCode, resource, sourceData) {
+    async function handlExistingContract(tx, countryCode, resource, sourceData) {
+        let body;
         try {
             const apiConfig = await tx.run(SELECT.one.from(APIDefinition).where({ Provider: 'ConditionContract', CountryCode: countryCode, Resource: resource, Name: 'UpdateExistingInvoiceContract' }));
             const apiBodyMappings = await tx.run(SELECT.from(APIBody).where({ APIDefinition_ID: apiConfig.ID }));
             if (!apiBodyMappings) {
                 throw new Error("ERR_MISSING_PARAMETER:API body Mappings not found");
             }
-            const body = buildExistingUpdatePayloadFromMappings(sourceData, apiBodyMappings);
+            body = buildExistingUpdatePayloadFromMappings(sourceData, apiBodyMappings);
             if (!body) {
                 throw new Error("ERR_MISSING_PARAMETER:API Body not found");
             }
@@ -454,13 +455,14 @@ module.exports = (srv) => {
     }
 
     async function createCCMContractExcludeCustomer(tx, countryCode, resource, sourceData, contract) {
+        let body;
         try {
             const apiConfig = await tx.run(SELECT.one.from(APIDefinition).where({ Provider: 'ConditionContract', CountryCode: countryCode, Resource: resource, Name: 'InvoicePrice' }));
             const apiBodyMappings = await tx.run(SELECT.from(APIBody).where({ APIDefinition_ID: apiConfig.ID }));
             if (!apiBodyMappings) {
                 throw new Error("ERR_MISSING_PARAMETER:API body Mappings not found");
             }
-            let body = buildPayloadFromMappings(sourceData, apiBodyMappings);
+            body = buildPayloadFromMappings(sourceData, apiBodyMappings);
             if (!body) {
                 throw new Error("ERR_MISSING_PARAMETER:API Body not found");
             }
@@ -755,13 +757,14 @@ module.exports = (srv) => {
     }
 
     async function createCCMContract(tx, countryCode, resource, sourceData) {
+        let body;
         try {
             const apiConfig = await tx.run(SELECT.one.from(APIDefinition).where({ Provider: 'ConditionContract', CountryCode: countryCode, Resource: resource, Name: 'InvoicePrice' }));
             const apiBodyMappings = await tx.run(SELECT.from(APIBody).where({ APIDefinition_ID: apiConfig.ID }));
             if (!apiBodyMappings) {
                 throw new Error("ERR_MISSING_PARAMETER:API body Mappings not found");
             }
-            const body = buildPayloadFromMappings(sourceData, apiBodyMappings);
+            body = buildPayloadFromMappings(sourceData, apiBodyMappings);
             if (!body) {
                 throw new Error("ERR_MISSING_PARAMETER:API Body not found");
             }
