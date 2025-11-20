@@ -202,7 +202,9 @@ module.exports = (srv) => {
         if (existingType === "Tender" && newType === "Commercial Agreement") {
             if (newStart > existingEnd) {
                 return "CREATE_NEW";
-            } else {
+            } else if(newStart < existingStart && newEnd < existingStart){
+                return "CREATE_NEW";
+            } else{
                 return "NO_ACTION";
             }
         }
@@ -229,7 +231,7 @@ module.exports = (srv) => {
             const newOffer = sourceData[0];
 
             // No matching contracts → always create new
-            if (!contracts || contracts.length === 0) {
+            if (!contracts || contracts.length === 0 || caseType === "NO_MATCH" || caseType === "UNCLASSIFIED") {
                 const res = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
                 invoiceResults.push(res);
                 continue;
