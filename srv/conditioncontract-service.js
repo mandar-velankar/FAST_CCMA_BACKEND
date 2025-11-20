@@ -993,6 +993,10 @@ module.exports = (srv) => {
             yrs1Record.PricingScaleType = scaleTypes[sourceData[0].PriceConditionCode] || sourceData[0].PriceConditionCode;
         }
 
+        if (yrs1Record.PricingScaleType === 'D') {
+            yrs1Record.ConditionType = "YRSI";
+        }
+
         yrs1Record._CndnContrScCndnRecord = [
             "",
             {
