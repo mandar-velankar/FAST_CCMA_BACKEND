@@ -532,6 +532,7 @@ entity CCMContractsExtendedView as
             ccm.ContractNumber as ContractNumber,
             ccm.CCMContractStartDate as EffectiveDate,
             ccm.CCMContractEndDate as ExpiryDate,
+            ccm.Synchronized,
             ccm.ExtensionPeriod,
             ccm.Extension,
             invoice.YP00 as PVL
