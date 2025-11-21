@@ -230,6 +230,10 @@ module.exports = (srv) => {
             const { sourceData, case: caseType, contracts } = item;
             const newOffer = sourceData[0];
 
+            let shouldCreateNew = false;         
+            let shouldCreateExcludingCustomer = false;  
+            let excludeCustomerContract = null;
+
             // No matching contracts → always create new
             if (!contracts || contracts.length === 0 || caseType === "NO_MATCH" || caseType === "UNCLASSIFIED") {
                 const res = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
@@ -245,20 +249,23 @@ module.exports = (srv) => {
                     continue;
                 }
 
-                // CASE 5: NEW contract always created
+                // ---------------------------
+                // CASE 5: ALWAYS CREATE NEW
+                // ---------------------------
                 if (caseType === "CASE_5") {
+                    shouldCreateNew = true;
+
                     if (action === "UPDATE_AND_CREATE_NEW") {
-                        // Exclude child from NEW payload
-                        const res = await createCCMContractExcludeCustomer(tx, 'ES', "ConditionContract", sourceData, contract);
-                        invoiceResults.push(res);
-                    } else {
-                        const res = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
-                        invoiceResults.push(res);
+                        shouldCreateExcludingCustomer = true;
+                        excludeCustomerContract = contract;
                     }
+
                     continue;
                 }
 
-                // CASE 2: Update = EXCLUDE EXISTING + Create new
+                // ---------------------------
+                // CASE 2: UPDATE EXISTING + CREATE NEW
+                // ---------------------------
                 if (caseType === "CASE_2") {
                     if (action === "UPDATE_AND_CREATE_NEW") {
                         const updated = await excludeChildCustomer(tx, contract, newOffer);
@@ -266,12 +273,13 @@ module.exports = (srv) => {
                         else skippedContracts.push(contract.ContractNumber);
                     }
 
-                    const res = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
-                    invoiceResults.push(res);
+                    shouldCreateNew = true;
                     continue;
                 }
 
-                // CASE 1 + CASE 3: Update existing + Create new
+                // ---------------------------
+                // CASE 1 + CASE 3: UPDATE EXISTING + CREATE NEW
+                // ---------------------------
                 if (["CASE_1", "CASE_3"].includes(caseType)) {
                     if (action === "UPDATE_AND_CREATE_NEW") {
                         const updated = await updateExistingContract(tx, contract, newOffer);
@@ -279,13 +287,26 @@ module.exports = (srv) => {
                         else skippedContracts.push(contract.ContractNumber);
                     }
 
-                    const res = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
-                    invoiceResults.push(res);
+                    shouldCreateNew = true;
                     continue;
                 }
 
-                // DEFAULT fallback: Always create
-                const res = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
+                // DEFAULT: create new
+                shouldCreateNew = true;
+            }
+
+            if (shouldCreateNew) {
+                let res;
+
+                // CASE 5 (exclude child only for the new contract)
+                if (shouldCreateExcludingCustomer && excludeCustomerContract) {
+                    res = await createCCMContractExcludeCustomer(
+                        tx, "ES", "ConditionContract", sourceData, excludeCustomerContract
+                    );
+                } else {
+                    res = await createCCMContract(tx, "ES", "ConditionContract", sourceData);
+                }
+
                 invoiceResults.push(res);
             }
         }
@@ -477,17 +498,6 @@ module.exports = (srv) => {
 
             const oauthCredentials = await getBearerToken(oauthAuth);
 
-            const inserts = {
-                ContractType      : sourceData[0].ContractType,
-                ContractReference : sourceData[0].Reference,        
-                PayloadType       : 'CreateInvoiceContract_ExcludeCustomer',         
-                PayloadToSAP      : JSON.stringify(body),  
-                createdAt         : new Date().toISOString(),
-                createdBy         : tx.context.user.id,
-                CCMContractID: sourceData[0].CCMContractID
-            }
-            await tx.run(INSERT.into(ConditionContractsLog).entries(inserts));
-
             return axios({
                 method: 'post',
                 url: url,
@@ -591,6 +601,17 @@ module.exports = (srv) => {
                             await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber, Expired: false}).where({ ID: CCMContractID }));
                         }
                         await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, ContractReferene: contractReference, Synchronized: true, Expired: false, CreationDate: today}).where({ ID: CCMContractID }));
+                        const inserts = {
+                            ContractNumber        : contractNumber,
+                            ContractReference : contractReference,        
+                            PayloadType       : 'Invoice',         
+                            PayloadToSAP      : JSON.stringify(invoiceResult.config.data),
+                            Synchronized      : true,    
+                            createdAt         : new Date().toISOString(),
+                            createdBy         : req.user.id,
+                            CCMContractID: CCMContractID
+                        }
+                        await tx.run(INSERT.into(ConditionContractsLog).entries(inserts));
                     }
 
                     let bvheaders = invoiceResult?.data?.bvheader || [];
@@ -630,6 +651,17 @@ module.exports = (srv) => {
                             await tx.run(UPDATE(SettlementsDate).with({ RebateContractNumber: rebateContractNumber, Synchronized: true, CreationDate: today })
                                     .where({ SettlementID: settlement.SettlementID }));
 
+                            const inserts = {
+                                ContractNumber        : rebateContractNumber,
+                                ContractReference : settlement.SettlementID,        
+                                PayloadType       : 'Rebate',         
+                                PayloadToSAP      : JSON.stringify(rebateResp.config.data),
+                                Synchronized      : true,    
+                                createdAt         : new Date().toISOString(),
+                                createdBy         : req.user.id,
+                                CCMContractID: CCMContractID
+                            }
+                            await tx.run(INSERT.into(ConditionContractsLog).entries(inserts));
                             console.log("Rebate payload sent to SAP:", JSON.stringify(typeof rebateResp?.config?.data === "string" ? JSON.parse(rebateResp.config.data) : rebateResp?.config?.data, null, 2));
                             //console.log("Rebate response from SAP:", rebateResp?.data);
                         } else {
@@ -774,16 +806,6 @@ module.exports = (srv) => {
             const url = `${apiConfig.Host}${apiConfig.BasePath}${apiConfig.ResourcePath}`;
 
             const oauthCredentials = await getBearerToken(oauthAuth);
-            const inserts = {
-                ContractType      : sourceData[0].ContractType,
-                ContractReference : sourceData.Reference,        
-                PayloadType       : 'CreateInvoiceContract',         
-                PayloadToSAP      : JSON.stringify(body),  
-                createdAt         : new Date().toISOString(),
-                createdBy         : tx.context.user.id,
-                CCMContractID: sourceData[0].CCMContractID
-            }
-            await tx.run(INSERT.into(ConditionContractsLog).entries(inserts));
             return axios({
                 method: 'post',
                 url: url,
@@ -1560,6 +1582,7 @@ module.exports = (srv) => {
                         if (!invoiceResult) continue;
 
                         const contractNumber = invoiceResult?.data?.ConditionContract;
+                        const contractReference = invoiceResult?.data?.ExternalDocumentReferenceID;
                         if (contractNumber) {
                             invoiceContractNumbers.push(contractNumber);
                             console.log("Payload sent to SAP:", JSON.stringify(typeof invoiceResult?.config?.data === "string" ? JSON.parse(invoiceResult.config.data) : invoiceResult?.config?.data, null, 2));
@@ -1567,7 +1590,19 @@ module.exports = (srv) => {
                             if(contractInfo){
                                 await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber, Expired: false}).where({ ID: CCMContractID }));
                             }
-                            await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, Synchronized: true, Expired: false, CreationDate: today}).where({ ID: CCMContractID }));
+                            await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, ContractReferene: contractReference, Synchronized: true, Expired: false, CreationDate: today}).where({ ID: CCMContractID }));
+
+                            const inserts = {
+                                ContractNumber        : contractNumber,
+                                ContractReference : contractReference,        
+                                PayloadType       : 'Invoice',         
+                                PayloadToSAP      : JSON.stringify(invoiceResult.config.data),
+                                Synchronized      : true,    
+                                createdAt         : new Date().toISOString(),
+                                createdBy         : req.user.id,
+                                CCMContractID: CCMContractID
+                            }
+                            await tx.run(INSERT.into(ConditionContractsLog).entries(inserts));
                         }
 
                         let bvheaders = invoiceResult?.data?.bvheader || [];
@@ -1607,11 +1642,18 @@ module.exports = (srv) => {
                         rebateCount++;
                         const settlement = rebateSettlementData.find(s => s.SettlementID === externalDocRefID);
                         if (settlement) {
-                            await tx.run(
-                                UPDATE(SettlementsDate)
-                                    .with({ RebateContractNumber: rebateContractNumber, Synchronized: true, CreationDate: today })
-                                    .where({ SettlementID: settlement.SettlementID })
-                            );
+                            await tx.run(UPDATE(SettlementsDate).with({ RebateContractNumber: rebateContractNumber, Synchronized: true, CreationDate: today }).where({ SettlementID: settlement.SettlementID }));
+                            const inserts = {
+                                ContractNumber        : rebateContractNumber,
+                                ContractReference : externalDocRefID,        
+                                PayloadType       : 'Rebate',         
+                                PayloadToSAP      : JSON.stringify(rebateResp.config.data),
+                                Synchronized      : true,    
+                                createdAt         : new Date().toISOString(),
+                                createdBy         : req.user.id,
+                                CCMContractID: settlement.CCMContractID
+                            }
+                            await tx.run(INSERT.into(ConditionContractsLog).entries(inserts));
                             console.log("Rebate payload sent to SAP:", JSON.stringify(rebateResp?.config?.data, null, 2));
                             console.log("Rebate response from SAP:", rebateResp?.data);
                         } else {
@@ -2146,8 +2188,10 @@ module.exports = (srv) => {
         try {
             let userCountries = await getUserCountries();
             // Filter for the logged-in user's CWID
+            console.log("Requesting user countries for CWID:", req.user.id);
+            console.log("All fetched user countries:", userCountries);
             userCountries = userCountries.filter((c) => c.CWID === req.user.id);
-
+            console.log("Filtered user countries for the requesting user:", userCountries);
             return userCountries;
         }catch(error){
             return req.reject(403, "Failed to fetch user countries")
