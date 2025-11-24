@@ -70,14 +70,30 @@
                             text="{ProductName}"
                         />
                     </Select>
-                    <Select id="idNewMaterialNumbers" change=".setFilter">
+                    <Select id="idslctfilter" change=".setFilter">
                         <core:Item
-                            key="All_Materials"
+                            key=""
                             text="All"
                         />
                         <core:Item
                             key="newMaterialNumbersKey"
                             text="New Material Numbers"
+                        />
+                        <core:Item
+                            key="updatedPVLKey"
+                            text="Updated PVL"
+                        />
+                        <core:Item
+                            key="updatedConfidentialPriceKey"
+                            text="Updated Confidential Price"
+                        />
+                        <core:Item
+                            key="netPriceAbovePVLKey"
+                            text="Net Price Above PVL"
+                        />
+                        <core:Item
+                            key="netPriceBelowFloorPriceKey"
+                            text="Net Price Below Floor Price"
                         />
                     </Select>
 

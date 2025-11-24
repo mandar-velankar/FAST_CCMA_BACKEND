@@ -179,6 +179,7 @@ entity CCMContractPricingFormView                  as
         on ccmcontract.ProductCode = invoice.ProductCode and fcc.OfferID = invoice.OfferID
     {
         key ccmcontract.ID as CCMContractID,
+            ccmcontract.Synchronized,
             invoice.ConditionType,
             invoice.CountryCode,
             invoice.YP00,
@@ -419,5 +420,121 @@ entity CurrentCCMPricingView as select from CCMContract as ccmcontract
     ifnull(currentPrice.RentalPrice, invoice.RentalPrice) as RentalPrice: Double,  
     ifnull(currentPrice.MonthlyRentPerUnit, invoice.MonthlyRentPerUnit) as MonthlyRentPerUnit: Double,
     ifnull(currentPrice.AnnualValue, invoice.AnnualValue) as AnnualValue: Double
-}
+};
+
+entity CCMContractsCreatedNotificationMailJobView as
+    select from FastConditionContracts as fcc
+        inner join CCMContract as ccm on ccm.FastConditionContracts.ID = fcc.ID
+        inner join CCMMaterial as mat on mat.CCMContract.ID = ccm.ID and mat.ActiveRecord = 1
+    {
+        fcc.ID as FastConditionContractID,
+        ccm.ID as CCMContractID,
+        fcc.CountryCode,
+        ccm.modifiedBy as CWID,
+        fcc.Owner,
+        fcc.OwnerEmail as UserEmail,
+        fcc.OwnerName,
+    key fcc.CustomerID as InstituteID,
+        ccm.CCMCustomer.InstituteName,
+    key mat.MaterialNumber,
+        ccm.ProductName as PRODUCTPACKNAME,
+        fcc.OfferID,
+        fcc.Division,
+        'Invoice' as ContractType: String,
+        ccm.ContractNumber as ContractNumber,
+        ccm.CCMContractStartDate as EffectiveDate,
+        ccm.CCMContractEndDate as ExpiryDate,
+        ccm.CreationDate as ContractCreationDate,
+        ccm.ContractReferene,
+        fcc.TenderID,
+        fcc.ContractType as Classification
+    }
+    where ccm.ContractNumber is not null
+      and ccm.ContractNumber <> ''
+      and ccm.Expired = false
+      and ccm.Cancelled = false
+
+union select from FastConditionContracts as fcc
+        inner join CCMContract as ccm on ccm.FastConditionContracts.ID = fcc.ID
+        inner join SettlementsDate as rebate on rebate.CCMContractID = ccm.ID
+        inner join CCMMaterial as mat on mat.CCMContract.ID = ccm.ID and mat.ActiveRecord = 1
+    {
+        fcc.ID as FastConditionContractID,
+        ccm.ID as CCMContractID,
+        fcc.CountryCode,
+        fcc.Owner,
+        fcc.OwnerEmail  as UserEmail,
+        fcc.OwnerName,
+        rebate.modifiedBy as CWID,
+    key fcc.CustomerID as InstituteID,
+        ccm.CCMCustomer.InstituteName,
+    key mat.MaterialNumber,
+        ccm.ProductName as PRODUCTPACKNAME,
+        fcc.OfferID,
+        fcc.Division,
+        'Rebate' as ContractType: String,
+        rebate.RebateContractNumber as ContractNumber,
+        rebate.FromDate as EffectiveDate,
+        rebate.ToDate as ExpiryDate,
+        rebate.CreationDate as ContractCreationDate,
+        rebate.SettlementID as ContractReferene,
+        fcc.TenderID,
+        fcc.ContractType as Classification
+    }
+    where rebate.RebateContractNumber is not null
+      and rebate.RebateContractNumber <> '';
+
+entity CCMContractsExtendedView as
+    select from FastConditionContracts as fcc
+        inner join CCMContract as ccm on ccm.FastConditionContracts.ID = fcc.ID
+        inner join CCMMaterial as mat on mat.CCMContract.ID = ccm.ID and mat.ActiveRecord = 1
+    {
+        fcc.ID as FastConditionContractID,
+        ccm.ID as CCMContractID,
+        fcc.CountryCode,
+        ccm.modifiedBy as CWID,
+        fcc.Owner,
+        fcc.OwnerEmail as UserEmail,
+        fcc.OwnerName,
+    key fcc.CustomerID as InstituteID,
+        ccm.CCMCustomer.InstituteName,
+    key mat.MaterialNumber,
+        ccm.ProductName as PRODUCTPACKNAME,
+        fcc.OfferID,
+        fcc.Division,
+        'Invoice' as ContractType: String,
+        ccm.ContractNumber as ContractNumber,
+        ccm.CCMContractStartDate as EffectiveDate,
+        ccm.CCMContractEndDate as ExpiryDate,
+        ccm.CreationDate as ContractCreationDate,
+        ccm.ContractReferene,
+        fcc.TenderID,
+        fcc.ContractType as Classification
+    };
+
+    entity CCMContractsExpiringSoonView as select from FastConditionContracts as fcc 
+        inner join CCMContract as ccm on ccm.FastConditionContracts.ID = fcc.ID
+        inner join PriceConditionInvoice as invoice on invoice.CCMContract.ID = ccm.ID {
+            fcc.ID as FastConditionContractID,
+        key ccm.ID as CCMContractID,
+            fcc.TenderID,
+            fcc.OfferID,
+            fcc.CountryCode,
+            ccm.modifiedBy as CWID,
+            fcc.Owner,
+            fcc.OwnerEmail,
+            fcc.OwnerName,
+            fcc.ExternalID,
+            ccm.CCMContractEndDate,
+            ccm.CCMCustomer.InstituteName,
+            ccm.ProductName,
+            ccm.ProductCode,
+            ccm.ContractNumber as ContractNumber,
+            ccm.CCMContractStartDate as EffectiveDate,
+            ccm.CCMContractEndDate as ExpiryDate,
+            ccm.Synchronized,
+            ccm.ExtensionPeriod,
+            ccm.Extension,
+            invoice.YP00 as PVL
+    }
 }

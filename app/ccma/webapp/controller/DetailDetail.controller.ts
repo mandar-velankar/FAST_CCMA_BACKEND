@@ -66,6 +66,7 @@ export default class Detail extends BaseController {
                 editMode: false,
             },
             hasPricingFOC: false,
+            isIgnoreContractPriceBtnEnabled: false,
             minDate: new Date(),
         });
 
@@ -124,7 +125,8 @@ export default class Detail extends BaseController {
         form?.bindElement({
             path: path,
             parameters: {
-                $$updateGroupId: "contractInformationDetailDetail"
+                $$updateGroupId: "contractInformationDetailDetail",
+                $expand: "FastConditionContracts"
             },
             events: {
                 dataReceived: async (event: any) => {
@@ -133,7 +135,13 @@ export default class Detail extends BaseController {
                     uiModel.setProperty("/ProductName", items.ProductName);
                     uiModel.setProperty("/hasExistingContract", items.ContractNumber ? true : false );
                     uiModel.setProperty("/hasCancelled", items.Cancelled);
-                  
+                    uiModel.setProperty(
+                        "/isIgnoreContractPriceBtnEnabled", items.FastConditionContracts.hasNetPriceAbovePVL ? false :
+                        items.FastConditionContracts.hasUpdatedPVL || 
+                        items.FastConditionContracts.hasUpdatedConfidentialPrice || 
+                        items.FastConditionContracts.hasNetPriceBelowFloorPrice
+                    );
+
                     let showExtensionFields = false;
 
                     if (items?.ContractType === "Tender") {
@@ -162,7 +170,13 @@ export default class Detail extends BaseController {
         ccmCustomerInfo?.bindElement({
             path: path,
             parameters: {
-                $$updateGroupId: "PricingFormDetailDetail"
+                $$updateGroupId: "PricingFormDetailDetail",
+                $select: "Synchronized"
+            },
+            events: {
+                dataReceived: () => {
+                    this.onEnableGetCurrentCCMPrice();
+                }
             }
         });
 
@@ -964,6 +978,7 @@ export default class Detail extends BaseController {
     public onGetCurrentCCMPriceSuccess(res: any): void {
         MessageBox.success(res?.value);
         BusyIndicator.hide();
+        this.getModel().resetChanges("ContractInformationDetail");
         this.getModel()?.refresh();
     }
 
@@ -1027,6 +1042,7 @@ export default class Detail extends BaseController {
         });
 
         ignoreBtn.setEnabled(false);
+        this.onEnableGetCurrentCCMPrice();
         this.getModel()?.refresh();
     }
 
@@ -1048,16 +1064,24 @@ export default class Detail extends BaseController {
         MessageBox.error(message);
     }
 
+    public onEnableGetCurrentCCMPrice(): void {
+        const getCurrentCCMPriceBtn = this.byId("idGetCurrentCCMPriceButton") as Button;
+        const pricingContext = this.byId("idNewPricingForm")?.getBindingContext();
+        const conditionType = pricingContext?.getProperty("ConditionType");
+        const isContractSynchronized = pricingContext?.getProperty("Synchronized");
+        if (!pricingContext || !conditionType) return false;
+        getCurrentCCMPriceBtn.setEnabled(conditionType !== "PVL" && conditionType !== "DescuentoEspecial" && isContractSynchronized);
+    }
+
     public onCheckContractPriceDifference(currentPrice: any, path: string, controlID: string) {
         if (!currentPrice) return "None";
         const fastPricingContext = this.byId("idNewPricingForm")?.getBindingContext();
         const ccmPricingContext = this.byId("idNewPricingFormCCM")?.getBindingContext();
-        const ignoreBtn = this.byId("idIgnoreCurrentCCMPriceButton") as Button;
         const control = this.byId(controlID);
-
+        control.removeStyleClass("highlightRedText");
 
         if (!fastPricingContext || !ccmPricingContext) {
-            return "None"; // no context, skip
+            return "None";
         }
 
         const fastContractPrice = fastPricingContext.getProperty(path);
@@ -1072,14 +1096,17 @@ export default class Detail extends BaseController {
             return "None";
         }
 
-        // Compare decimals precisely
-        if (nCurrent !== nContract) {
-            ignoreBtn.setEnabled(true);
+        // --- Dynamic tolerance logic ---
+        // If value is a percentage (less than 1), use tighter tolerance
+        // If it's a price (>= 1), use standard tolerance
+        const tolerance = (Math.abs(nCurrent) < 1) ? 0.000001 : 0.01;
+
+        if (Math.abs(nCurrent - nContract) > tolerance) {
             control.addStyleClass("highlightRedText");
-            return "Error"; // highlight red if they differ
+            return "Error";
         }
 
-        return "None"; // values match — no error
+        return "None";
     }
 
 }
