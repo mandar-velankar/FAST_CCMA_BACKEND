@@ -129,9 +129,24 @@ export default class Master extends BaseController {
 		let brandID = (this.byId("idSlctBrand") as Select)?.getSelectedKey();
 		let productCode = (this.byId("idSelectProduct") as Select)?.getSelectedKey();
 
-		const slctfilterSelectedItemKey = this.byId("idNewMaterialNumbers")?.getSelectedItem().getKey().toLowerCase();
+		const selectedKey = this.byId("idslctfilter")?.getSelectedItem()?.getKey()?.toLowerCase();
 
-		const hasNewMaterialsFilter = slctfilterSelectedItemKey === "newmaterialnumberskey";
+		if (selectedKey && selectedKey !== "") {
+			
+			const filterMap = {
+				newmaterialnumberskey: "hasNewMaterialNumber",
+				updatedpvlkey: "hasUpdatedPVL",
+				updatedconfidentialpricekey: "hasUpdatedConfidentialPrice",
+				netpriceabovepvlkey: "hasNetPriceAbovePVL",
+				netpricebelowfloorpricekey: "hasNetPriceBelowFloorPrice"
+			};
+
+			const filterProperty = filterMap[selectedKey];
+
+			if (filterProperty) {
+				andFilters.push(new Filter(filterProperty, "EQ", true));
+			}
+		}
 
 		if (sSearch.length > 0) {
 
@@ -253,13 +268,7 @@ export default class Master extends BaseController {
 				caseSensitive: false
 			}));
 		}
-
-		//New Material Numbers filter
-		if (slctfilterSelectedItemKey && slctfilterSelectedItemKey !== "all_materials") {
-			if(hasNewMaterialsFilter){ 
-				andFilters.push(new Filter("hasNewMaterialNumber", "EQ", hasNewMaterialsFilter));
-			}
-		}
+		
 
 		if (andFilters.length > 0) {
 			var oFilters = new Filter(andFilters, true);

@@ -16,6 +16,8 @@ entity FastConditionContracts: cuid, managed {
   Reference: String;
   Status: String;
   Owner: String;
+  OwnerName: String;
+  OwnerEmail: String;
   BrandFilter: String;
   ProductFilter: String;
   Extension: Boolean;
@@ -53,6 +55,7 @@ entity CCMContract: cuid, managed, temporal{
   CCMContractEndDate: Date;
   PreviousContractNumber: String;
   ContractNumber: String;
+  ContractReferene: String;
   Expired: Boolean;
   ItemGUID: String;
   Synchronized: Boolean default false;
@@ -222,7 +225,8 @@ entity SettlementsDate: managed{
   key FromDate               : Date;
   ToDate                     : Date;
   SettlementID               : String; 
-  RebateContractNumber    : String;
+  RebateContractNumber       : String;
+  CreationDate              : Date;
   Synchronized              : Boolean default false;
 }
 
@@ -264,5 +268,6 @@ entity ConditionContractsLog : cuid {
   Synchronized      : Boolean default false;       
   createdAt         : Date;
   createdBy         : String;
-  CCMContract: Association to CCMContract;
+  ErrorMessage     : String;
+  CCMContractID: UUID;
 }

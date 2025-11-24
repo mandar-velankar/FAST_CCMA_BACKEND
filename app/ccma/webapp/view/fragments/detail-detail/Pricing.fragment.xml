@@ -25,10 +25,12 @@
                         <m:Toolbar>
                             <m:ToolbarSpacer />
                             <m:Button 
+                                id="idGetCurrentCCMPriceButton"
                                 text="Get Current CCM Price" 
                                 type="Emphasized"
                                 icon="sap-icon://download"
                                 press="onGetCurrentCCMPrice"
+                                enabled="false"
                             />
                             <m:Button 
                                 id="idIgnoreCurrentCCMPriceButton"
@@ -36,7 +38,7 @@
                                 icon="sap-icon://decline" 
                                 type="Emphasized" 
                                 press=".onIgnoreCurrentCCMPrice" 
-                                enabled="false"
+                                enabled="{ui>/isIgnoreContractPriceBtnEnabled}"
                             />
                         </m:Toolbar>
                     </form:toolbar>
