@@ -555,7 +555,7 @@ module.exports = (srv) => {
             }));
 
             // Skip invoice contract creation if ConditionType is PVL
-            const isPVLContract = sourceData.some(d => d.ConditionType === 'PVL');
+            const isPVLContract = sourceData.some(d => d.ConditionType === 'PVL' || d.ConditionType === 'Rental');
 
             //Process Rebate Contracts
             console.log("Process Rebate Contracts");
@@ -1544,7 +1544,7 @@ module.exports = (srv) => {
                 const CCMContractID = group[0].CCMContractID;
 
                 // Skip invoice contract creation if PVL (any row in the group)
-                const isPVLContract = group.some(d => d.ConditionType === 'PVL');
+                const isPVLContract = group.some(d => d.ConditionType === 'PVL' || d.ConditionType === 'Rental');
                 if (isPVLContract) {
                     console.log(`Skipping CCMContractID ${CCMContractID}: PVL ConditionType detected.`);
                     return { invoiceResults: [], updatedContracts: [], skippedContracts: [] };
@@ -2189,7 +2189,6 @@ module.exports = (srv) => {
             let userCountries = await getUserCountries();
             // Filter for the logged-in user's CWID
             console.log("Requesting user countries for CWID:", req.user.id);
-            console.log("All fetched user countries:", userCountries);
             userCountries = userCountries.filter((c) => c.CWID === req.user.id);
             console.log("Filtered user countries for the requesting user:", userCountries);
             return userCountries;
@@ -2211,4 +2210,6 @@ module.exports = (srv) => {
             await tx.run(INSERT.into(ConditionContractsLog).entries(inserts));
         })
     }
+
+    srv.getSAPSalesOrderSimulationRequestBody = getSAPSalesOrderSimulationRequestBody;
 };
