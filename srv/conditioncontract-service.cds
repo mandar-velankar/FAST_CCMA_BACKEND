@@ -579,9 +579,9 @@ entity CCMContractsExtendedView as
             currentInvoice.YP00 as CurrentPVL,
             invoice.NetPriceWithTax as NetPriceWithTax,
             case 
-                when invoice.ConditionType = 'PrecioNeto'
-                    then invoice.YP10
-                else invoice.NetPriceWithoutTax
+                when currentInvoice.ConditionType = 'PrecioNeto'
+                    then currentInvoice.YP10
+                else currentInvoice.NetPriceWithoutTax
             end as NetPrice: Double
         } where ccm.Synchronized = true;
 }
