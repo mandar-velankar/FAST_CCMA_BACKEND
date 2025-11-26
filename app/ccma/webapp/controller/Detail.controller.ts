@@ -32,27 +32,29 @@ export default class Detail extends BaseController {
 
     public onInit() {
         this.getRouter().getRoute("detail")?.attachPatternMatched(this.onMatched, this);
-
-       const oModel: JSONModel = new JSONModel({
-            busy: false,
-            delay: 0,
-            editMode: false,
-            ContractInformationForm: {
+        const today = new Date();
+        const maxDate = new Date(today.getFullYear() + 2, today.getMonth(), today.getDate());
+        const oModel: JSONModel = new JSONModel({
                 busy: false,
                 delay: 0,
                 editMode: false,
-            },
-            minDate: new Date(),
-        });
+                ContractInformationForm: {
+                    busy: false,
+                    delay: 0,
+                    editMode: false,
+                },
+                minDate: today,
+                maxDate: maxDate
+            });
 
-        const messagesModel = new JSONModel({
-            contractInformationDetail: []
-        });
-                
-        this.setModel(messagesModel, "messages");
-        this.setModel(oModel, "ui");
+            const messagesModel = new JSONModel({
+                contractInformationDetail: []
+            });
+                    
+            this.setModel(messagesModel, "messages");
+            this.setModel(oModel, "ui");
 
-        this.subscribeEventEmitter("contractProductChannel", "contractDateChanged", this.refreshContractTable.bind(this));
+            this.subscribeEventEmitter("contractProductChannel", "contractDateChanged", this.refreshContractTable.bind(this));
     }
 
     public onMatched(event: Route$PatternMatchedEvent): void {

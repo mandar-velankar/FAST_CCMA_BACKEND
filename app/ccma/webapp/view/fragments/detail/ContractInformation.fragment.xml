@@ -80,6 +80,7 @@
 								}"
 								change=".onChangeContractStartDate"
 								minDate="{ui>/minDate}"
+								maxDate="{ui>/maxDate}"
 							/>
 						</form:fields>
 					</form:FormElement>
@@ -100,6 +101,7 @@
 									path: 'ContractStartDate',
 									formatter: '.formatMinDate'
 								}"
+								maxDate="{ui>/maxDate}"
 							/>
 						</form:fields>
 					</form:FormElement>
