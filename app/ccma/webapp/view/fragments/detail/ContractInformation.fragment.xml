@@ -69,7 +69,7 @@
 					<form:FormElement label="{i18n>ContractInformationFragment.StartDate}">
 						<form:fields>
 							<DatePicker 
-								enabled="{= ${ui>/ContractInformationForm/editMode}}"
+								enabled="{= ${ui>/ContractInformationForm/editMode} &amp;&amp; !${ui>/hasExistingContract}}"
 								value = "{
 									path: 'ContractStartDate',
 									type: 'sap.ui.model.odata.type.Date',
@@ -87,7 +87,7 @@
                     <form:FormElement label="{i18n>ContractInformationFragment.EndtDate}" >
 						<form:fields>
 							<DatePicker 
-								enabled="{= ${ui>/ContractInformationForm/editMode}}"
+								enabled="{= ${ui>/ContractInformationForm/editMode} &amp;&amp; !${ui>/hasExistingContract}}"
 								value = "{
 									path: 'ContractEndDate',
 									type: 'sap.ui.model.odata.type.Date',
