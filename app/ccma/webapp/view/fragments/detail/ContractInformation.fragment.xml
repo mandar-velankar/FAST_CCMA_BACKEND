@@ -117,7 +117,7 @@
 							<StepInput
 								value="{path: 'ExtensionPeriod'}"
 								min="0"
-								max="12"
+								max="24"
 								enabled="{= ${ui>/ContractInformationForm/editMode}}"
 								description="Months" 
 								validationMode="LiveChange"

@@ -261,6 +261,10 @@ export default class Detail extends BaseController {
         const formData = context?.getObject();
         const contractTable = this.byId("idCCMContract");
 
+        if (formData?.ExtensionPeriod > 24) {
+            MessageBox.error("Extension period cannot exceed 24 months.");
+            return;
+        }
         context.setProperty("ContractStartDate", formData?.ContractStartDate || "");
         context.setProperty("ContractEndDate", formData?.ContractEndDate || "");
 
