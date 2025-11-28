@@ -146,7 +146,7 @@ export default class Detail extends BaseController {
 
                     let showExtensionFields = false;
 
-                    if (items?.ContractType === "Tender") {
+                    if (items?.FastConditionContracts?.ContractType === "Tender") {
                         uiModel.setProperty("/showExtensionFields", showExtensionFields);
                     } else {
                         try {
