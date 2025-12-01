@@ -69,7 +69,7 @@
 					<form:FormElement label="{i18n>ContractInformationFragment.StartDate}">
 						<form:fields>
 							<DatePicker 
-								enabled="{= ${ui>/ContractInformationForm/editMode}}"
+								enabled="{= ${ui>/ContractInformationForm/editMode} &amp;&amp; !${ui>/hasExistingContract}}"
 								value = "{
 									path: 'CCMContractStartDate',
 									type: 'sap.ui.model.odata.type.Date',
@@ -80,6 +80,7 @@
 								}"
 								change=".onChangeContractStartDate"
 								minDate="{ui>/minDate}"
+								maxDate="{ui>/maxDate}"
 							/>
 						</form:fields>
 					</form:FormElement>
@@ -87,7 +88,7 @@
                     <form:FormElement label="{i18n>ContractInformationFragment.EndtDate}" >
 						<form:fields>
 							<DatePicker 
-								enabled="{= ${ui>/ContractInformationForm/editMode}}"
+								enabled="{= ${ui>/ContractInformationForm/editMode} &amp;&amp; !${ui>/hasExistingContract}}"
 								value = "{
 									path: 'CCMContractEndDate',
 									type: 'sap.ui.model.odata.type.Date',
@@ -100,6 +101,7 @@
 									path: 'CCMContractStartDate',
 									formatter: '.formatMinDate'
 								}"
+								maxDate="{ui>/maxDate}"
 							/>
 						</form:fields>
 					</form:FormElement>
@@ -115,7 +117,7 @@
 							<StepInput
 								value="{path: 'ExtensionPeriod'}"
 								min="0"
-								max="12"
+								max="24"
 								enabled="{= ${ui>/ContractInformationForm/editMode} &amp;&amp; !${ui>/hasCancelled}}"
 								description="Months" 
 								validationMode="LiveChange"

@@ -55,7 +55,8 @@ export default class Detail extends BaseController {
 
     public onInit() {
         this.getRouter().getRoute("detail-detail")?.attachPatternMatched(this.onMatched, this);
-
+        const today = new Date();
+        const maxDate = new Date(today.getFullYear() + 2, today.getMonth(), today.getDate());
         const oModel: JSONModel = new JSONModel({
             busy: false,
             delay: 0,
@@ -67,7 +68,8 @@ export default class Detail extends BaseController {
             },
             hasPricingFOC: false,
             isIgnoreContractPriceBtnEnabled: false,
-            minDate: new Date(),
+            minDate: today,
+            maxDate: maxDate
         });
 
         const messagesModel = new JSONModel({
@@ -144,7 +146,7 @@ export default class Detail extends BaseController {
 
                     let showExtensionFields = false;
 
-                    if (items?.ContractType === "Tender") {
+                    if (items?.FastConditionContracts?.ContractType === "Tender") {
                         uiModel.setProperty("/showExtensionFields", showExtensionFields);
                     } else {
                         try {
@@ -287,6 +289,10 @@ export default class Detail extends BaseController {
         const form = this.byId("idDetailDetailContractInformation");
         const context = form?.getBindingContext() as any;
         const formData = context?.getObject();
+        if (formData?.ExtensionPeriod > 24) {
+            MessageBox.error("Extension period cannot exceed 24 months.");
+            return;
+        }
         context.setProperty("CCMContractStartDate", formData?.CCMContractStartDate || "");
         context.setProperty("CCMContractEndDate", formData?.CCMContractEndDate || "");
         this.getModel()?.submitBatch("contractInformationDetailDetail").then(function(){

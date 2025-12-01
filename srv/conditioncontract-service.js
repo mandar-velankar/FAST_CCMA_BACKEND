@@ -555,7 +555,7 @@ module.exports = (srv) => {
             }));
 
             // Skip invoice contract creation if ConditionType is PVL
-            const isPVLContract = sourceData.some(d => d.ConditionType === 'PVL');
+            const isPVLContract = sourceData.some(d => d.ConditionType === 'PVL' || d.ConditionType === 'Rental');
 
             //Process Rebate Contracts
             console.log("Process Rebate Contracts");
@@ -1544,7 +1544,7 @@ module.exports = (srv) => {
                 const CCMContractID = group[0].CCMContractID;
 
                 // Skip invoice contract creation if PVL (any row in the group)
-                const isPVLContract = group.some(d => d.ConditionType === 'PVL');
+                const isPVLContract = group.some(d => d.ConditionType === 'PVL' || d.ConditionType === 'Rental');
                 if (isPVLContract) {
                     console.log(`Skipping CCMContractID ${CCMContractID}: PVL ConditionType detected.`);
                     return { invoiceResults: [], updatedContracts: [], skippedContracts: [] };
@@ -1867,7 +1867,8 @@ module.exports = (srv) => {
 
         try {
             const { CCMContractID } = req.data;
-            const ccmContract = await tx.run(SELECT.one.from(CCMContract).columns('*', 'CCMCustomer.CustomerID', 'CCMCustomer.InstituteType').where({ ID: CCMContractID }));
+            let customerID = null;
+            const ccmContract = await tx.run(SELECT.one.from(CCMContract).columns('*', 'CCMCustomer.AssortmentReference', 'CCMCustomer.CustomerID', 'CCMCustomer.InstituteType').where({ ID: CCMContractID }));
             const fastContractPrice = await tx.run(SELECT.one.from(PriceConditionInvoice).where({ CCMContract_ID: CCMContractID }));
             const material = await tx.run(SELECT.one.from(CCMMaterial).columns('MaterialNumber').where({
                     CCMContract_ID: CCMContractID,
@@ -1879,9 +1880,13 @@ module.exports = (srv) => {
             }));
 
             if (!ccmContract || !material) return req.reject(404, "Contract is not found");
-
+            customerID = ccmContract?.CCMCustomer_CustomerID;
+            if(ccmContract?.CCMCustomer_AssortmentReference !== null){
+                const ccmContractHire = await tx.run(SELECT.one.from(CustomerHierarchy).where({ CCMContractID: CCMContractID }));
+                customerID = ccmContractHire?.CustomerID;
+            }
             const masterPrice = await getProductMasterPrice(ccmContract?.CountryCode, ccmContract?.ProductCode);
-            const body = updateSAPSalesOrderSimulationRequestBody(ccmContract?.CCMCustomer_CustomerID , material?.MaterialNumber);
+            const body = updateSAPSalesOrderSimulationRequestBody(customerID, material?.MaterialNumber);
             const response = await getSAPSalesOrderSimulation(tx, ccmContract?.CountryCode, "SalesOrderSimulation", body);
 
             const pricingElements = response.data.d.to_Item.results[0].to_PricingElement.results;
@@ -2189,7 +2194,6 @@ module.exports = (srv) => {
             let userCountries = await getUserCountries();
             // Filter for the logged-in user's CWID
             console.log("Requesting user countries for CWID:", req.user.id);
-            console.log("All fetched user countries:", userCountries);
             userCountries = userCountries.filter((c) => c.CWID === req.user.id);
             console.log("Filtered user countries for the requesting user:", userCountries);
             return userCountries;
@@ -2211,4 +2215,6 @@ module.exports = (srv) => {
             await tx.run(INSERT.into(ConditionContractsLog).entries(inserts));
         })
     }
+
+    srv.getSAPSalesOrderSimulationRequestBody = getSAPSalesOrderSimulationRequestBody;
 };
