@@ -1,0 +1,11 @@
+### syncPriceAgreements  - Synchronise price agreements with SAP from
+POST http://localhost:4004/odata/v4/condition-contract/getSAPSalesOrderSimulation
+Authorization: Basic YXJ0aW9t
+Content-Type: application/json
+
+{
+    "CCMContractID": "0bdd1841-6892-461a-9462-bda766c69571"
+}
+
+
+

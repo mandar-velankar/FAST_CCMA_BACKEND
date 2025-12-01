@@ -1867,7 +1867,8 @@ module.exports = (srv) => {
 
         try {
             const { CCMContractID } = req.data;
-            const ccmContract = await tx.run(SELECT.one.from(CCMContract).columns('*', 'CCMCustomer.CustomerID', 'CCMCustomer.InstituteType').where({ ID: CCMContractID }));
+            let customerID = null;
+            const ccmContract = await tx.run(SELECT.one.from(CCMContract).columns('*', 'CCMCustomer.AssortmentReference', 'CCMCustomer.CustomerID', 'CCMCustomer.InstituteType').where({ ID: CCMContractID }));
             const fastContractPrice = await tx.run(SELECT.one.from(PriceConditionInvoice).where({ CCMContract_ID: CCMContractID }));
             const material = await tx.run(SELECT.one.from(CCMMaterial).columns('MaterialNumber').where({
                     CCMContract_ID: CCMContractID,
@@ -1879,9 +1880,13 @@ module.exports = (srv) => {
             }));
 
             if (!ccmContract || !material) return req.reject(404, "Contract is not found");
-
+            customerID = ccmContract?.CCMCustomer_CustomerID;
+            if(ccmContract?.CCMCustomer_AssortmentReference !== null){
+                const ccmContractHire = await tx.run(SELECT.one.from(CustomerHierarchy).where({ CCMContractID: CCMContractID }));
+                customerID = ccmContractHire?.CustomerID;
+            }
             const masterPrice = await getProductMasterPrice(ccmContract?.CountryCode, ccmContract?.ProductCode);
-            const body = updateSAPSalesOrderSimulationRequestBody(ccmContract?.CCMCustomer_CustomerID , material?.MaterialNumber);
+            const body = updateSAPSalesOrderSimulationRequestBody(customerID, material?.MaterialNumber);
             const response = await getSAPSalesOrderSimulation(tx, ccmContract?.CountryCode, "SalesOrderSimulation", body);
 
             const pricingElements = response.data.d.to_Item.results[0].to_PricingElement.results;
