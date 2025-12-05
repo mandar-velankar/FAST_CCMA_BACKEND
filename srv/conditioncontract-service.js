@@ -231,7 +231,7 @@ module.exports = (srv) => {
             const newOffer = sourceData[0];
 
             let shouldCreateNew = false;         
-            let shouldCreateExcludingCustomer = false;  
+            // let shouldCreateExcludingCustomer = false;  
             let excludeCustomerContract = null;
 
             // No matching contracts → always create new
@@ -253,13 +253,13 @@ module.exports = (srv) => {
                 // CASE 5: ALWAYS CREATE NEW
                 // ---------------------------
                 if (caseType === "CASE_5") {
-                    shouldCreateNew = true;
-
                     if (action === "UPDATE_AND_CREATE_NEW") {
-                        shouldCreateExcludingCustomer = true;
-                        excludeCustomerContract = contract;
+                        const updated = await updateExistingContract(tx, contract, newOffer);
+                        if (updated) updatedContracts.push(contract.ContractNumber);
+                        else skippedContracts.push(contract.ContractNumber);
                     }
 
+                    shouldCreateNew = true;
                     continue;
                 }
 
@@ -297,16 +297,7 @@ module.exports = (srv) => {
 
             if (shouldCreateNew) {
                 let res;
-
-                // CASE 5 (exclude child only for the new contract)
-                if (shouldCreateExcludingCustomer && excludeCustomerContract) {
-                    res = await createCCMContractExcludeCustomer(
-                        tx, "ES", "ConditionContract", sourceData, excludeCustomerContract
-                    );
-                } else {
-                    res = await createCCMContract(tx, "ES", "ConditionContract", sourceData);
-                }
-
+                res = await createCCMContract(tx, "ES", "ConditionContract", sourceData);
                 invoiceResults.push(res);
             }
         }
@@ -477,7 +468,7 @@ module.exports = (srv) => {
         }
     }
 
-    async function createCCMContractExcludeCustomer(tx, countryCode, resource, sourceData, contract) {
+    /*async function createCCMContractExcludeCustomer(tx, countryCode, resource, sourceData, contract) {
         let body;
         try {
             const apiConfig = await tx.run(SELECT.one.from(APIDefinition).where({ Provider: 'ConditionContract', CountryCode: countryCode, Resource: resource, Name: 'InvoicePrice' }));
@@ -526,7 +517,7 @@ module.exports = (srv) => {
 
 
         return payload;
-    }
+    } */
 
 
     srv.on('createCCMContract', async (req) => {
