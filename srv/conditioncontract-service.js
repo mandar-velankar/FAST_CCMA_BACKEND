@@ -1318,7 +1318,7 @@ module.exports = (srv) => {
                 bvheaderList.push(bvheaderEntry);
             }
 
-            if (row.YD06 !== undefined && row.YD06 !== null && row.YD06 !== 0) {
+           /** if (row.YD06 !== undefined && row.YD06 !== null && row.YD06 !== 0) {
                 const royalDecreeRecord = { ...staticConditionRecord };
 
                 for (const { Source, Target } of dynamicMappings) {
@@ -1336,7 +1336,7 @@ module.exports = (srv) => {
                 royalDecreeRecord['ConditionType'] = 'YD06';
                 delete royalDecreeRecord['ConditionRateAmount'];
                 conditionRecords.push(royalDecreeRecord);
-            }
+            }*/
         }
 
         if (conditionRecords.length > 0) {
