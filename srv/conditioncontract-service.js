@@ -231,7 +231,7 @@ module.exports = (srv) => {
             const newOffer = sourceData[0];
 
             let shouldCreateNew = false;         
-            let shouldCreateExcludingCustomer = false;  
+            // let shouldCreateExcludingCustomer = false;  
             let excludeCustomerContract = null;
 
             // No matching contracts → always create new
@@ -253,13 +253,13 @@ module.exports = (srv) => {
                 // CASE 5: ALWAYS CREATE NEW
                 // ---------------------------
                 if (caseType === "CASE_5") {
-                    shouldCreateNew = true;
-
                     if (action === "UPDATE_AND_CREATE_NEW") {
-                        shouldCreateExcludingCustomer = true;
-                        excludeCustomerContract = contract;
+                        const updated = await updateExistingContract(tx, contract, newOffer);
+                        if (updated) updatedContracts.push(contract.ContractNumber);
+                        else skippedContracts.push(contract.ContractNumber);
                     }
 
+                    shouldCreateNew = true;
                     continue;
                 }
 
@@ -297,16 +297,7 @@ module.exports = (srv) => {
 
             if (shouldCreateNew) {
                 let res;
-
-                // CASE 5 (exclude child only for the new contract)
-                if (shouldCreateExcludingCustomer && excludeCustomerContract) {
-                    res = await createCCMContractExcludeCustomer(
-                        tx, "ES", "ConditionContract", sourceData, excludeCustomerContract
-                    );
-                } else {
-                    res = await createCCMContract(tx, "ES", "ConditionContract", sourceData);
-                }
-
+                res = await createCCMContract(tx, "ES", "ConditionContract", sourceData);
                 invoiceResults.push(res);
             }
         }
@@ -477,7 +468,7 @@ module.exports = (srv) => {
         }
     }
 
-    async function createCCMContractExcludeCustomer(tx, countryCode, resource, sourceData, contract) {
+    /*async function createCCMContractExcludeCustomer(tx, countryCode, resource, sourceData, contract) {
         let body;
         try {
             const apiConfig = await tx.run(SELECT.one.from(APIDefinition).where({ Provider: 'ConditionContract', CountryCode: countryCode, Resource: resource, Name: 'InvoicePrice' }));
@@ -526,7 +517,7 @@ module.exports = (srv) => {
 
 
         return payload;
-    }
+    } */
 
 
     srv.on('createCCMContract', async (req) => {
@@ -586,6 +577,7 @@ module.exports = (srv) => {
             const [{ invoiceResults, updatedContracts, skippedContracts }, rebateResponses] = await Promise.all([invoicePromise, rebatePromise]);
 
             let createdInvoiceContracts = [];
+            let excludedMatched = [];
 
             if (Array.isArray(invoiceResults) && invoiceResults.length > 0) {
                 for (const invoiceResult of invoiceResults) {
@@ -593,9 +585,11 @@ module.exports = (srv) => {
 
                     const contractNumber = invoiceResult?.data?.ConditionContract;
                     const contractReference = invoiceResult?.data?.ExternalDocumentReferenceID;
+                    let payload = null;
                     if (contractNumber) {
                         createdInvoiceContracts.push(contractNumber);
-                        console.log("Payload sent to SAP:", JSON.stringify(typeof invoiceResult?.config?.data === "string" ? JSON.parse(invoiceResult.config.data) : invoiceResult?.config?.data, null, 2));
+                        payload = typeof invoiceResult?.config?.data === "string" ? JSON.parse(invoiceResult.config.data) : invoiceResult?.config?.data;
+                        console.log("Payload sent to SAP:", payload);
                         const contractInfo = await tx.run(SELECT.one.from(CCMContract).where({ ID: CCMContractID, ContractNumber: {"!=": null} }));
                         if(contractInfo){
                             await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber, Expired: false}).where({ ID: CCMContractID }));
@@ -605,7 +599,7 @@ module.exports = (srv) => {
                             ContractNumber        : contractNumber,
                             ContractReference : contractReference,        
                             PayloadType       : 'Invoice',         
-                            PayloadToSAP      : JSON.stringify(invoiceResult.config.data),
+                            PayloadToSAP      : JSON.stringify(payload),
                             Synchronized      : true,    
                             createdAt         : new Date().toISOString(),
                             createdBy         : req.user.id,
@@ -617,6 +611,20 @@ module.exports = (srv) => {
                     let bvheaders = invoiceResult?.data?.bvheader || [];
                     if (!Array.isArray(bvheaders)) {
                         bvheaders = [bvheaders]; 
+                    }
+
+                    const excludedCustomers = bvheaders.filter(h => h.incl_excl === "E" && h.customer).map(h => h.customer);
+                    
+                    if (excludedCustomers.length > 0) {
+                        const customerHierarchy = await tx.run(SELECT.from(CustomerHierarchy).where({ CCMContractID: CCMContractID}));
+                        for (const cust of excludedCustomers) {
+                            const match = customerHierarchy.find(ch => ch.CustomerID == cust);
+                            
+                            if (match) {
+                                excludedMatched.push(cust);
+                                await tx.run(UPDATE(CustomerHierarchy).set({ Excluded: true }).where({ ID: match.ID }));
+                            }
+                        }
                     }
 
                     if (bvheaders.length) {
@@ -677,9 +685,11 @@ module.exports = (srv) => {
 
             let skippedMsg = skippedContracts.length ? `Skipped Contracts (ended before new offer): ${skippedContracts.join(", ")}` : "";
 
+            let excludedMsg = excludedMatched.length ? `Following customers were excluded while creating contract: ${excludedMatched.join(", ")}` : "";
+
             let rebateMsg = `${rebateResponses.length} Rebate Contract${rebateResponses.length !== 1 ? "s" : ""}`;
 
-            const successMessage = [invoiceMsg, updatedMsg, skippedMsg, rebateMsg].filter(Boolean).join(" + ");
+            const successMessage = [invoiceMsg, excludedMsg, updatedMsg, skippedMsg, rebateMsg].filter(Boolean).join(" + ");
 
             return req.reply(`${successMessage} created/updated successfully into SAP`);
 
@@ -1564,6 +1574,7 @@ module.exports = (srv) => {
             const updatedContractsAll = [];
             const skippedContractsAll = [];
             let invoiceContractNumbers = [];
+            let excludedMatched = [];
             
             for (let i = 0; i < invoiceResponses.length; i++) {
                 const result = invoiceResponses[i] || { invoiceResults: [], updatedContracts: [], skippedContracts: [] };
@@ -1583,9 +1594,11 @@ module.exports = (srv) => {
 
                         const contractNumber = invoiceResult?.data?.ConditionContract;
                         const contractReference = invoiceResult?.data?.ExternalDocumentReferenceID;
+                        let payload = null;
                         if (contractNumber) {
                             invoiceContractNumbers.push(contractNumber);
-                            console.log("Payload sent to SAP:", JSON.stringify(typeof invoiceResult?.config?.data === "string" ? JSON.parse(invoiceResult.config.data) : invoiceResult?.config?.data, null, 2));
+                            payload = typeof invoiceResult?.config?.data === "string" ? JSON.parse(invoiceResult.config.data) : invoiceResult?.config?.data;
+                            console.log("Payload sent to SAP:", payload);
                             const contractInfo = await tx.run(SELECT.one.from(CCMContract).where({ ID: CCMContractID, ContractNumber: {"!=": null} }));
                             if(contractInfo){
                                 await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber, Expired: false}).where({ ID: CCMContractID }));
@@ -1596,7 +1609,7 @@ module.exports = (srv) => {
                                 ContractNumber        : contractNumber,
                                 ContractReference : contractReference,        
                                 PayloadType       : 'Invoice',         
-                                PayloadToSAP      : JSON.stringify(invoiceResult.config.data),
+                                PayloadToSAP      : JSON.stringify(payload),
                                 Synchronized      : true,    
                                 createdAt         : new Date().toISOString(),
                                 createdBy         : req.user.id,
@@ -1608,6 +1621,20 @@ module.exports = (srv) => {
                         let bvheaders = invoiceResult?.data?.bvheader || [];
                         if (!Array.isArray(bvheaders)) {
                             bvheaders = [bvheaders]; 
+                        }
+
+                        const excludedCustomers = bvheaders.filter(h => h.incl_excl === "E" && h.customer).map(h => h.customer);
+                    
+                        if (excludedCustomers.length > 0) {
+                            const customerHierarchy = await tx.run(SELECT.from(CustomerHierarchy).where({ CCMContractID: CCMContractID}));
+                            for (const cust of excludedCustomers) {
+                                const match = customerHierarchy.find(ch => ch.CustomerID == cust);
+                                
+                                if (match) {
+                                    excludedMatched.push(cust);
+                                    await tx.run(UPDATE(CustomerHierarchy).set({ Excluded: true }).where({ ID: match.ID }));
+                                }
+                            }
                         }
 
                         if (bvheaders.length) {
@@ -1669,9 +1696,11 @@ module.exports = (srv) => {
 
             let skippedMsg = skippedContractsAll.length ? `Skipped Contracts: ${skippedContractsAll.join(", ")} (ended before new offer)` : "";
 
+            let excludedMsg = excludedMatched.length ? `Following customers were excluded while creating contract: ${excludedMatched.join(", ")}` : "";
+
             let rebateMsg = rebateCount ? `${rebateCount} Rebate Contract${rebateCount !== 1 ? "s" : ""}` : "No Rebate Contracts";
 
-            const successMessage = [invoiceMsg, updatedMsg, skippedMsg, rebateMsg].filter(Boolean).join(" + ");
+            const successMessage = [invoiceMsg, excludedMsg, updatedMsg, skippedMsg, rebateMsg].filter(Boolean).join(" + ");
 
             return req.reply(`${successMessage} created/updated successfully into SAP`);
             

@@ -32,6 +32,7 @@ export default class Detail extends BaseController {
 
     public onInit() {
         this.getRouter().getRoute("detail")?.attachPatternMatched(this.onMatched, this);
+        this.getRouter().getRoute("detail-detail")?.attachPatternMatched(this.onMatched, this);
         const today = new Date();
         const maxDate = new Date(today.getFullYear() + 2, today.getMonth(), today.getDate());
         const oModel: JSONModel = new JSONModel({
@@ -261,8 +262,8 @@ export default class Detail extends BaseController {
         const formData = context?.getObject();
         const contractTable = this.byId("idCCMContract");
 
-        if (formData?.ExtensionPeriod > 24) {
-            MessageBox.error("Extension period cannot exceed 24 months.");
+        if (formData?.ExtensionPeriod > 12) {
+            MessageBox.error("Extension period cannot exceed 12 months.");
             return;
         }
         context.setProperty("ContractStartDate", formData?.ContractStartDate || "");
