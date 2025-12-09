@@ -141,11 +141,17 @@ export default class Master extends BaseController {
 		if (selectedKey && selectedKey !== "") {
 			
 			const filterMap = {
+				newcontractskey: "hasNewContracts",
 				newmaterialnumberskey: "hasNewMaterialNumber",
+				activecontractskey: "hasActiveContracts",
 				updatedpvlkey: "hasUpdatedPVL",
 				updatedconfidentialpricekey: "hasUpdatedConfidentialPrice",
 				netpriceabovepvlkey: "hasNetPriceAbovePVL",
-				netpricebelowfloorpricekey: "hasNetPriceBelowFloorPrice"
+				netpricebelowfloorpricekey: "hasNetPriceBelowFloorPrice",
+				expiringsoonkey: "hasExpiringSoonContracts",
+				expiredkey: "hasExpiredContracts",
+				cancelledkey: "hasCancelledContracts",
+				tobesynchronizedkey: "hasContractsToBeSynchronized"
 			};
 
 			const filterProperty = filterMap[selectedKey];
