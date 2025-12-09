@@ -72,7 +72,14 @@ export default class Master extends BaseController {
 		const listItem = (event as any).getSource();
 		const context = listItem.getBindingContext();
 		const data = context.getObject() as TContract;
+		this.filterMasterTable(data.ID);
 		this.getRouter().navTo("detail", { layout: "TwoColumnsMidExpanded", id: data.ID });
+	}
+
+	public filterMasterTable(id: string){
+		const binding = this._oList.getBinding("items");
+		const oFilter = new Filter("ID", FilterOperator.EQ, id);
+		binding?.filter([oFilter]);
 	}
 
 	async _onMasterMatched(event: Route$PatternMatchedEvent) {
