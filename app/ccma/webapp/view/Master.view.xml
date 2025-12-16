@@ -70,7 +70,7 @@
                             text="{ProductName}"
                         />
                     </Select>
-                    <Select id="idslctfilter" change=".setFilter">
+                    <Select id="idslctfilter" change=".setFilter" selectedKey="{ui>/selectedContractStatus}">
                         <core:Item
                             key=""
                             text="All"
@@ -127,6 +127,12 @@
                         search=".setFilter"
                         width="17.5rem"
                     />
+                    <Button
+                        icon="sap-icon://synchronize"
+                        type="Transparent"
+                        enabled="{= ${ui>/selectedContractStatus} === 'newMaterialNumbersKey'}"
+                        press=".onUpdateCCMContracts" 
+                        text="Update Contracts"/>
                 </OverflowToolbar>
                 <Table
                     id="idContractsMasterTable"
