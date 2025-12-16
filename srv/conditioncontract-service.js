@@ -22,7 +22,8 @@ const {
     ExistingContractInfo,
     CurrentInvoicePrice,
     CustomerHierarchy,
-    ConditionContractsLog
+    ConditionContractsLog,
+    ContractNewMaterialNumberPayloadView
 } = cds.entities("ConditionContract");
 
 
@@ -1318,7 +1319,7 @@ module.exports = (srv) => {
                 bvheaderList.push(bvheaderEntry);
             }
 
-            if (row.YD06 !== undefined && row.YD06 !== null && row.YD06 !== 0) {
+           /** if (row.YD06 !== undefined && row.YD06 !== null && row.YD06 !== 0) {
                 const royalDecreeRecord = { ...staticConditionRecord };
 
                 for (const { Source, Target } of dynamicMappings) {
@@ -1336,7 +1337,7 @@ module.exports = (srv) => {
                 royalDecreeRecord['ConditionType'] = 'YD06';
                 delete royalDecreeRecord['ConditionRateAmount'];
                 conditionRecords.push(royalDecreeRecord);
-            }
+            }*/
         }
 
         if (conditionRecords.length > 0) {
@@ -2246,4 +2247,205 @@ module.exports = (srv) => {
     }
 
     srv.getSAPSalesOrderSimulationRequestBody = getSAPSalesOrderSimulationRequestBody;
+
+    srv.on("addNewMaterialNumberToExistingContract", async (req) => {
+        try {
+            const {FastCCMContractId} = req.data;
+            const tx = cds.tx(req);
+            const contracts = await tx.run(SELECT.from(CCMContract).where({FastConditionContracts_ID: FastCCMContractId}));
+            const sourceData = await tx.run(SELECT.from(ContractNewMaterialNumberPayloadView).where({
+                CCMContractID: {in: contracts.map(contract => contract.ID)}, FastConditionContractID: FastCCMContractId
+            }));
+
+            if (Array.isArray(sourceData) && sourceData.length === 0) req.reject(403, "No Maetrials found");
+
+            await addNewMaterNumberToExistingContract(tx, 'ES', "ConditionContract", sourceData);
+
+            await tx.run(UPDATE(FastConditionContracts).with({ hasNewMaterialNumber: false }).where({ ID: FastCCMContractId }));
+            await tx.run(UPDATE(CCMMaterial).with({ isNewMaterialNumber: false }).where({ CCMContract_ID: {in: sourceData.map(el => el.CCMContractID)} }));
+
+            return req.reply(`${sourceData.map(el => el.Product).join(',')} materials added to the contract: ${sourceData[0].ContractNumber}`);
+
+        } catch (error) {
+            let statusCode = 500;
+            error.request = req;
+            let userMessage = "Unexpected server error. Please contact the application support team.";
+
+            if (error.response?.data) {
+                console.error("SAP Error Response:", error.response.data);
+                const sapError = error.response.data;
+
+                userMessage =
+                    sapError?.error?.message?.value ||
+                    sapError?.error?.innererror?.errordetails?.[0]?.message ||
+                    sapError?.fault?.faultstring ||
+                    sapError?.Exception_Details?.Exception_Message ||
+                    "An error occurred while communicating with SAP.";
+
+                userMessage = `SAP Error: ${userMessage}. Please contact the SAP support team.`;
+                const inputPayload =
+                    error?.response?.data?.Exception_Details?.InputPayload ||
+                    error?.response?.data?.error?.innererror?.errordetails?.[0]?.InputPayload ||
+                    null;
+
+                if (inputPayload) {
+                    console.error('Input Payload sent to SAP:');
+                    console.error(
+                    typeof inputPayload === 'string' ? inputPayload : JSON.stringify(inputPayload, null, 2));
+                    error.inputPayload = inputPayload;
+                } else {
+                    console.error('No InputPayload found in the SAP error response');
+                }
+                statusCode = error.response.status || 502;
+            }
+            else if (error.code && error.message) {
+                console.error("App Error:", error.message);
+                userMessage = error.message;
+                statusCode = typeof error.code === 'number' ? error.code : 500;
+            }
+            else {
+                console.error("Unhandled Error:", error);
+            }
+            error.message = userMessage;
+            logError(error);
+            return req.reject(statusCode, userMessage);
+        }
+    })
+
+    async function addNewMaterNumberToExistingContract (tx, countryCode, resource, sourceData) {
+        let body;
+        try {
+            const apiConfig = await tx.run(SELECT.one.from(APIDefinition).where({ Provider: 'ConditionContract', CountryCode: countryCode, Resource: resource, Name: 'AddNewMaterialNumbersToExistingContracts' }));
+            const apiBodyMappings = await tx.run(SELECT.from(APIBody).where({ APIDefinition_ID: apiConfig.ID }));
+            if (!apiBodyMappings) {
+                throw new Error("ERR_MISSING_PARAMETER:API body Mappings not found");
+            }
+            body = buildNewMaterialNumberPayloadFromMappings(sourceData, apiBodyMappings);
+            if (!body) {
+                throw new Error("ERR_MISSING_PARAMETER:API Body not found");
+            }
+            const oauthAuth = await tx.run(SELECT.one.from(APIConfigOAuth, apiConfig.OAuth_ID));
+            const url = `${apiConfig.Host}${apiConfig.BasePath}${apiConfig.ResourcePath}`;
+
+            const oauthCredentials = await getBearerToken(oauthAuth);
+            return axios({
+                method: 'post',
+                url: url,
+                headers: {
+                    'Authorization': `Bearer ${oauthCredentials.data.access_token}`,
+                    'Content-Type': 'application/json'
+                },
+                data: JSON.stringify(body)
+            });
+        } catch (error) {
+            error.payload = body;
+            throw error
+        }
+    }
+
+    function buildNewMaterialNumberPayloadFromMappings (sourceData, apiBodyMappings) {
+        const finalResult = {};
+
+        const conditionTypeMap = {
+            DescuentoComercial: 'YD02',
+            PrecioNeto: 'YP10',
+        };
+
+        const staticMappings = apiBodyMappings.filter(m => !m.Source.startsWith('ContractNewMaterialNumberPayloadView.'));
+        const dynamicMappings = apiBodyMappings.filter(m => m.Source.startsWith('ContractNewMaterialNumberPayloadView.'));
+
+        const staticConditionRecord = {};
+        const staticBVHeader = {}; 
+
+        for (const { Source, Target } of staticMappings) {
+            const key = Target.split('.').pop();
+
+            if (Target.includes('CndnContrConditionRecordType')) {
+                staticConditionRecord[key] = Source;
+            } else if (Target.includes('bvheader')) {
+                staticBVHeader[key] = Source;
+            } else {
+                setNestedValue(finalResult, Target, Source);
+            }
+        }
+
+        const conditionRecords = [];
+        const bvheaderList = [];
+
+        for (const row of sourceData) {
+            const conditionRecord = { ...staticConditionRecord };
+            const bvheaderEntry = { ...staticBVHeader };
+
+            let conditionTypeValue = null;
+
+            for (const { Source, Target } of dynamicMappings) {
+                const field = Source.replace('ContractNewMaterialNumberPayloadView.', '');
+                let value = row[field];
+
+                if (value === undefined || value === null) continue;
+
+                if (field === 'ConditionType' && Target.includes('ConditionType')) {
+                    conditionTypeValue = conditionTypeMap[value] || value;
+                    value = conditionTypeValue;
+                }
+
+                if (field === 'YD02' && Target.endsWith('ConditionRateRatio')) {
+                    value = Math.round(value * 100 * 100) / 100;
+                }
+
+                if (field === 'YP10' && Target.endsWith('ConditionRateAmount')) {
+                    if(row.UoM === 'Pack'){
+                        value = value * 10000;
+                    } else {
+                        value = value * row.PackFactor * 10000;
+                    }
+                }
+
+                const pathSegments = Target.split('.');
+                const key = pathSegments[pathSegments.length - 1];
+
+                if (Target.includes('CndnContrConditionRecordType')) {
+                    if (conditionTypeValue === 'YP10') {
+                        conditionRecord['ConditionCalculationType'] = 'C';
+                        conditionRecord['ConditionQuantityUnit'] = 'PC';
+                        conditionRecord['ConditionQuantityUnitISOCode'] = 'PCE';
+                        conditionRecord['ConditionQuantity'] = 10000;
+                    }
+                    conditionRecord[key] = value;
+                } else if (Target.includes('bvheader')) {
+                    bvheaderEntry[key] = value;
+                } else {
+                    setNestedValue(finalResult, Target, value);
+                }
+            }
+
+            if (Object.keys(conditionRecord).length > 0) {
+                if (conditionRecord.ConditionType === 'YD02') {
+                    delete conditionRecord.ConditionRateAmount;
+                }
+                if (conditionRecord.ConditionType === 'YP10') {
+                    delete conditionRecord.ConditionRateRatioUnit;
+                    delete conditionRecord.ConditionRateRatio;
+                    delete conditionRecord.ConditionRateRatioUnitISOCode;
+                }
+                conditionRecords.push(conditionRecord);
+            }
+            
+            if (Object.keys(bvheaderEntry).length > 0) {
+                bvheaderList.push(bvheaderEntry);
+            }
+        }
+
+        if (conditionRecords.length > 0) {
+            setNestedValue(finalResult, 'ConditionContract.ConditionContractType._CndnContrCndnRecord', [
+                "",
+                { CndnContrConditionRecordType: conditionRecords }
+            ]);
+        }
+
+        setNestedValue(finalResult, 'ConditionContract.conditioncontract', {});
+        setNestedValue(finalResult, 'ConditionContract.bvheader', "");
+
+        return finalResult;
+    }
 };

@@ -70,14 +70,22 @@
                             text="{ProductName}"
                         />
                     </Select>
-                    <Select id="idslctfilter" change=".setFilter">
+                    <Select id="idslctfilter" change=".setFilter" selectedKey="{ui>/selectedContractStatus}">
                         <core:Item
                             key=""
                             text="All"
                         />
                         <core:Item
+                            key="newContractsKey"
+                            text="New Contracts"
+                        />
+                        <core:Item
                             key="newMaterialNumbersKey"
                             text="New Material Numbers"
+                        />
+                        <core:Item
+                            key="activeContractsKey"
+                            text="Active Contracts"
                         />
                         <core:Item
                             key="updatedPVLKey"
@@ -95,6 +103,22 @@
                             key="netPriceBelowFloorPriceKey"
                             text="Net Price Below Floor Price"
                         />
+                        <core:Item
+                            key="expiringSoonKey"
+                            text="Expiring Soon"
+                        />
+                        <core:Item
+                            key="expiredKey"
+                            text="Expired"
+                        />
+                        <core:Item
+                            key="cancelledKey"
+                            text="Cancelled"
+                        />
+                        <core:Item
+                            key="toBeSynchronizedKey"
+                            text="To Be Synchronized"
+                        />
                     </Select>
 
                     <ToolbarSpacer />
@@ -103,6 +127,12 @@
                         search=".setFilter"
                         width="17.5rem"
                     />
+                    <Button
+                        icon="sap-icon://synchronize"
+                        type="Transparent"
+                        enabled="{= ${ui>/selectedContractStatus} === 'newMaterialNumbersKey'}"
+                        press=".onUpdateCCMContracts" 
+                        text="Update Contracts"/>
                 </OverflowToolbar>
                 <Table
                     id="idContractsMasterTable"

@@ -326,6 +326,7 @@ action   sendFOCToInteractMail(FastCCMContractId : UUID, CCMContractID : UUID, P
 action   terminateCCMContract(FastCCMContractId : UUID, CCMContractID : UUID, ProductCode : String, TerminationDate: Date, CancellationNote: String) returns String;
 action   getSAPSalesOrderSimulation(CCMContractID: UUID) returns String;
 action   ignoreCurrentCCMPrice(CCMContractID: UUID) returns String;
+action   addNewMaterialNumberToExistingContract(FastCCMContractId : UUID) returns String;
 
 entity BrandsView as select from CCMContract {
     key BrandID,
@@ -584,4 +585,41 @@ entity CCMContractsExtendedView as
                 else currentInvoice.NetPriceWithoutTax
             end as NetPrice: Double
         } where ccm.Synchronized = true;
+
+    entity ContractNewMaterialNumberPayloadView as select from FastConditionContracts as fcc 
+        inner join CCMContract as ccm on ccm.FastConditionContracts.ID = fcc.ID 
+        inner join CCMMaterial as mat on mat.CCMContract.ID = ccm.ID and mat.ActiveRecord = 1
+        left outer join PriceConditionInvoice as pci 
+            on pci.ProductCode = mat.ProductCode and fcc.OfferID = pci.OfferID{
+        key fcc.ID as FastConditionContractID,
+        key ccm.ID as CCMContractID,
+        key ccm.ProductCode,
+            ccm.ContractNumber,
+            fcc.ContractStartDate as CndnContrValidFrom,
+            fcc.ContractEndDate as CndnContrValidTo,
+            fcc.CustomerID as Customer,
+            fcc.InstituteID,
+            fcc.Division,
+            pci.ConditionType,
+            pci.YD02,
+            pci.YD06,
+            pci.YP10,
+            ccm.UoM,
+            ccm.PackFactor,
+            pci.RequestedVolume,
+            ccm.CCMContractStartDate as ConditionValidityStartDate,
+            ccm.CCMContractEndDate as ConditionValidityEndDate,
+            ccm.OfferPrice as ConditionRateAmount,
+            mat.MaterialNumber as Product,
+            fcc.SAPID,
+            fcc.ExternalID,
+            fcc.Reference,
+            fcc.TenderID,
+            fcc.ContractType
+    }where fcc.hasNewMaterialNumber = true 
+        and ccm.Synchronized = true
+        and ccm.ContractNumber is not null
+        and ccm.hasFOC = 'No'
+        and ccm.hasRappel = 'No'
+        and mat.isNewMaterialNumber = true
 }
