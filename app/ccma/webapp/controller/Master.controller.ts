@@ -1,5 +1,5 @@
 import Controller from "sap/ui/core/mvc/Controller";
-import BaseController from "./BaseController";
+import BaseController, { CompositeMessageType } from "./BaseController";
 import JSONModel from "sap/ui/model/json/JSONModel";
 import { RowActionItem$PressEvent } from "sap/ui/table/RowActionItem";
 import { Route$PatternMatchedEvent } from "sap/ui/core/routing/Route";
@@ -16,6 +16,8 @@ import * as formatter from "com/bayer/tender/ccma/model/formatter";
 import Sorter from "sap/ui/model/Sorter";
 import Select from "sap/m/Select";
 import BusyIndicator from "sap/ui/core/BusyIndicator";
+import MessageBox from "sap/m/MessageBox";
+import Table from "sap/m/Table";
 type TContract = {
 	ID: string;
 }
@@ -141,11 +143,17 @@ export default class Master extends BaseController {
 		if (selectedKey && selectedKey !== "") {
 			
 			const filterMap = {
+				newcontractskey: "hasNewContracts",
 				newmaterialnumberskey: "hasNewMaterialNumber",
+				activecontractskey: "hasActiveContracts",
 				updatedpvlkey: "hasUpdatedPVL",
 				updatedconfidentialpricekey: "hasUpdatedConfidentialPrice",
 				netpriceabovepvlkey: "hasNetPriceAbovePVL",
-				netpricebelowfloorpricekey: "hasNetPriceBelowFloorPrice"
+				netpricebelowfloorpricekey: "hasNetPriceBelowFloorPrice",
+				expiringsoonkey: "hasExpiringSoonContracts",
+				expiredkey: "hasExpiredContracts",
+				cancelledkey: "hasCancelledContracts",
+				tobesynchronizedkey: "hasContractsToBeSynchronized"
 			};
 
 			const filterProperty = filterMap[selectedKey];
@@ -495,6 +503,82 @@ export default class Master extends BaseController {
     private onbindUserCountriesFail(error: any): void {
         BusyIndicator.hide();
         console.error("Error in getUserCountries:", error);
+    }
+
+	public async onUpdateCCMContracts(): Promise<void> {
+		const fastContractsTable = this.byId("idContractsMasterTable") as Table;  
+		const fastContracts = fastContractsTable.getItems().map(item => item?.getBindingContext()?.getObject());
+
+		if (fastContracts && Array.isArray(fastContracts) && fastContracts.length === 0) {
+			MessageBox.error("No Contracts with new Material Number found");
+			return;
+		}
+
+		BusyIndicator.show();
+
+		const promises = fastContracts.map(async (contract: any) => {
+			const contextBinding = this.getModel()?.bindContext(
+				"/addNewMaterialNumberToExistingContract(...)"
+			);
+
+			if (!contextBinding) {
+				throw new Error("Context binding failed");
+			}
+
+			contextBinding.setParameter("FastCCMContractId", contract?.ID);
+
+			return contextBinding.execute().then(() => {
+				const oActionContext = contextBinding.getBoundContext();
+				return oActionContext?.getObject();
+			});
+		});
+
+		try {
+			const results = await Promise.all(promises);
+			// Handle overall success here
+			this.onUpdateCCMContractsSuccess(results);
+		} catch (error) {
+			// Handle overall failure here
+			this.onUpdateCCMContractsFail(error);
+		} finally {
+			BusyIndicator.hide();
+		}
+	}
+
+
+    public onUpdateCCMContractsSuccess(res: any): void {
+		const table = this._oList;
+		const messages: CompositeMessageType[] = [];
+		res.forEach((item: any, index:number) => {
+			messages.push({
+				type: 'Success',
+				title: item.value,
+				description: item.value,
+				counter: index+1
+			});
+		});
+
+		this.showMessageCompositeView({sTitle: "Contracts Updated", aMessages: messages, sState: "Success"});
+		table?.getModel()?.refresh();
+        BusyIndicator.hide();
+    }
+
+    public onUpdateCCMContractsFail(res: any): void {
+        BusyIndicator.hide();
+
+        let message = "An unexpected error occurred. Please contact SAP support.";
+
+        if (res?.responseText) {
+            try {
+                const response = JSON.parse(res.responseText);
+                message = response.error?.message?.value || response.message || message;
+            } catch {
+            }
+        } else if (res?.message) {
+            message = res.message;
+        }
+
+        MessageBox.error(message);
     }
 
 }

@@ -13,6 +13,11 @@ import CustomDecimalType from "../model/datatypes/CustomDecimalType";
 import CustomCurrencyType from "../model/datatypes/CustomCurrencyType";
 import MessagePopover from "sap/m/MessagePopover";
 import MessageItem from "sap/m/MessageItem";
+import MessageView from "sap/m/MessageView";
+import Button from "sap/m/Button";
+import Text from "sap/m/Text";
+import Dialog from "sap/m/Dialog";
+import Bar from "sap/m/Bar";
 import MessageType from "sap/ui/core/message/MessageType";
 import { PropertyBindingInfo } from "sap/ui/base/ManagedObject";
 import Context from "sap/ui/model/odata/v4/Context";
@@ -22,6 +27,14 @@ type Message = {
 	message: string;
 	additionalText:  string;
 	description: string;
+}
+
+export type CompositeMessageType = {
+	type: string;
+	title: string;
+	subtitle?: string;
+	description?: string;
+	counter: number;
 }
 /**
  * @namespace com.bayer.tender.ccma.controller
@@ -155,4 +168,66 @@ export default class BaseController extends Controller {
 	public publishEventEmitter (channelId: string, eventId: string) {
 		this.getOwnerComponent()?.getEventBus().publish(channelId, eventId);
 	}
+
+	public showMessageCompositeView ({sTitle, aMessages, sState}: {sTitle: string, aMessages: CompositeMessageType[], sState: string}) {
+			const oMessageTemplate = new MessageItem({
+				type: '{type}',
+				title: '{title}',
+				description: '{description}',
+				subtitle: '{subtitle}',
+				// counter: '{counter}',
+				markupDescription: "{markupDescription}"
+			});
+
+			//Message view (where multiple errors can be bundeled)
+			const oMessageView = new MessageView({
+					showDetailsPageHeader: false,
+					itemSelect: function () {
+						oBackButton.setVisible(true);
+					},
+					items: {
+						path: "/",
+						template: oMessageTemplate
+					}
+				})
+			const oBackButton = new Button({
+					icon: sap.ui.core.IconPool.getIconURI("nav-back"),
+					visible: false,
+					press: function () {
+						oMessageView.navigateBack();
+						this.setVisible(false);
+					}
+				});
+
+			//add messages	
+			const oMessageModel = new JSONModel();
+			oMessageModel.setData(aMessages);
+			oMessageView.setModel(oMessageModel);
+
+			//show dialog
+			const oDialogMessages = new Dialog({
+				resizable: true,
+				content: oMessageView,
+				state: sState,
+				beginButton: new Button({
+					press: function () {
+						this.getParent().close();
+					},
+					text: "Close"
+				}),
+				customHeader: new Bar({
+					contentMiddle: [
+						new Text({
+							text: sTitle
+						})
+					],
+					contentLeft: [oBackButton]
+				}),
+				contentHeight: "300px",
+				contentWidth: "500px",
+				verticalScrolling: false
+			});
+
+			oDialogMessages.open();
+		}
 }
