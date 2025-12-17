@@ -2257,12 +2257,15 @@ module.exports = (srv) => {
                 CCMContractID: {in: contracts.map(contract => contract.ID)}, FastConditionContractID: FastCCMContractId
             }));
 
+            const contractIDs = sourceData.map(el => el.CCMContractID); 
+
             if (Array.isArray(sourceData) && sourceData.length === 0) req.reject(403, "No Maetrials found");
 
             await addNewMaterNumberToExistingContract(tx, 'ES', "ConditionContract", sourceData);
 
             await tx.run(UPDATE(FastConditionContracts).with({ hasNewMaterialNumber: false }).where({ ID: FastCCMContractId }));
-            await tx.run(UPDATE(CCMMaterial).with({ isNewMaterialNumber: false }).where({ CCMContract_ID: {in: sourceData.map(el => el.CCMContractID)} }));
+            await tx.run(UPDATE(CCMMaterial).with({ isNewMaterialNumber: false }).where({ CCMContract_ID: {in: contractIDs} }));
+            await tx.run(UPDATE(CCMContract).with({ NewMaterialNumber: "" }).where({ ID: {in: contractIDs} }));
 
             return req.reply(`${sourceData.map(el => el.Product).join(',')} materials added to the contract: ${sourceData[0].ContractNumber}`);
 
