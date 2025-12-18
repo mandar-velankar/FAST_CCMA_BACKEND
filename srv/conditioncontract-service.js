@@ -2256,18 +2256,29 @@ module.exports = (srv) => {
             const sourceData = await tx.run(SELECT.from(ContractNewMaterialNumberPayloadView).where({
                 CCMContractID: {in: contracts.map(contract => contract.ID)}, FastConditionContractID: FastCCMContractId
             }));
+            const contractNumbers = [
+                ...new Set(
+                    sourceData
+                    .map(el => el.ContractNumber)
+                    .filter(Boolean)
+                )
+            ];
 
-            const contractIDs = sourceData.map(el => el.CCMContractID); 
+            const sapResponses = [];
 
             if (Array.isArray(sourceData) && sourceData.length === 0) req.reject(403, "No Maetrials found");
 
-            await addNewMaterNumberToExistingContract(tx, 'ES', "ConditionContract", sourceData);
+            for (let cn of contractNumbers) {
+                const filteredSourceData = sourceData.filter(sd => sd.ContractNumber === cn);
+                const sapResponse = await addNewMaterNumberToExistingContract(tx, 'ES', "ConditionContract", filteredSourceData);
+                if (!sapResponse) req.reject(403, "No response received from SAP");
+                sapResponses.push(sapResponse.data);
+            }
 
-            await tx.run(UPDATE(FastConditionContracts).with({ hasNewMaterialNumber: false }).where({ ID: FastCCMContractId }));
-            await tx.run(UPDATE(CCMMaterial).with({ isNewMaterialNumber: false }).where({ CCMContract_ID: {in: contractIDs} }));
-            await tx.run(UPDATE(CCMContract).with({ NewMaterialNumber: "" }).where({ ID: {in: contractIDs} }));
+            const result = await prepareContractUpdateResponse(sapResponses, FastCCMContractId, contracts);
+            
 
-            return req.reply(`${sourceData.map(el => el.Product).join(',')} materials added to the contract: ${sourceData[0].ContractNumber}`);
+            return req.reply(JSON.stringify(result));
 
         } catch (error) {
             let statusCode = 500;
@@ -2450,5 +2461,128 @@ module.exports = (srv) => {
         setNestedValue(finalResult, 'ConditionContract.bvheader', "");
 
         return finalResult;
+    }
+
+    function parseSapODataV4Batch(batchText) {
+        const results = [];
+
+        const responses = batchText.split(/HTTP\/1\.1\s+/).slice(1);
+
+        for (const r of responses) {
+            // --- FIX 1: clean status line ---
+            const statusLine = r.slice(0, r.indexOf('\n')).trim();
+            const statusMatch = statusLine.match(/^(\d{3})\s+([A-Za-z ]+)/);
+            if (!statusMatch) continue;
+
+            const statusCode = Number(statusMatch[1]);
+            const statusText = statusMatch[2];
+            const isError = statusCode >= 400;
+
+            // --- JSON extraction (unchanged, safe) ---
+            let body;
+            const jsonStart = r.indexOf('{');
+            if (jsonStart !== -1) {
+                const boundaryIndex = r.indexOf('\n--', jsonStart);
+                const jsonBlock =
+                    boundaryIndex !== -1 ? r.slice(jsonStart, boundaryIndex) : r.slice(jsonStart);
+
+                const lastBrace = jsonBlock.lastIndexOf('}');
+                if (lastBrace !== -1) {
+                    try {
+                        body = JSON.parse(jsonBlock.slice(0, lastBrace + 1));
+                    } catch {
+                        body = undefined;
+                    }
+                }
+            }
+
+            // --- ERROR HANDLING ---
+            if (isError && body?.error) {
+                const e = body.error;
+
+                // 1️⃣ ALWAYS push parent error first
+                if (e.message) {
+                    results.push({
+                    statusCode,
+                    statusText,
+                    success: false,
+                    message: e.message,
+                    code: e.code,
+                    target: e.target,
+                    contentId: e['@SAP__core.ContentID'],
+                    body: e
+                    });
+                }
+
+                // 2️⃣ Push each detail as separate error
+                if (Array.isArray(e.details)) {
+                    for (const d of e.details) {
+                        results.push({
+                            statusCode,
+                            statusText,
+                            success: false,
+                            message: d.message,
+                            code: d.code,
+                            target: d.target,
+                            contentId: d['@SAP__core.ContentID'],
+                            body: d
+                        });
+                    }
+                }
+
+                continue;
+            }
+
+            // --- SUCCESS ---
+            results.push({
+                statusCode,
+                statusText,
+                success: true,
+                message: statusText,
+                body
+            });
+        }
+
+        return results;
+    }
+
+
+
+    async function prepareContractUpdateResponse (sapResponseData, FastCCMContractId, contracts) {
+        const promises = [];
+        const parsedBatchResponses = [];
+
+        for (let sapResponse of sapResponseData) {
+            const batchResponses = parseSapODataV4Batch(sapResponse);
+            parsedBatchResponses.push(batchResponses);
+        }
+        const flatParsedBatchResponses = parsedBatchResponses.flat();
+        const allRequestsSucceded = flatParsedBatchResponses.every(el => el.success);
+
+        if (allRequestsSucceded) {
+            promises.push(UPDATE(FastConditionContracts).with({ hasNewMaterialNumber: false }).where({ ID: FastCCMContractId }));
+        }
+
+        for (let br of flatParsedBatchResponses) {
+            if (br.success) {
+                const existingContract = contracts.find(contract => contract.ContractNumber === br?.body?.ConditionContract);
+                
+                br.message = `Material: ${br?.body?.Product} added to the contract: ${br?.body?.ConditionContract}`;
+
+                contracts.forEach(ctr => {
+                    if (ctr.ID === existingContract.ID) {
+                        ctr.NewMaterialNumber = ctr.NewMaterialNumber.split(',').filter(el => el != br?.body?.Product).join(',');
+                    }
+                })
+                promises.push(UPDATE(CCMMaterial).with({ isNewMaterialNumber: false }).where({ CCMContract_ID: existingContract.ID, MaterialNumber:  br?.body?.Product}));
+            }
+        }
+
+        promises.push(contracts.map(ctr => {
+            return UPDATE(CCMContract).with({ NewMaterialNumber: ctr.NewMaterialNumber }).where({ ID: ctr.ID });
+        }))
+
+        await Promise.all(promises.flat());
+        return flatParsedBatchResponses;
     }
 };
