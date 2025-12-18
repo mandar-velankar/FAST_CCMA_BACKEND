@@ -549,15 +549,18 @@ export default class Master extends BaseController {
 		const table = this._oList;
 		const messages: CompositeMessageType[] = [];
 		res.forEach((item: any, index:number) => {
-			messages.push({
-				type: 'Success',
-				title: item.value,
-				description: item.value,
-				counter: index+1
+			const parsedContracts = JSON.parse(item.value);
+			parsedContracts.forEach((pc: any) => {
+				messages.push({
+					type: pc.success ? 'Success' : 'Error',
+					title: pc.message,
+					description: pc.message,
+					counter: index+1
+				});
 			});
 		});
 
-		this.showMessageCompositeView({sTitle: "Contracts Updated", aMessages: messages, sState: "Success"});
+		this.showMessageCompositeView({sTitle: "Contract Update", aMessages: messages, sState: "None"});
 		table?.getModel()?.refresh();
         BusyIndicator.hide();
     }
