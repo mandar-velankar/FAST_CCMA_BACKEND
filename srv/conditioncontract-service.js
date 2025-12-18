@@ -532,6 +532,7 @@ module.exports = (srv) => {
             if(existingContractInfo && existingContractInfo.length > 0){
                 for(const info of existingContractInfo){
                     await tx.run(UPDATE(CCMContract).with({ Expired: true}).where({ ID: info.CCMContractID }));
+                    await tx.run(UPDATE(FastConditionContracts).with({ hasExpiredContracts: true}).where({ ID: info.FastConditionContractID }));
                 }
             }
             //Fetch Source Data
@@ -596,6 +597,7 @@ module.exports = (srv) => {
                             await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber, Expired: false}).where({ ID: CCMContractID }));
                         }
                         await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, ContractReferene: contractReference, Synchronized: true, Expired: false, CreationDate: today}).where({ ID: CCMContractID }));
+                        await tx.run(UPDATE(FastConditionContracts).with({ hasActiveContracts: true}).where({ ID: FastCCMContractId }));
                         const inserts = {
                             ContractNumber        : contractNumber,
                             ContractReference : contractReference,        
@@ -1502,6 +1504,7 @@ module.exports = (srv) => {
             if (existingContractInfo && existingContractInfo.length > 0) {
                 for (const info of existingContractInfo) {
                     await tx.run(UPDATE(CCMContract).with({ Expired: true }).where({ ID: info.CCMContractID }));
+                    await tx.run(UPDATE(FastConditionContracts).with({ hasExpiredContracts: true}).where({ ID: info.FastConditionContractID }));
                 }
             }
 
@@ -1605,7 +1608,7 @@ module.exports = (srv) => {
                                 await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber, Expired: false}).where({ ID: CCMContractID }));
                             }
                             await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, ContractReferene: contractReference, Synchronized: true, Expired: false, CreationDate: today}).where({ ID: CCMContractID }));
-
+                            await tx.run(UPDATE(FastConditionContracts).with({ hasActiveContracts: true}).where({ ID: FastCCMContractId }));
                             const inserts = {
                                 ContractNumber        : contractNumber,
                                 ContractReference : contractReference,        
@@ -1842,6 +1845,7 @@ module.exports = (srv) => {
             }
             await tx.run(INSERT.into(ConditionContractsLog).entries(inserts));
             await tx.run(UPDATE(CCMContract).with({ CCMContractEndDate: TerminationDate, CancellationComment: CancellationNote, Cancelled: true}).where({ ID: CCMContractID }));
+            await tx.run(UPDATE(FastConditionContracts).with({ hasCancelledContracts: false}).where({ ID: FastCCMContractId }));
 
             return req.reply(`Contract ${sourceData.ContractNumber} terminated successfully. End date updated to ${TerminationDate} in SAP.`);
 

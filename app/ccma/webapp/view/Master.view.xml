@@ -115,10 +115,6 @@
                             key="cancelledKey"
                             text="Cancelled"
                         />
-                        <core:Item
-                            key="toBeSynchronizedKey"
-                            text="To Be Synchronized"
-                        />
                     </Select>
 
                     <ToolbarSpacer />
