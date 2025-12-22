@@ -1249,6 +1249,9 @@ module.exports = (srv) => {
                     if(row.ContractType.toLowerCase() === 'commercial agreement'){
                         value = "OF-".concat(row.TenderID); 
                     }
+                    // truncate to max 30 characters
+                    value = value?.substring(0, 30);
+
                     setNestedValue(finalResult, Target, value);
                     continue;
                 }
@@ -1261,6 +1264,9 @@ module.exports = (srv) => {
                     if(row.ContractType.toLowerCase() === 'commercial agreement'){
                         value = "OF-".concat(row.TenderID); 
                     }
+                    // truncate to max 30 characters
+                    value = value?.substring(0, 30);
+                    
                     setNestedValue(finalResult, Target, value);
                     continue;
                 }
