@@ -416,6 +416,9 @@ module.exports = (srv) => {
             throw error;
         }
 
+        const itemGuidMatch = batchText.match(/"itemguid"\s*=\s*guid'([^']+)'/i);
+        const itemGUID = itemGuidMatch ? itemGuidMatch[1] : null;
+
         const customer = await tx.run(SELECT.one.from(CCMCustomer).where({CCMContract_ID: contract.CCMContractID}));
         const inserts = {
             ContractNumber        : contract.ContractNumber,
@@ -429,8 +432,8 @@ module.exports = (srv) => {
             CCMContractID: contract.CCMContractID
         }
         await tx.run(INSERT.into(ConditionContractsLog).entries(inserts));
-        await tx.run(UPDATE(CustomerHierarchy).with({ Excluded: true}).where({ CCMCustomer_ID: customer.ID }));
-
+        await tx.run(UPDATE(CustomerHierarchy).with({ Excluded: true}).where({ CCMCustomer_ID: customer.ID,  CustomerID: newOffer.Customer}));
+        await tx.run(INSERT.into(ContractItemGUID).entries({ ConditionDocument: contract.ContractNumber, CustomerID: newOffer.Customer, ItemGUID: itemGUID, CCMContract_ID:contract.CCMContractID}));
         console.log(`Existing contract ${contract.ContractNumber} updated successfully`);
 
         return true;
@@ -630,7 +633,7 @@ module.exports = (srv) => {
                         }
                     }
 
-                    if (bvheaders.length) {
+                    /**if (bvheaders.length) {
                         const inserts = bvheaders.map((bvh) => ({
                             CCMContract_ID: CCMContractID,
                             ConditionDocument: bvh.ConditionDocument,
@@ -642,7 +645,7 @@ module.exports = (srv) => {
                         }));
 
                         await tx.run(INSERT.into(ContractItemGUID).entries(inserts));
-                    }
+                    }**/
                     //console.log("Invoice response from SAP:", invoiceResult?.data);
                 }
             }else{
@@ -728,7 +731,7 @@ module.exports = (srv) => {
                 }
                 statusCode = error.response.status || 502;
             }
-            else if (error.code && error.message) {
+            else if (error.message) {
                 console.error("App Error:", error.message);
                 userMessage = error.message;
                 statusCode = typeof error.code === 'number' ? error.code : 500;
@@ -1647,7 +1650,7 @@ module.exports = (srv) => {
                             }
                         }
 
-                        if (bvheaders.length) {
+                        /**if (bvheaders.length) {
                             const inserts = bvheaders.map((bvh) => ({
                                 CCMContract_ID: CCMContractID,
                                 ConditionDocument: bvh.ConditionDocument,
@@ -1659,7 +1662,7 @@ module.exports = (srv) => {
                             }));
 
                             await tx.run(INSERT.into(ContractItemGUID).entries(inserts));
-                        }
+                        }**/
                         console.log("Invoice response from SAP:", invoiceResult?.data);
                         if (updatedContracts.length) console.log("Updated Contracts:", updatedContracts);
                         if (skippedContracts.length) console.log("Skipped Contracts:", skippedContracts);
