@@ -231,18 +231,20 @@ module.exports = (srv) => {
             const { sourceData, case: caseType, contracts } = item;
             const newOffer = sourceData[0];
 
+            const uniqueContracts = [...new Map(contracts.map(c => [c.CCMContractID, c])).values()];
+
             let shouldCreateNew = false;         
             // let shouldCreateExcludingCustomer = false;  
             let excludeCustomerContract = null;
 
             // No matching contracts → always create new
-            if (!contracts || contracts.length === 0 || caseType === "NO_MATCH" || caseType === "UNCLASSIFIED") {
+            if (!uniqueContracts || uniqueContracts.length === 0 || caseType === "NO_MATCH" || caseType === "UNCLASSIFIED") {
                 const res = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
                 invoiceResults.push(res);
                 continue;
             }
 
-            for (const contract of contracts) {
+            for (const contract of uniqueContracts) {
                 const action = decideContractAction(contract, newOffer);
 
                 if (action === "NO_ACTION") {
@@ -440,36 +442,31 @@ module.exports = (srv) => {
     }
 
     async function handleExcludeChildCustomer(tx, countryCode, resource, sourceData) {
-        try {
-            const apiConfig = await tx.run(SELECT.one.from(APIDefinition).where({ Provider: 'ConditionContract', CountryCode: countryCode, Resource: resource, Name: 'ExcludeCustomerExistingInvoiceContract' }));
-            const apiBodyMappings = await tx.run(SELECT.from(APIBody).where({ APIDefinition_ID: apiConfig.ID }));
-            if (!apiBodyMappings) {
-                throw new Error("ERR_MISSING_PARAMETER:API body Mappings not found");
-            }
-            const body = buildExcludeCustomerPayloadFromMappings(sourceData, apiBodyMappings);
-            if (!body) {
-                throw new Error("ERR_MISSING_PARAMETER:API Body not found");
-            }
-            const oauthAuth = await tx.run(SELECT.one.from(APIConfigOAuth, apiConfig.OAuth_ID));
-            const url = `${apiConfig.Host}${apiConfig.BasePath}${apiConfig.ResourcePath}`;
-
-            const oauthCredentials = await getBearerToken(oauthAuth);
-
-            const response = await axios({
-                method: 'post',
-                url: url,
-                headers: {
-                    'Authorization': `Bearer ${oauthCredentials.data.access_token}`,
-                    'Content-Type': 'application/json'
-                },
-                data: JSON.stringify(body)
-            });
-
-            return {response, body};
-        } catch (error) {
-            error.payload = body;
-            throw error
+        const apiConfig = await tx.run(SELECT.one.from(APIDefinition).where({ Provider: 'ConditionContract', CountryCode: countryCode, Resource: resource, Name: 'ExcludeCustomerExistingInvoiceContract' }));
+        const apiBodyMappings = await tx.run(SELECT.from(APIBody).where({ APIDefinition_ID: apiConfig.ID }));
+        if (!apiBodyMappings) {
+            throw new Error("ERR_MISSING_PARAMETER:API body Mappings not found");
         }
+        const body = buildExcludeCustomerPayloadFromMappings(sourceData, apiBodyMappings);
+        if (!body) {
+            throw new Error("ERR_MISSING_PARAMETER:API Body not found");
+        }
+        const oauthAuth = await tx.run(SELECT.one.from(APIConfigOAuth, apiConfig.OAuth_ID));
+        const url = `${apiConfig.Host}${apiConfig.BasePath}${apiConfig.ResourcePath}`;
+
+        const oauthCredentials = await getBearerToken(oauthAuth);
+
+        const response = await axios({
+            method: 'post',
+            url: url,
+            headers: {
+                'Authorization': `Bearer ${oauthCredentials.data.access_token}`,
+                'Content-Type': 'application/json'
+            },
+            data: JSON.stringify(body)
+        });
+
+        return {response, body};
     }
 
     /*async function createCCMContractExcludeCustomer(tx, countryCode, resource, sourceData, contract) {
