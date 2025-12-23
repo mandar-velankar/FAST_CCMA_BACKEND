@@ -1854,7 +1854,7 @@ module.exports = (srv) => {
             }
             await tx.run(INSERT.into(ConditionContractsLog).entries(inserts));
             await tx.run(UPDATE(CCMContract).with({ CCMContractEndDate: TerminationDate, CancellationComment: CancellationNote, Cancelled: true}).where({ ID: CCMContractID }));
-            await tx.run(UPDATE(FastConditionContracts).with({ hasCancelledContracts: false}).where({ ID: FastCCMContractId }));
+            await tx.run(UPDATE(FastConditionContracts).with({ hasCancelledContracts: true}).where({ ID: FastCCMContractId }));
 
             return req.reply(`Contract ${sourceData.ContractNumber} terminated successfully. End date updated to ${TerminationDate} in SAP.`);
 
