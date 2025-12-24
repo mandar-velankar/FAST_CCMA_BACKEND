@@ -13,6 +13,10 @@ import Sorter from "sap/ui/model/Sorter";
 import Table from "sap/m/Table";
 import BusyIndicator from "sap/ui/core/BusyIndicator";
 import MessageBox from "sap/m/MessageBox";
+import Fragment from "sap/ui/core/Fragment";
+import Dialog from "sap/m/Dialog";
+import ColumnListItem from "sap/m/ColumnListItem";
+import Text from "sap/m/Text";
 type TDetailRouteParameters = {
     id: string;
     layout: string;
@@ -45,7 +49,8 @@ export default class Detail extends BaseController {
                     editMode: false,
                 },
                 minDate: today,
-                maxDate: maxDate
+                maxDate: maxDate,
+                isCustomerHierarchyVisible: false,
             });
 
             const messagesModel = new JSONModel({
@@ -70,6 +75,8 @@ export default class Detail extends BaseController {
         this.bindContractInformationForm();
         this.bindCustomerForm();
         this.bindOwners();
+
+        this.unbindCustomerHierarchyTable()
     }
 
     /**
@@ -156,7 +163,19 @@ export default class Detail extends BaseController {
         ccmCustomerInfo?.bindElement({
             path: path,
             parameters: {
-                $$updateGroupId: "CustomerInformationDetail"
+                $$updateGroupId: "CustomerInformationDetail",
+                $select: "CCMContractID,CCMCustomerID"
+            },
+            events: {
+                dataReceived: (event: any) => {
+                    const data = event?.getSource()?.getBoundContext()?.getObject();
+                    if (data) {
+                        this.getModel("ui").setProperty("/AssortmentContractIDs", {
+                            CCMContractID: data?.CCMContractID,
+                            CCMCustomerID: data?.CCMCustomerID
+                        });
+                    }
+                }
             }
         });
     }
@@ -375,6 +394,46 @@ export default class Detail extends BaseController {
             console.error("Error fetching ConditionType for contract", contractID, err);
             return "";
         });
+    }
+
+    public onOpenCustomersHierarchyTable(): void {
+        const uiModel = this.getModel("ui") as JSONModel;
+        const isVisible = uiModel.getProperty("/isCustomerHierarchyVisible");
+
+        this.bindCustomerHierarchyTable();
+        uiModel.setProperty("/isCustomerHierarchyVisible", !isVisible);
+    }
+
+    public bindCustomerHierarchyTable() {
+        const oTable = this.byId("idCustomersDialogTable") as Table;
+        const bindingInfo = oTable?.getBindingInfo("items");
+        if (bindingInfo) return; // already bound
+        const assortmentContractIDs = this.getUIModel().getProperty("/AssortmentContractIDs");
+
+        // Create a template for the table rows and bind
+        const oTemplate = new ColumnListItem({
+            cells: [
+                new Text({ text: "{InstituteName}" }),
+                new Text({ text: "{CustomerID}" }),
+                new Text({ text: "{Excluded}"})
+            ]
+        });
+
+        oTable.bindItems({ 
+            path: "/CustomerHierarchy", 
+            filters: [
+                new Filter("CCMContractID", FilterOperator.EQ, assortmentContractIDs?.CCMContractID),
+                new Filter("CCMCustomer_ID", FilterOperator.EQ, assortmentContractIDs?.CCMCustomerID)
+            ],
+            template: oTemplate 
+        });
+    }
+
+    public unbindCustomerHierarchyTable() {
+        const oTable = this.byId("idCustomersDialogTable") as Table;
+        const uiModel = this.getModel("ui") as JSONModel;
+        oTable.unbindItems();
+        uiModel.setProperty("/isCustomerHierarchyVisible", false);
     }
 
 }
