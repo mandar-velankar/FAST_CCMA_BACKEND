@@ -277,9 +277,11 @@ export default class Detail extends BaseController {
     public onContractInformationFormSaveBtnPress () {
         const that = this;
         const form = this.byId("idCCMContractInformation");
+        const owners = this.getUIModel().getProperty("/owners") || [];
         const context = form?.getBindingContext() as any;
         const formData = context?.getObject();
         const contractTable = this.byId("idCCMContract");
+        const selectedOwner = owners.filter((owner: any) => owner.UserName === formData?.Owner);
 
         if (formData?.ExtensionPeriod > 12) {
             MessageBox.error("Extension period cannot exceed 12 months.");
@@ -287,8 +289,9 @@ export default class Detail extends BaseController {
         }
         context.setProperty("ContractStartDate", formData?.ContractStartDate || "");
         context.setProperty("ContractEndDate", formData?.ContractEndDate || "");
-
-        
+        context.setProperty("Owner", formData?.Owner || "");
+        context.setProperty("OwnerName", formData?.Owner || "");
+        context.setProperty("OwnerEmail", selectedOwner[0]?.UserEmail || "");
 
         this.getModel()?.submitBatch("ContractInformationDetail").then(async function(){
             if (!form?.getBindingContext()?.getBinding()?.hasPendingChanges()) {
