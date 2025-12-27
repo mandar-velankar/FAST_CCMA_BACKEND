@@ -4,6 +4,7 @@
     xmlns:t="sap.ui.table"
     xmlns:f="sap.f"
     xmlns:form="sap.ui.layout.form"
+    xmlns:semantic="sap.f.semantic"
     xmlns:l="sap.ui.layout"
     xmlns:core="sap.ui.core"
     xmlns:mvc="sap.ui.core.mvc"
@@ -204,8 +205,10 @@
                         <ColumnListItem
                             type="Navigation"
                             press=".onListItemPress"
+                            highlight="{path: 'hasActiveContracts', formatter: '.formatter.formatHighlight'}"
                             id="items"
                         >
+                        <customData> <core:CustomData key="mydata" value="{hasCancelledContracts}{CountryCode}" writeToDom='true'></core:CustomData><core:CustomData key="mydata1" value="{hasExpiredContracts}{hasCancelledContracts}{CountryCode}" writeToDom='true'></core:CustomData></customData>
                             <cells>
                                 <VBox>
                                     <Text text="{OfferID}" />

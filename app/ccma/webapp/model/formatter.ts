@@ -1,5 +1,6 @@
 import NumberFormat from "sap/ui/core/format/NumberFormat";
 import DateFormat from "sap/ui/core/format/DateFormat";
+import MessageType from "sap/ui/core/message/MessageType";
 
 const floatInstance = NumberFormat.getFloatInstance({
     maxFractionDigits: 2
@@ -274,4 +275,13 @@ export function getLiquidationInMonths (liquidation: string){
         case "Annually": return 12;
         default:return 0;
     }
+}
+
+export function formatHighlight(hasActiveContracts: string): MessageType {
+    if (hasActiveContracts === "Yes") {
+        // FORCE reset
+        return MessageType.None; 
+    }
+
+    return MessageType.Warning;
 }
