@@ -63,13 +63,29 @@
 				<form:formElements>
 					<form:FormElement >
 						<form:fields>
-							<Button width="2rem" icon="sap-icon://list"/>
+							<Button id="idBtnChildCustomerList" width="2rem" icon="sap-icon://list" press=".onOpenCustomersHierarchyTable"/>
 						</form:fields>
 					</form:FormElement>
 				</form:formElements>
 			</form:FormContainer>
 		</form:formContainers>
 	</form:Form>
+
+	<VBox class="sapUiSmallMargin" visible="{ui>/isCustomerHierarchyVisible}">
+		<Table id="idCustomersDialogTable" inset="false" mode="None" width="100%">
+			<columns>
+				<Column>
+					<Text text="{i18n>CustomersFragment.Institute}" />
+				</Column>
+				<Column>
+					<Text text="{i18n>CustomersFragment.CustomerID}" />
+				</Column>
+				<Column>
+					<Text text="{i18n>CustomersFragment.Excluded}" />
+				</Column>
+			</columns>
+		</Table>
+	</VBox>
     </Panel>
 
 </core:FragmentDefinition>

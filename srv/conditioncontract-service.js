@@ -231,18 +231,20 @@ module.exports = (srv) => {
             const { sourceData, case: caseType, contracts } = item;
             const newOffer = sourceData[0];
 
+            const uniqueContracts = [...new Map(contracts.map(c => [c.CCMContractID, c])).values()];
+
             let shouldCreateNew = false;         
             // let shouldCreateExcludingCustomer = false;  
             let excludeCustomerContract = null;
 
             // No matching contracts → always create new
-            if (!contracts || contracts.length === 0 || caseType === "NO_MATCH" || caseType === "UNCLASSIFIED") {
+            if (!uniqueContracts || uniqueContracts.length === 0 || caseType === "NO_MATCH" || caseType === "UNCLASSIFIED") {
                 const res = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
                 invoiceResults.push(res);
                 continue;
             }
 
-            for (const contract of contracts) {
+            for (const contract of uniqueContracts) {
                 const action = decideContractAction(contract, newOffer);
 
                 if (action === "NO_ACTION") {
@@ -416,6 +418,9 @@ module.exports = (srv) => {
             throw error;
         }
 
+        const itemGuidMatch = batchText.match(/"itemguid"\s*=\s*guid'([^']+)'/i);
+        const itemGUID = itemGuidMatch ? itemGuidMatch[1] : null;
+
         const customer = await tx.run(SELECT.one.from(CCMCustomer).where({CCMContract_ID: contract.CCMContractID}));
         const inserts = {
             ContractNumber        : contract.ContractNumber,
@@ -429,44 +434,39 @@ module.exports = (srv) => {
             CCMContractID: contract.CCMContractID
         }
         await tx.run(INSERT.into(ConditionContractsLog).entries(inserts));
-        await tx.run(UPDATE(CustomerHierarchy).with({ Excluded: true}).where({ CCMCustomer_ID: customer.ID }));
-
+        await tx.run(UPDATE(CustomerHierarchy).with({ Excluded: true}).where({ CCMCustomer_ID: customer.ID,  CustomerID: newOffer.Customer}));
+        await tx.run(INSERT.into(ContractItemGUID).entries({ ConditionDocument: contract.ContractNumber, CustomerID: newOffer.Customer, ItemGUID: itemGUID, CCMContract_ID:contract.CCMContractID}));
         console.log(`Existing contract ${contract.ContractNumber} updated successfully`);
 
         return true;
     }
 
     async function handleExcludeChildCustomer(tx, countryCode, resource, sourceData) {
-        try {
-            const apiConfig = await tx.run(SELECT.one.from(APIDefinition).where({ Provider: 'ConditionContract', CountryCode: countryCode, Resource: resource, Name: 'ExcludeCustomerExistingInvoiceContract' }));
-            const apiBodyMappings = await tx.run(SELECT.from(APIBody).where({ APIDefinition_ID: apiConfig.ID }));
-            if (!apiBodyMappings) {
-                throw new Error("ERR_MISSING_PARAMETER:API body Mappings not found");
-            }
-            const body = buildExcludeCustomerPayloadFromMappings(sourceData, apiBodyMappings);
-            if (!body) {
-                throw new Error("ERR_MISSING_PARAMETER:API Body not found");
-            }
-            const oauthAuth = await tx.run(SELECT.one.from(APIConfigOAuth, apiConfig.OAuth_ID));
-            const url = `${apiConfig.Host}${apiConfig.BasePath}${apiConfig.ResourcePath}`;
-
-            const oauthCredentials = await getBearerToken(oauthAuth);
-
-            const response = await axios({
-                method: 'post',
-                url: url,
-                headers: {
-                    'Authorization': `Bearer ${oauthCredentials.data.access_token}`,
-                    'Content-Type': 'application/json'
-                },
-                data: JSON.stringify(body)
-            });
-
-            return {response, body};
-        } catch (error) {
-            error.payload = body;
-            throw error
+        const apiConfig = await tx.run(SELECT.one.from(APIDefinition).where({ Provider: 'ConditionContract', CountryCode: countryCode, Resource: resource, Name: 'ExcludeCustomerExistingInvoiceContract' }));
+        const apiBodyMappings = await tx.run(SELECT.from(APIBody).where({ APIDefinition_ID: apiConfig.ID }));
+        if (!apiBodyMappings) {
+            throw new Error("ERR_MISSING_PARAMETER:API body Mappings not found");
         }
+        const body = buildExcludeCustomerPayloadFromMappings(sourceData, apiBodyMappings);
+        if (!body) {
+            throw new Error("ERR_MISSING_PARAMETER:API Body not found");
+        }
+        const oauthAuth = await tx.run(SELECT.one.from(APIConfigOAuth, apiConfig.OAuth_ID));
+        const url = `${apiConfig.Host}${apiConfig.BasePath}${apiConfig.ResourcePath}`;
+
+        const oauthCredentials = await getBearerToken(oauthAuth);
+
+        const response = await axios({
+            method: 'post',
+            url: url,
+            headers: {
+                'Authorization': `Bearer ${oauthCredentials.data.access_token}`,
+                'Content-Type': 'application/json'
+            },
+            data: JSON.stringify(body)
+        });
+
+        return {response, body};
     }
 
     /*async function createCCMContractExcludeCustomer(tx, countryCode, resource, sourceData, contract) {
@@ -532,6 +532,7 @@ module.exports = (srv) => {
             if(existingContractInfo && existingContractInfo.length > 0){
                 for(const info of existingContractInfo){
                     await tx.run(UPDATE(CCMContract).with({ Expired: true}).where({ ID: info.CCMContractID }));
+                    await tx.run(UPDATE(FastConditionContracts).with({ hasExpiredContracts: true}).where({ ID: info.FastConditionContractID }));
                 }
             }
             //Fetch Source Data
@@ -596,6 +597,7 @@ module.exports = (srv) => {
                             await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber, Expired: false}).where({ ID: CCMContractID }));
                         }
                         await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, ContractReferene: contractReference, Synchronized: true, Expired: false, CreationDate: today}).where({ ID: CCMContractID }));
+                        await tx.run(UPDATE(FastConditionContracts).with({ hasActiveContracts: true}).where({ ID: FastCCMContractId }));
                         const inserts = {
                             ContractNumber        : contractNumber,
                             ContractReference : contractReference,        
@@ -628,7 +630,7 @@ module.exports = (srv) => {
                         }
                     }
 
-                    if (bvheaders.length) {
+                    /**if (bvheaders.length) {
                         const inserts = bvheaders.map((bvh) => ({
                             CCMContract_ID: CCMContractID,
                             ConditionDocument: bvh.ConditionDocument,
@@ -640,7 +642,7 @@ module.exports = (srv) => {
                         }));
 
                         await tx.run(INSERT.into(ContractItemGUID).entries(inserts));
-                    }
+                    }**/
                     //console.log("Invoice response from SAP:", invoiceResult?.data);
                 }
             }else{
@@ -726,7 +728,7 @@ module.exports = (srv) => {
                 }
                 statusCode = error.response.status || 502;
             }
-            else if (error.code && error.message) {
+            else if (error.message) {
                 console.error("App Error:", error.message);
                 userMessage = error.message;
                 statusCode = typeof error.code === 'number' ? error.code : 500;
@@ -1247,6 +1249,9 @@ module.exports = (srv) => {
                     if(row.ContractType.toLowerCase() === 'commercial agreement'){
                         value = "OF-".concat(row.TenderID); 
                     }
+                    // truncate to max 30 characters
+                    value = value?.substring(0, 30);
+
                     setNestedValue(finalResult, Target, value);
                     continue;
                 }
@@ -1259,6 +1264,9 @@ module.exports = (srv) => {
                     if(row.ContractType.toLowerCase() === 'commercial agreement'){
                         value = "OF-".concat(row.TenderID); 
                     }
+                    // truncate to max 30 characters
+                    value = value?.substring(0, 30);
+                    
                     setNestedValue(finalResult, Target, value);
                     continue;
                 }
@@ -1502,6 +1510,7 @@ module.exports = (srv) => {
             if (existingContractInfo && existingContractInfo.length > 0) {
                 for (const info of existingContractInfo) {
                     await tx.run(UPDATE(CCMContract).with({ Expired: true }).where({ ID: info.CCMContractID }));
+                    await tx.run(UPDATE(FastConditionContracts).with({ hasExpiredContracts: true}).where({ ID: info.FastConditionContractID }));
                 }
             }
 
@@ -1605,7 +1614,7 @@ module.exports = (srv) => {
                                 await tx.run(UPDATE(CCMContract).with({ PreviousContractNumber: contractInfo.ContractNumber, Expired: false}).where({ ID: CCMContractID }));
                             }
                             await tx.run(UPDATE(CCMContract).with({ ContractNumber: contractNumber, ContractReferene: contractReference, Synchronized: true, Expired: false, CreationDate: today}).where({ ID: CCMContractID }));
-
+                            await tx.run(UPDATE(FastConditionContracts).with({ hasActiveContracts: true}).where({ ID: FastCCMContractId }));
                             const inserts = {
                                 ContractNumber        : contractNumber,
                                 ContractReference : contractReference,        
@@ -1638,7 +1647,7 @@ module.exports = (srv) => {
                             }
                         }
 
-                        if (bvheaders.length) {
+                        /**if (bvheaders.length) {
                             const inserts = bvheaders.map((bvh) => ({
                                 CCMContract_ID: CCMContractID,
                                 ConditionDocument: bvh.ConditionDocument,
@@ -1650,7 +1659,7 @@ module.exports = (srv) => {
                             }));
 
                             await tx.run(INSERT.into(ContractItemGUID).entries(inserts));
-                        }
+                        }**/
                         console.log("Invoice response from SAP:", invoiceResult?.data);
                         if (updatedContracts.length) console.log("Updated Contracts:", updatedContracts);
                         if (skippedContracts.length) console.log("Skipped Contracts:", skippedContracts);
@@ -1842,6 +1851,7 @@ module.exports = (srv) => {
             }
             await tx.run(INSERT.into(ConditionContractsLog).entries(inserts));
             await tx.run(UPDATE(CCMContract).with({ CCMContractEndDate: TerminationDate, CancellationComment: CancellationNote, Cancelled: true}).where({ ID: CCMContractID }));
+            await tx.run(UPDATE(FastConditionContracts).with({ hasCancelledContracts: true}).where({ ID: FastCCMContractId }));
 
             return req.reply(`Contract ${sourceData.ContractNumber} terminated successfully. End date updated to ${TerminationDate} in SAP.`);
 

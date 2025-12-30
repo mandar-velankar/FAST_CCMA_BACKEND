@@ -33,7 +33,6 @@ entity FastConditionContracts: cuid, managed {
   hasExpiringSoonContracts: Boolean;
   hasExpiredContracts: Boolean;
   hasCancelledContracts: Boolean;
-  hasContractsToBeSynchronized: Boolean;
   hasNewContracts: Boolean;
   CCMContract: Composition of many CCMContract on CCMContract.FastConditionContracts = $self;
 }
