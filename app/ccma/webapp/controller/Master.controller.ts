@@ -152,8 +152,7 @@ export default class Master extends BaseController {
 				netpricebelowfloorpricekey: "hasNetPriceBelowFloorPrice",
 				expiringsoonkey: "hasExpiringSoonContracts",
 				expiredkey: "hasExpiredContracts",
-				cancelledkey: "hasCancelledContracts",
-				tobesynchronizedkey: "hasContractsToBeSynchronized"
+				cancelledkey: "hasCancelledContracts"
 			};
 
 			const filterProperty = filterMap[selectedKey];

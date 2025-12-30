@@ -275,3 +275,12 @@ export function getLiquidationInMonths (liquidation: string){
         default:return 0;
     }
 }
+
+export function formatHighlight(hasActiveContracts: string) {
+    if (hasActiveContracts === "Yes") {
+        // FORCE reset
+        return "None"; 
+    }
+
+    return "Warning";
+}
