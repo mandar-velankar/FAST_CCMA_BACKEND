@@ -1,49 +1,383 @@
-<core:FragmentDefinition 
-	xmlns="sap.m" 
-	xmlns:core="sap.ui.core" 
-	xmlns:up="sap.uxap" 
-	xmlns:form="sap.ui.layout.form" 
-	xmlns:u="sap.uxap"
-	xmlns:t="sap.ui.table" 
-	xmlns:l="sap.ui.layout"
-	xmlns:mvc="sap.ui.core.mvc"
-	xmlns:tree="sap.ui.table">
-
-    <Panel
+<core:FragmentDefinition
+    xmlns:m="sap.m"
+    xmlns:core="sap.ui.core"
+    xmlns:up="sap.uxap"
+    xmlns:form="sap.ui.layout.form"
+    xmlns:u="sap.uxap"
+    xmlns:t="sap.ui.table"
+    xmlns:l="sap.ui.layout"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns:tree="sap.ui.table"
+>
+    <m:Panel
         expandable="true"
         expanded="true"
         headerText="{i18n>PricingFragment.Pricing}"
-    >   
-        <tree:Table 
-			selectionMode="Single"
-			rowActionCount="1"
-		>
-			<!-- <tree:rowActionTemplate> 
-				<tree:RowAction> 
-					<tree:RowActionItem type="Navigation" press=".onListItemPress" /> 
-				</tree:RowAction> 
-			</tree:rowActionTemplate> -->
-			<tree:columns>
-				<tree:Column sortProperty="InvoicePrice" filterProperty="InvoicePrice">
-					<Label text="{i18n>PricingFragment.InvoicePrice}" />
-					<tree:template>
-						<Text text="" />
-					</tree:template>
-				</tree:Column>
-				<tree:Column sortProperty="Rappel" filterProperty="Rappel">
-					<Label text="{i18n>PricingFragment.Rappel}" />
-					<tree:template>
-						<Text text=""/>
-					</tree:template>
-				</tree:Column>
-				<tree:Column sortProperty="FOC" filterProperty="FOC">
-					<Label text="{i18n>PricingFragment.FOC}" />
-					<tree:template>
-						<Text text=""/>
-					</tree:template>
-				</tree:Column>
-			</tree:columns>
-		</tree:Table>
-    </Panel>
+    >
+        <m:IconTabBar>
+            <m:items>
+                <m:IconTabFilter
+                    text="InvoicePrice"
+                    key="InvoicePrice"
+                >
+                <form:Form id="idPricingForm" editable="true">
+                    <form:toolbar>
+                        <m:Toolbar>
+                            <m:ToolbarSpacer />
+                            <m:Button 
+                                id="idGetCurrentCCMPriceButton"
+                                text="Get Current CCM Price" 
+                                type="Emphasized"
+                                icon="sap-icon://download"
+                                press="onGetCurrentCCMPrice"
+                                enabled="false"
+                            />
+                            <m:Button 
+                                id="idIgnoreCurrentCCMPriceButton"
+                                text="Ignore" 
+                                icon="sap-icon://decline" 
+                                type="Emphasized" 
+                                press=".onIgnoreCurrentCCMPrice" 
+                                enabled="{ui>/isIgnoreContractPriceBtnEnabled}"
+                            />
+                        </m:Toolbar>
+                    </form:toolbar>
+                    <form:layout>
+                        <form:ResponsiveGridLayout
+                            labelSpanXL="3"
+                            labelSpanL="3"
+                            labelSpanM="3"
+                            labelSpanS="12"
+                            adjustLabelSpan="false"
+                            emptySpanXL="0"
+                            emptySpanL="0"
+                            emptySpanM="0"
+                            emptySpanS="0"
+                            columnsXL="2" 
+                            columnsL="2"
+                            columnsM="1"  
+                            singleContainerFullSize="false"
+                        />
+                    </form:layout>
 
+                    <form:formContainers>
+                        <!-- Container for Current Pricing -->
+                        <form:FormContainer>
+                            <form:formElements>
+                                <form:FormElement>
+                                    <form:fields>
+                                        <core:Fragment fragmentName="com.bayer.tender.ccma.view.fragments.detail-detail.FASTContractPricing" type="XML"/>
+                                    </form:fields>
+                                </form:FormElement>
+                            </form:formElements>
+                        </form:FormContainer>
+
+                        <!-- Container for New Pricing -->
+                        <form:FormContainer>
+                            <form:formElements>
+                                <form:FormElement>
+                                    <form:fields>
+                                        <core:Fragment fragmentName="com.bayer.tender.ccma.view.fragments.detail-detail.CCMContractPricing" type="XML" />
+                                    </form:fields>
+                                </form:FormElement>
+                            </form:formElements>
+                        </form:FormContainer>
+                    </form:formContainers>
+                </form:Form>
+                </m:IconTabFilter>
+                <m:IconTabFilter
+                    text="FOC"
+                    key="foc"
+                >
+                    <m:Table
+                        id="idFocTable"
+                        mode="SingleSelectMaster"
+                        items="{/CCMContractFOCTableView}"
+                    >
+                        <m:headerToolbar>
+                            <m:Toolbar>
+                                <m:ToolbarSpacer />
+                                <m:Button
+                                    text="Send to interact"
+                                    type="Emphasized"
+                                    press=".onSendFOCInteractMail"
+                                    enabled="{= ${ui>/hasPricingFOC}}"
+                                />
+                            </m:Toolbar>
+                        </m:headerToolbar>
+                        <m:columns>
+                            <m:Column
+                                minScreenWidth="Desktop"
+                                demandPopin="true"
+                                width="150px"
+                                popinDisplay="Inline"
+                            >
+                                <m:Label
+                                    text="{i18n>ESFOCFragment.Product}"
+                                    wrapping="true"
+                                />
+                            </m:Column>
+                            <m:Column
+                                minScreenWidth="Desktop"
+                                demandPopin="true"
+                                width="150px"
+                                popinDisplay="Inline"
+                            >
+                                <m:Label
+                                    text="{i18n>ESFOCFragment.RoyalDecree}"
+                                    wrapping="true"
+                                />
+                            </m:Column>
+                            <m:Column
+                                minScreenWidth="Desktop"
+                                demandPopin="true"
+                                width="150px"
+                                popinDisplay="Inline"
+                            >
+                                <m:Label
+                                    text="{i18n>ESFOCFragment.MinAmount}"
+                                    wrapping="true"
+                                />
+                            </m:Column>
+                            <m:Column
+                                minScreenWidth="Desktop"
+                                demandPopin="true"
+                                width="150px"
+                                popinDisplay="Inline"
+                            >
+                                <m:Label
+                                    text="{i18n>ESFOCFragment.Bonus}"
+                                    wrapping="true"
+                                />
+                            </m:Column>
+                            <m:Column
+                                minScreenWidth="Desktop"
+                                demandPopin="true"
+                                width="150px"
+                                popinDisplay="Inline"
+                            >
+                                <m:Label
+                                    text="{i18n>ESFOCFragment.PotentialSavings}"
+                                    wrapping="true"
+                                />
+                            </m:Column>
+                        </m:columns>
+                        <m:items>
+                            <m:ColumnListItem>
+                                <m:cells>
+                                    <m:Text text="{ProductName}" />
+                                    <m:Text text="{RoyalDecree}" />
+                                    <m:Text 
+                                        text ="{
+                                            path: 'FreeGoodsOther_Step',
+                                            type: 'sap.ui.model.type.Integer',
+                                            formatOptions: { 
+                                                maxFractionDigits: 0,
+                                                minFractionDigits: 0, 
+                                                groupingEnabled: true, 
+                                                groupingSeparator: ','
+                                            }
+                                        }"							
+                                    />
+                                    <m:Text text="{
+                                        path: 'FOCBonus',
+                                        formatter: '.formatter.formatBonus'
+                                    }" />
+                                    <m:Text
+                                        text="{path:'PotentialGeneratedSavings', type:'sap.ui.model.type.Float', formatOptions: { maxFractionDigits: 2, minFractionDigits: 2}}"
+                                    />
+                                </m:cells>
+                            </m:ColumnListItem>
+                        </m:items>
+                    </m:Table>
+                </m:IconTabFilter>
+                <m:IconTabFilter
+                    text="Rebate"
+                    key="rebate"
+                >
+                    <!-- <m:HBox alignItems="Start" class="sapUiSmallMargin"> -->
+                    <form:Form
+                        width="700px"
+                        id="idRebateForm"
+                        editable="true"
+                    >
+                        <form:layout>
+                            <form:ResponsiveGridLayout
+                                labelSpanXL="3"
+                                labelSpanL="3"
+                                labelSpanM="3"
+                                labelSpanS="12"
+                                adjustLabelSpan="false"
+                                emptySpanXL="4"
+                                emptySpanL="4"
+                                emptySpanM="4"
+                                emptySpanS="0"
+                                columnsXL="1"
+                                columnsL="1"
+                                columnsM="1"
+                                singleContainerFullSize="false"
+                            />
+                        </form:layout>
+                        <form:formContainers>
+                            <form:FormContainer>
+                                <form:formElements>
+                                    <form:FormElement
+                                        label="{i18n>ESRebateFragment.MarketIncentiveID}"
+                                    >
+                                        <form:fields>
+                                            <m:Input
+                                                value="{MarketIncentiveDescription}"
+                                                enabled="false"
+                                            />
+                                        </form:fields>
+                                    </form:FormElement>
+                                    <form:FormElement
+                                        label="{i18n>ESRebateFragment.Liquidation}"
+                                    >
+                                        <form:fields>
+                                            <m:Input
+                                                value="{Liquidation}"
+                                                enabled="false"
+                                            />
+                                        </form:fields>
+                                    </form:FormElement>
+                                    <form:FormElement
+                                        label="{i18n>ESRebateFragment.PaymentBackDate}"
+                                    >
+                                        <form:fields>
+                                            <m:DatePicker
+                                                id="DP1"
+                                                value="{
+                                                        path:'RefundDate',
+                                                        type:'sap.ui.model.odata.type.Date', 
+                                                        formatOptions: { style: 'short', pattern: 'dd.MM.yyyy',UTC: true}
+                                                }"
+                                                enabled="false"
+                                                class="sapUiSmallMarginBottom"
+                                            />
+                                        </form:fields>
+                                    </form:FormElement>
+                                    <form:FormElement
+                                        label="{i18n>ESRebateFragment.Settlement}"
+                                    >
+                                        <form:fields>
+                                            <m:Input
+                                                value="{SettlementDescription}"
+                                                enabled="false"
+                                            />
+                                        </form:fields>
+                                    </form:FormElement>
+                                    <form:FormElement
+                                        label="{i18n>ESRebateFragment.Settlement}"
+                                        visible="false"
+                                    >
+                                        <form:fields>
+                                            <m:Input
+                                                value="{PriceConditionRebateID}"
+                                                visible="false"
+                                            />
+                                        </form:fields>
+                                    </form:FormElement>
+                                </form:formElements>
+                            </form:FormContainer>
+                        </form:formContainers>
+                    </form:Form>
+                    <!-- </m:HBox> -->
+                    <m:HBox>
+                        <m:Label
+                            text="{i18n>ESRebateFragment.SettlementCalendar}"
+                            width="10em"
+                            class="sapUiSmallMarginTop sapUiTinyMarginEnd"
+                        />
+                        <m:Button
+                            icon="sap-icon://calendar"
+                            press=".onOpenSettlementCalendar"
+                            class="sapUiNoMarginTop sapUiSmallMarginBottom"
+                            enabled="true"
+                        />
+                    </m:HBox>
+                    <m:Table
+                        id="idRebateDisCondtTable"
+                        mode="SingleSelectMaster"
+                        items="{/CCMContractRebateDiscountConditionTableView}"
+                    >
+                        <m:columns>
+                            <m:Column
+                                minScreenWidth="Desktop"
+                                demandPopin="true"
+                                width="150px"
+                                popinDisplay="Inline"
+                            >
+                                <m:Label
+                                    text="{i18n>ESRebateDCFragment.VolumeTreshold}"
+                                    wrapping="true"
+                                />
+                            </m:Column>
+                            <m:Column
+                                minScreenWidth="Desktop"
+                                demandPopin="true"
+                                width="150px"
+                                popinDisplay="Inline"
+                            >
+                                <m:Label
+                                    text="{i18n>ESRebateDCFragment.Discount}"
+                                    wrapping="true"
+                                />
+                            </m:Column>
+                            <m:Column
+                                minScreenWidth="Desktop"
+                                demandPopin="true"
+                                width="150px"
+                                popinDisplay="Inline"
+                            >
+                                <m:Label
+                                    text="{i18n>ESRebateDCFragment.NetPricewoTax}"
+                                    wrapping="true"
+                                />
+                            </m:Column>
+                            <m:Column
+                                minScreenWidth="Desktop"
+                                demandPopin="true"
+                                width="150px"
+                                popinDisplay="Inline"
+                            >
+                                <m:Label
+                                    text="{i18n>ESRebateDCFragment.Tax}"
+                                    wrapping="true"
+                                />
+                            </m:Column>
+                            <m:Column
+                                minScreenWidth="Desktop"
+                                demandPopin="true"
+                                width="150px"
+                                popinDisplay="Inline"
+                            >
+                                <m:Label
+                                    text="{i18n>ESRebateDCFragment.NetPricewithTax}"
+                                    wrapping="true"
+                                />
+                            </m:Column>
+                        </m:columns>
+                        <m:items>
+                            <m:ColumnListItem>
+                                <m:cells>
+                                    <m:Text text="{Volume}" />
+                                    <m:Text
+                                        text="{ path: 'Discount', 
+            type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'}"
+                                    />
+                                    <m:Text text="{NetPriceWithoutTax}" />
+                                    <m:Text
+                                        text="{ path: 'Tax', 
+            type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'}"
+                                    />
+                                    <m:Text text="{NetPriceWithTax}" />
+                                </m:cells>
+                            </m:ColumnListItem>
+                        </m:items>
+                    </m:Table>
+                </m:IconTabFilter>
+            </m:items>
+        </m:IconTabBar>
+    </m:Panel>
 </core:FragmentDefinition>

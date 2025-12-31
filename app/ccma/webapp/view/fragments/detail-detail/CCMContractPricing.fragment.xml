@@ -1,0 +1,476 @@
+<core:FragmentDefinition
+    xmlns:m="sap.m"
+    xmlns:core="sap.ui.core"
+    xmlns:form="sap.ui.layout.form"
+>
+
+    <form:Form
+        id="idNewPricingFormCCM"
+        editable="true"
+    >
+        <form:title>
+            <core:Title text="{i18n>ESPricingFragment.CCMContractPricing}" />
+        </form:title>
+        <form:layout>
+            <form:ResponsiveGridLayout
+                labelSpanXL="3"
+                labelSpanL="3"
+                labelSpanM="3"
+                labelSpanS="12"
+                adjustLabelSpan="false"
+                emptySpanXL="4"
+                emptySpanL="4"
+                emptySpanM="4"
+                emptySpanS="0"
+                columnsXL="1"
+                columnsL="1"
+                columnsM="1"
+                singleContainerFullSize="false"
+            />
+        </form:layout>
+        <form:formContainers>
+            <form:FormContainer>
+                <form:formElements>
+                    <form:FormElement>
+                        <form:fields>
+                            <m:Title text="{ConditionType}" level="H4"/>
+                        </form:fields>
+                    </form:FormElement>
+                    <form:FormElement
+                        label="{i18n>ESPricingFragment.PVL}"
+                        visible="{= %{ConditionType} !== 'Rental'}"
+                    >
+                        <form:fields>
+                            <m:Input
+                                id="idCurrentPVL"
+                                enabled="false"
+                                value="{ parts: ['YP00', 'Currency'], 
+type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
+                                visible="{= %{ConditionType} !== 'Rental'}"
+                                valueState="{
+                                    parts: [
+                                        { path: 'YP00' },
+                                        { value: 'YP00' },
+                                        { value: 'idCurrentPVL'} 
+                                    ], 
+                                    formatter: '.onCheckContractPriceDifference'
+                                }"
+                            />
+                        </form:fields>
+                    </form:FormElement>
+                    <form:FormElement
+                        label="{i18n>ESPricingFragment.ConfidentialDiscount}"
+                        visible="{= %{YP04} > 0 &amp;&amp; %{ConditionType} !== 'Rental'}"
+                    >
+                        <form:fields>
+                            <m:Input
+                                id="idCurrentConfidentialDiscount"
+                                value="{path: 'YP04', 
+type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'}"
+                                enabled="false"
+                                visible="{= %{YP04} > 0 &amp;&amp; %{ConditionType} !== 'Rental'}"
+                                valueState="{
+                                    parts: [
+                                        { path: 'YP04' },
+                                        { value: 'YP04' },
+                                        { value: 'idCurrentConfidentialDiscount'} 
+                                    ], 
+                                    formatter: '.onCheckContractPriceDifference'
+                                }"
+                            />
+                        </form:fields>
+                    </form:FormElement>
+                    <form:FormElement
+                        label="{i18n>ESPricingFragment.ConfidentialPrice}"
+                        visible="{= %{YP04} > 0 &amp;&amp; %{ConditionType} !== 'Rental'}"
+                    >
+                        <form:fields>
+                            <m:Input
+                                id="idCurrentConfidentialPrice"
+                                value="{ parts: ['ConfidentialPrice', 'Currency'], 
+type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
+                                enabled="false"
+                                visible="{= %{YP04} > 0 &amp;&amp; %{ConditionType} !== 'Rental'}"
+                                valueState="{
+                                    parts: [
+                                        { path: 'ConfidentialPrice' },
+                                        { value: 'ConfidentialPrice' },
+                                        { value: 'idCurrentConfidentialPrice'} 
+                                    ], 
+                                    formatter: '.onCheckContractPriceDifference'
+                                }"
+                            />
+                        </form:fields>
+                    </form:FormElement>
+                    <form:FormElement
+                        label="{i18n>ESPricingFragment.AdditionalDiscount}"
+                        visible="{= %{ConditionType} === 'PrecioNeto'}"
+                    >
+                        <form:fields>
+                            <m:Input
+                                id="idCurrentAdditionalDiscount"
+                                value="{ path: 'YD75', 
+type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'}"
+                                enabled="false"
+                                visible="{= %{ConditionType} === 'PrecioNeto'}"
+                                valueState="{
+                                    parts: [
+                                        { path: 'YD75' },
+                                        { value: 'YD75' },
+                                        { value: 'idCurrentAdditionalDiscount'} 
+                                    ], 
+                                    formatter: '.onCheckContractPriceDifference'
+                                }"
+                            />
+                        </form:fields>
+                    </form:FormElement>
+                    <form:FormElement
+                        label="{i18n>ESPricingFragment.Discount}"
+                        visible="{= %{ConditionType} === 'DescuentoComercial' || %{ConditionType} === 'DescuentoEspecial'}"
+                    >
+                        <form:fields>
+                            <m:Input
+                                id="idCurrentDiscount"
+                                value="{ path: 'YD02', 
+type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'}"
+                                enabled="false"
+                                visible="{= %{ConditionType} === 'DescuentoComercial' || %{ConditionType} === 'DescuentoEspecial'}"
+                                valueState="{
+                                    parts: [
+                                        { path: 'YD02' },
+                                        { value: 'YD02' },
+                                        { value: 'idCurrentDiscount'} 
+                                    ], 
+                                    formatter: '.onCheckContractPriceDifference'
+                                }"
+                            />
+                        </form:fields>
+                    </form:FormElement>
+                    <form:FormElement
+                        label="{i18n>ESPricingFragment.RoyalDecree}"
+                        visible="{= !%{RoyalDecreeIncl} &amp;&amp; %{ConditionType} !== 'Rental'}"
+                    >
+                        <form:fields>
+                            <m:Input
+                                id="idCurrentRoyalDecree"
+                                value="{ path: 'YD06', 
+type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'}"
+                                enabled="false"
+                                visible="{= !%{RoyalDecreeIncl} &amp;&amp; %{ConditionType} !== 'Rental'}"
+                                valueState="{
+                                    parts: [
+                                        { path: 'YD06' },
+                                        { value: 'YD06' },
+                                        { value: 'idCurrentRoyalDecree'} 
+                                    ], 
+                                    formatter: '.onCheckContractPriceDifference'
+                                }"
+                            />
+                        </form:fields>
+                    </form:FormElement>
+                    <form:FormElement
+                        label="{i18n>ESPricingFragment.royalDecreeIncl}"
+                        visible="false"
+                    >
+                        <form:fields>
+                            <m:CheckBox
+                                enabled="false"
+                                selected="{RoyalDecreeIncl}"
+                                visible="false"
+                            />
+                        </form:fields>
+                    </form:FormElement>
+                    <form:FormElement
+                        label="{i18n>ESPricingFragment.RoyalDecreeApplies}"
+                        visible="{= !%{RoyalDecreeIncl} &amp;&amp; %{ConditionType} !== 'Rental' &amp;&amp; %{ConditionType} !== 'DescuentoEspecial'}"
+                    >
+                        <form:fields>
+                            <m:Select
+                                selectedKey="{= %{RoyalDecree} ? %{RoyalDecree} : 'No'}"
+                                enabled="false"
+                                visible="{= !%{RoyalDecreeIncl} &amp;&amp; %{ConditionType} !== 'Rental' &amp;&amp; %{ConditionType} !== 'DescuentoEspecial'}"
+                            >
+                                <m:items>
+                                    <core:Item
+                                        key="No"
+                                        text="No"
+                                    />
+                                    <core:Item
+                                        key="Yes"
+                                        text="Yes"
+                                    />
+                                </m:items>
+                            </m:Select>
+                        </form:fields>
+                    </form:FormElement>
+                    <form:FormElement
+                        label="{i18n>ESPricingFragment.NetPriceBeforeRC}"
+                        visible="{= %{ConditionType} === 'PrecioNeto' || %{ConditionType} === 'PVL'}"
+                    >
+                        <form:fields>
+                            <m:Input
+                                id="idCurrentNetPriceBeforeRC"
+                                value="{ parts: ['YP10', 'Currency'], 
+                                        type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
+                                enabled="false"
+                                visible="{= %{ConditionType} === 'PrecioNeto' || %{ConditionType} === 'PVL'}"
+                                fieldGroupIds="priceInputPrecioNeto"
+                                valueState="{
+                                    parts: [
+                                        { path: 'YP10' },
+                                        { value: 'YP10' },
+                                        { value: 'idCurrentNetPriceBeforeRC'} 
+                                    ], 
+                                    formatter: '.onCheckContractPriceDifference'
+                                }"
+                            />
+                        </form:fields>
+                    </form:FormElement>
+                    <form:FormElement
+                        label="{i18n>ESPricingFragment.NetPriceBeforeRC}"
+                        visible="{= %{ConditionType} === 'DescuentoComercial'}"
+                    >
+                        <form:fields>
+                            <m:Input
+                                id="idCurrentDescuentoCommercialNetPriceBeforeRC"
+                                value="{ parts: ['NetPriceWithoutTax', 'Currency'], 
+                                        type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
+                                enabled="false"
+                                visible="{= %{ConditionType} === 'DescuentoComercial'}"
+                                valueState="{
+                                    parts: [
+                                        { path: 'NetPriceWithoutTax' },
+                                        { value: 'NetPriceWithoutTax' },
+                                        { value: 'idCurrentDescuentoCommercialNetPriceBeforeRC'} 
+                                    ], 
+                                    formatter: '.onCheckContractPriceDifference'
+                                }"
+                            />
+                        </form:fields>
+                    </form:FormElement>
+                    <form:FormElement
+                        label="{i18n>ESPricingFragment.RoyalDecreeValue}"
+                        visible="{= !%{RoyalDecreeIncl} &amp;&amp; %{ConditionType} !== 'Rental' &amp;&amp; %{ConditionType} !== 'DescuentoEspecial'}"
+                    >
+                        <form:fields>
+                            <m:Input
+                                id="idCurrentRoyalDecreeValue"
+                                value="{ parts: ['RoyalDecreeValue', 'Currency'], 
+type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
+                                enabled="false"
+                                visible="{= !%{RoyalDecreeIncl} &amp;&amp; %{ConditionType} !== 'Rental' &amp;&amp; %{ConditionType} !== 'DescuentoEspecial'}"
+                                valueState="{
+                                    parts: [
+                                        { path: 'RoyalDecreeValue' },
+                                        { value: 'RoyalDecreeValue' },
+                                        { value: 'idCurrentRoyalDecreeValue'} 
+                                    ], 
+                                    formatter: '.onCheckContractPriceDifference'
+                                }"
+                            />
+                        </form:fields>
+                    </form:FormElement>
+                    <form:FormElement
+                        label="{i18n>ESPricingFragment.NetPriceAfterRC}"
+                        visible="{= !%{RoyalDecreeIncl} &amp;&amp; (%{ConditionType} === 'PrecioNeto' || %{ConditionType} === 'PVL')}"
+                    >
+                        <form:fields>
+                            <m:Input
+                                id="idCurrentNetPriceAfterRC"
+                                value="{ parts: ['NetPriceWithoutTaxAfterDeductionRD', 'Currency'], 
+type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
+                                enabled="false"
+                                visible="{= !%{RoyalDecreeIncl} &amp;&amp; (%{ConditionType} === 'PrecioNeto' || %{ConditionType} === 'PVL')}"
+                                valueState="{
+                                    parts: [
+                                        { path: 'NetPriceWithoutTaxAfterDeductionRD' },
+                                        { value: 'NetPriceWithoutTaxAfterDeductionRD' },
+                                        { value: 'idCurrentNetPriceAfterRC'} 
+                                    ], 
+                                    formatter: '.onCheckContractPriceDifference'
+                                }"
+                            />
+                        </form:fields>
+                    </form:FormElement>
+                    <form:FormElement
+                        label="{i18n>ESPricingFragment.MaximumPrice}"
+                        visible="{= %{ConditionType} === 'PrecioNeto' &amp;&amp; %{ui>/Classification} === 'Tender' }"
+                    >
+                        <form:fields>
+                            <m:Input
+                                id="idCurrentMaximumPrice"
+                                value="{ parts: ['MaximumPrice', 'Currency'], 
+type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
+                                enabled="false"
+                                visible="{= %{ConditionType} === 'PrecioNeto' &amp;&amp; %{ui>/Classification} === 'Tender' }"
+                                fieldGroupIds="priceInputPrecioNeto"
+                                valueState="{
+                                    parts: [
+                                        { path: 'MaximumPrice' },
+                                        { value: 'MaximumPrice' },
+                                        { value: 'idCurrentMaximumPrice'} 
+                                    ], 
+                                    formatter: '.onCheckContractPriceDifference'
+                                }"
+                            />
+                        </form:fields>
+                    </form:FormElement>
+                    <form:FormElement
+                        label="{i18n>ESPricingFragment.Tax}"
+                        visible="{= %{ConditionType} !== 'Rental'}"
+                    >
+                        <form:fields>
+                            <m:Input
+                                id="idCurrentTax"
+                                value="{ path: 'Tax', 
+type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'}"
+                                enabled="false"
+                                visible="{= %{ConditionType} !== 'Rental'}"
+                                valueState="{
+                                    parts: [
+                                        { path: 'Tax' },
+                                        { value: 'Tax' },
+                                        { value: 'idCurrentTax'} 
+                                    ], 
+                                    formatter: '.onCheckContractPriceDifference'
+                                }"
+                            />
+                        </form:fields>
+                    </form:FormElement>
+                    <form:FormElement
+                        label="{i18n>ESPricingFragment.NetPriceWtax}"
+                        visible="{= %{ConditionType} !== 'Rental'}"
+                    >
+                        <form:fields>
+                            <m:Input
+                                id="idCurrentNetPriceWtax"
+                                value="{ parts: ['NetPriceWithTax', 'Currency'], 
+type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
+                                enabled="false"
+                                visible="{= %{ConditionType} !== 'Rental'}"
+                                valueState="{
+                                    parts: [
+                                        { path: 'NetPriceWithTax' },
+                                        { value: 'NetPriceWithTax' },
+                                        { value: 'idCurrentNetPriceWtax'} 
+                                    ], 
+                                    formatter: '.onCheckContractPriceDifference'
+                                }"
+                            />
+                        </form:fields>
+                    </form:FormElement>
+                    <form:FormElement
+                        label="{i18n>ESPricingFragment.NetPriceWtaxAfterRC}"
+                        visible="false"
+                    >
+                        <form:fields>
+                            <m:Input
+                                id="idCurrentNetPriceWtaxAfterRC"
+                                value="{ parts: ['NetPriceWithTaxAfterDeductionRD', 'Currency'], 
+type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
+                                enabled="false"
+                                visible="false"
+                                valueState="{
+                                    parts: [
+                                        { path: 'NetPriceWithTaxAfterDeductionRD' },
+                                        { value: 'NetPriceWithTaxAfterDeductionRD' },
+                                        { value: 'idCurrentNetPriceWtaxAfterRC'} 
+                                    ], 
+                                    formatter: '.onCheckContractPriceDifference'
+                                }"
+                            />
+                        </form:fields>
+                    </form:FormElement>
+                    <form:FormElement
+                        label="{i18n>ESPricingFragment.RequestedVolume}"
+                        visible="{= %{ConditionType} === 'Rental'}"
+                    >
+                        <form:fields>
+                            <m:Input
+                                id="idCurrentRequestedVolume"
+                                value="{ parts: ['RequestedVolume', 'CountryCode'], 
+type: 'com.bayer.tender.ccma.model.datatypes.CustomNumberType'}"
+                                enabled="false"
+                                visible="{= %{ConditionType} === 'Rental'}"
+                                valueState="{
+                                    parts: [
+                                        { path: 'RequestedVolume' },
+                                        { value: 'RequestedVolume' },
+                                        { value: 'idCurrentRequestedVolume'} 
+                                    ], 
+                                    formatter: '.onCheckContractPriceDifference'
+                                }"
+                            />
+                        </form:fields>
+                    </form:FormElement>
+                    <form:FormElement
+                        label="{i18n>ESPricingFragment.RentalPrice}"
+                        visible="{= %{ConditionType} === 'Rental'}"
+                    >
+                        <form:fields>
+                            <m:Input
+                                id="idCurrentRentalPrice"
+                                value="{ parts: ['RentalPrice', 'Currency'], 
+type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
+                                enabled="false"
+                                visible="{= %{ConditionType} === 'Rental'}"
+                                valueState="{
+                                    parts: [
+                                        { path: 'RentalPrice' },
+                                        { value: 'RentalPrice' },
+                                        { value: 'idCurrentRentalPrice'} 
+                                    ], 
+                                    formatter: '.onCheckContractPriceDifference'
+                                }"
+                            />
+                        </form:fields>
+                    </form:FormElement>
+                    <form:FormElement
+                        label="{i18n>ESPricingFragment.MonthlyRentPerUnit}"
+                        visible="{= %{ConditionType} === 'Rental'}"
+                    >
+                        <form:fields>
+                            <m:Input
+                                id="idCurrentMonthlyRentPerUnit"
+                                value="{ parts: ['MonthlyRentPerUnit', 'Currency'], 
+type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
+                                enabled="false"
+                                visible="{= %{ConditionType} === 'Rental'}"
+                                valueState="{
+                                    parts: [
+                                        { path: 'MonthlyRentPerUnit' },
+                                        { value: 'MonthlyRentPerUnit' },
+                                        { value: 'idCurrentMonthlyRentPerUnit'} 
+                                    ], 
+                                    formatter: '.onCheckContractPriceDifference'
+                                }"
+                            />
+                        </form:fields>
+                    </form:FormElement>
+                    <form:FormElement
+                        label="{i18n>ESPricingFragment.AnnualValue}"
+                        visible="{= %{ConditionType} === 'Rental'}"
+                    >
+                        <form:fields>
+                            <m:Input
+                                id="idCurrentAnnualValue"
+                                value="{ parts: ['AnnualValue', 'Currency'], 
+type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
+                                enabled="false"
+                                visible="{= %{ConditionType} === 'Rental'}"
+                                valueState="{
+                                    parts: [
+                                        { path: 'AnnualValue' },
+                                        { value: 'AnnualValue' },
+                                        { value: 'idCurrentAnnualValue'} 
+                                    ], 
+                                    formatter: '.onCheckContractPriceDifference'
+                                }"
+                            />
+                        </form:fields>
+                    </form:FormElement>
+                </form:formElements>
+            </form:FormContainer>
+        </form:formContainers>
+    </form:Form>
+</core:FragmentDefinition>

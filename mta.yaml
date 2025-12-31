@@ -7,8 +7,9 @@ modules:
   type: nodejs
   path: gen/srv
   requires:
-  - name: F_TNDR_CAG_FAST_CCMA_BACKEND-auth
+  - name: uaa_FAST
   - name: F_TNDR_CAG_FAST_CCMA_BACKEND-db
+  - name: F_TNDR_CAG_FAST_CCMA_BACKEND-destination-service
   provides:
   - name: srv-api
     properties:
@@ -27,18 +28,18 @@ modules:
     buildpack: nodejs_buildpack
 - name: F_TNDR_CAG_FAST_CCMA_BACKEND-app-deployer
   type: com.sap.application.content
-  path: gen
+  path: .
   requires:
   - name: F_TNDR_CAG_FAST_CCMA_BACKEND-html5-repo-host
     parameters:
       content-target: true
   build-parameters:
-    build-result: app/
+    build-result: resources
     requires:
     - artifacts:
       - combayertenderccma.zip
       name: combayertenderccma
-      target-path: app//
+      target-path: resources/
 - name: combayertenderccma
   type: html5
   path: app/ccma
@@ -50,15 +51,12 @@ modules:
     - npm run build:cf
     supported-platforms: []
 resources:
-- name: F_TNDR_CAG_FAST_CCMA_BACKEND-auth
-  type: org.cloudfoundry.managed-service
+- name: uaa_FAST
   parameters:
-    config:
-      tenant-mode: dedicated
-      xsappname: F_TNDR_CAG_FAST_CCMA_BACKEND-${org}-${space}
     path: ./xs-security.json
-    service: xsuaa
     service-plan: application
+    service: xsuaa
+  type: org.cloudfoundry.managed-service
 - name: F_TNDR_CAG_FAST_CCMA_BACKEND-db
   type: com.sap.xs.hdi-container
   parameters:
@@ -71,17 +69,26 @@ resources:
     service-plan: app-host
 - name: F_TNDR_CAG_FAST_CCMA_BACKEND-destination-service
   type: org.cloudfoundry.managed-service
+  requires:
+    - name: srv-api
   parameters:
     config:
       HTML5Runtime_enabled: false
       init_data:
-        instance:
+        subaccount:
           destinations:
           - Authentication: NoAuthentication
             Name: ui5
             ProxyType: Internet
             Type: HTTP
             URL: https://ui5.sap.com
+          - Authentication: NoAuthentication
+            Name: fast-ccma-api
+            ProxyType: Internet
+            Type: HTTP
+            URL: ~{srv-api/srv-url}
+            HTML5.DynamicDestination: true
+            HTML5.ForwardAuthToken: true
           existing_destinations_policy: update
       version: 1.0.0
     service: destination

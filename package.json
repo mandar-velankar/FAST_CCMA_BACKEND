@@ -6,28 +6,33 @@
   "license": "UNLICENSED",
   "private": true,
   "dependencies": {
+    "@cap-js/hana": "^1",
+    "@sap-cloud-sdk/http-client": "^3.15.0",
     "@sap/cds": "^8",
-    "express": "^4",
+    "@sap/cds-odata-v2-adapter-proxy": "^1.9.21",
     "@sap/xssec": "^4",
-    "@cap-js/hana": "^1"
+    "axios": "^0.21.1",
+    "express": "^4",
+    "handlebars": "^4.7.8",
+    "moment": "^2.30.1",
+    "qs": "^6.10.1"
   },
   "devDependencies": {
-    "@cap-js/cds-typer": ">=0.1",
-    "@cap-js/cds-types": "^0.9.0",
     "@cap-js/sqlite": "^1",
     "@sap/cds-dk": "^8",
-    "@types/node": "^22.0.0",
-    "typescript": "^5",
     "cds-plugin-ui5": "^0.9.3",
-    "rimraf": "^5.0.5",
-    "mbt": "^1.2.29"
+    "mbt": "^1.2.29",
+    "rimraf": "^5.0.5"
   },
   "scripts": {
     "start": "cds-serve",
-    "before:cds-watch": "cds-typer \"*\"",
-    "watch": "cds-tsx w",
+    "watch": "cds-ts w",
+    "watch:ts:hybrid": "cds bind --exec npm run watch --profile hybrid",
+    "watch:ts:qa": "cds bind --exec npm run watch --profile qa",
     "watch:ts:mv": "cds bind --exec npm run watch --profile mandar",
+    "watch:ts:jp": "cds bind --exec npm run watch --profile jorj",
     "deploy:hana:mv": "cds bind --exec cds deploy --to hana --profile mandar",
+    "deploy:hana:jp": "cds bind --exec cds deploy --to hana --profile jorj",
     "watch-ccma": "cds watch --open com.bayer.tender.ccma/index.html?sap-ui-xx-viewCache=false --livereload false",
     "undeploy": "cf undeploy F_TNDR_CAG_FAST_CCMA_BACKEND --delete-services --delete-service-keys --delete-service-brokers",
     "build": "rimraf resources mta_archives && mbt build --mtar archive",
@@ -39,7 +44,13 @@
   "cds": {
     "requires": {
       "auth": "xsuaa",
-      "html5-runtime": true
+      "html5-runtime": true,
+      "FASTBACKEND_API": {
+        "kind": "rest",
+        "credentials": {
+          "destination": "FAST_API_OAUTH"
+        }
+      }
     },
     "sql": {
       "native_hana_associations": false

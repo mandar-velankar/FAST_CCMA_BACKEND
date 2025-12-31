@@ -1,89 +1,157 @@
-<core:FragmentDefinition 
-	xmlns="sap.m" 
-	xmlns:core="sap.ui.core" 
-	xmlns:up="sap.uxap" 
-	xmlns:form="sap.ui.layout.form" 
-	xmlns:u="sap.uxap"
-	xmlns:t="sap.ui.table" 
-	xmlns:l="sap.ui.layout"
-	xmlns:mvc="sap.ui.core.mvc"
-	xmlns:tree="sap.ui.table">
-
+<core:FragmentDefinition
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core"
+    xmlns:up="sap.uxap"
+    xmlns:form="sap.ui.layout.form"
+    xmlns:u="sap.uxap"
+    xmlns:t="sap.ui.table"
+    xmlns:l="sap.ui.layout"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns:tree="sap.ui.table"
+>
     <Panel
         expandable="true"
         expanded="true"
         headerText="{i18n>ProductsListFragment.ProducstList}"
-    >   
-        <tree:Table 
-			selectionMode="Single"
-			rowActionCount="1"
-			rowSelectionChange=".onHandleSelectionChange"
-			rows="{
-                path: 'detailPage>/products'
+    >
+        <Table
+            id="idCCMContract"
+            inset="false"
+            items="{
+                path: '/CCMContractView',
+                parameters: { select: '*' }
             }"
-		>
-			<tree:rowActionTemplate> 
-				<tree:RowAction> 
-					<tree:RowActionItem type="Navigation" press=".onListItemPress" /> 
-				</tree:RowAction> 
-			</tree:rowActionTemplate>
-			<tree:columns>
-				<tree:Column sortProperty="Product" filterProperty="Product">
-					<Label text="{i18n>ProductsListFragment.Product}" />
-					<tree:template>
-						<Text text="{detailPage>ProductPackName}" />
-					</tree:template>
-				</tree:Column>
-				<tree:Column sortProperty="StartDate" filterProperty="StartDate">
-					<Label text="{i18n>ProductsListFragment.StartDate}" />
-					<tree:template>
-						<Text text=""/>
-					</tree:template>
-				</tree:Column>
-				<tree:Column sortProperty="EndtDate" filterProperty="EndtDate">
-					<Label text="{i18n>ProductsListFragment.EndtDate}" />
-					<tree:template>
-						<Text text=""/>
-					</tree:template>
-				</tree:Column>
-				<tree:Column sortProperty="SAPInvoicePrice" filterProperty="SAPInvoicePrice">
-					<Label text="{i18n>ProductsListFragment.SAPInvoicePrice}" />
-					<tree:template>
-						<Text text=""/>
-					</tree:template>
-				</tree:Column>
-				<tree:Column sortProperty="SAPRappel" filterProperty="SAPRappel">
-					<Label text="{i18n>ProductsListFragment.SAPRappel}" />
-					<tree:template>
-						<Text text=""/>
-					</tree:template>
-				</tree:Column>
-				<tree:Column sortProperty="INTERACTFOC" filterProperty="INTERACTFOC">
-					<Label text="{i18n>ProductsListFragment.INTERACTFOC}" />
-					<tree:template>
-						<Text text=""/>
-					</tree:template>
-				</tree:Column>
-				<tree:Column sortProperty="NewMaterialNumber" filterProperty="NewMaterialNumber">
-					<Label text="{i18n>ProductsListFragment.NewMaterialNumber}" />
-					<tree:template>
-						<Text text=""/>
-					</tree:template>
-				</tree:Column>
-				<tree:Column sortProperty="SAPContractNumber" filterProperty="SAPContractNumber">
-					<Label text="{i18n>ProductsListFragment.SAPContractNumber}" />
-					<tree:template>
-						<Text text=""/>
-					</tree:template>
-				</tree:Column>
-				<tree:Column sortProperty="PrevSAPContractEndDate" filterProperty="PrevSAPContractEndDate">
-					<Label text="{i18n>ProductsListFragment.PrevSAPContractEndDate}" />
-					<tree:template>
-						<Text text=""/>
-					</tree:template>
-				</tree:Column>
-			</tree:columns>
-		</tree:Table>
+            class="sapFDynamicPageAlignContent"
+            width="auto"
+            updateFinished=".onUpdateFinished"
+            alternateRowColors="true"
+            contextualWidth="Auto"
+            growing="true"
+            growingThreshold="15"
+            growingScrollToLoad="false"
+        >
+            <columns>
+                <Column>
+                    <header>
+                        <ObjectIdentifier
+                            title="{i18n>ProductsListFragment.Product}"
+                            titleActive="true"
+                            titlePress="onClick"
+                        />
+                    </header>
+                </Column>
+                <Column>
+                    <header>
+                        <ObjectIdentifier
+                            title="{i18n>ProductsListFragment.StartDate}"
+                            titleActive="true"
+                            titlePress="onClick"
+                        />
+                    </header>
+                </Column>
+                <Column>
+                    <header>
+                        <ObjectIdentifier
+                            title="{i18n>ProductsListFragment.EndDate}"
+                            titleActive="true"
+                            titlePress="onClick"
+                        />
+                    </header>
+                </Column>
+                <Column>
+                    <header>
+                        <ObjectIdentifier
+                            title="{i18n>ProductsListFragment.SAPInvoicePrice}"
+                            titleActive="true"
+                            titlePress="onClick"
+                        />
+                    </header>
+                </Column>
+                <Column>
+                    <header>
+                        <ObjectIdentifier
+                            title="{i18n>ProductsListFragment.SAPRappel}"
+                            titleActive="true"
+                            titlePress="onClick"
+                        />
+                    </header>
+                </Column>
+                <Column>
+                    <header>
+                        <ObjectIdentifier
+                            title="{i18n>ProductsListFragment.INTERACTFOC}"
+                            titleActive="true"
+                            titlePress="onClick"
+                        />
+                    </header>
+                </Column>
+                <Column>
+                    <header>
+                        <ObjectIdentifier
+                            title="{i18n>ProductsListFragment.NewMaterialNumber}"
+                            titleActive="true"
+                            titlePress="onClick"
+                        />
+                    </header>
+                </Column>
+                <Column>
+                    <header>
+                        <ObjectIdentifier
+                            title="{i18n>ProductsListFragment.SAPContractNumber}"
+                            titleActive="true"
+                            titlePress="onClick"
+                        />
+                    </header>
+                </Column>
+                <Column>
+                    <header>
+                        <ObjectIdentifier
+                            title="{i18n>ProductsListFragment.PrevSAPContractNumber}"
+                            titleActive="true"
+                            titlePress="onClick"
+                        />
+                    </header>
+                </Column>
+            </columns>
+            <items>
+                <ColumnListItem
+                    type="Navigation"
+                    press=".onListItemPress"
+                    id="productItems"
+                >
+                    <cells>
+                        <Text text="{ProductName}" />
+                        <Text
+                            text="{
+									path: 'CCMContractStartDate',
+									type: 'sap.ui.model.odata.type.Date',
+									formatOptions: {
+										pattern: 'yyyy-MM-dd'
+									}
+									}"
+                        />
+                        <Text
+                            text="{
+									path: 'CCMContractEndDate',
+									type: 'sap.ui.model.odata.type.Date',
+									formatOptions: {
+										pattern: 'yyyy-MM-dd'
+									}
+									}"
+                        />
+                        <Text text="{OfferPrice}" />
+                        <Text text="{hasRappel}" />
+                        <Text text="{hasFOC}" />
+                        <Text text="{NewMaterialNumber}" />
+                        <Text text="{ContractNumber}" />
+                        <Text text="{PreviousContractNumber}" />
+                        <Text text="{InstituteName}" visible="false"/>
+                        <Text text="{InstituteType}" visible="false"/>
+                        <Text text="{ProductCode}" visible="false"/>
+                        <Text text="{FastConditionContractsID}" visible="false"/>
+                    </cells>
+                </ColumnListItem>
+            </items>
+        </Table>
     </Panel>
-
 </core:FragmentDefinition>

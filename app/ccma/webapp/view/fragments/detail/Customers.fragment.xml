@@ -14,7 +14,7 @@
         headerText="{i18n>CustomersFragment.Customers}"
     >   
         <form:Form
-		    id="idCustomers"
+		    id="idCCMCustomers"
 		    editable="true"       
 	    >
 		<!-- <form:toolbar>
@@ -42,19 +42,19 @@
 				<form:formElements>
 					<form:FormElement label="{i18n>CustomersFragment.InstituteType}">
 						<form:fields>
-							<Text id="idInstituteType" text="Public"/>
+							<Text id="idInstituteType" text="{InstituteType}"/>
 						</form:fields>
 					</form:FormElement>
 
                     <form:FormElement label="{i18n>CustomersFragment.Institute}" >
 						<form:fields>
-							<Text id="idInstitute" text="KRAKÓW MEDICINA SPECJALISTYCZN"/>
+							<Text id="idInstitute" text="{InstituteName}"/>
 						</form:fields>
 					</form:FormElement>
 
-                    <form:FormElement label="{i18n>CustomersFragment.Regions}" >
+					<form:FormElement label="{i18n>CustomersFragment.CustomerID}" >
 						<form:fields>
-							<Text id="idRegions" text="KRAKÓW"/>
+							<Text id="idCustomer" text="{CustomerID}"/>
 						</form:fields>
 					</form:FormElement>
 				</form:formElements>
@@ -63,13 +63,29 @@
 				<form:formElements>
 					<form:FormElement >
 						<form:fields>
-							<Button width="2rem" icon="sap-icon://list"/>
+							<Button id="idBtnChildCustomerList" width="2rem" icon="sap-icon://list" press=".onOpenCustomersHierarchyTable"/>
 						</form:fields>
 					</form:FormElement>
 				</form:formElements>
 			</form:FormContainer>
 		</form:formContainers>
 	</form:Form>
+
+	<VBox class="sapUiSmallMargin" visible="{ui>/isCustomerHierarchyVisible}">
+		<Table id="idCustomersDialogTable" inset="false" mode="None" width="100%">
+			<columns>
+				<Column>
+					<Text text="{i18n>CustomersFragment.Institute}" />
+				</Column>
+				<Column>
+					<Text text="{i18n>CustomersFragment.CustomerID}" />
+				</Column>
+				<Column>
+					<Text text="{i18n>CustomersFragment.Excluded}" />
+				</Column>
+			</columns>
+		</Table>
+	</VBox>
     </Panel>
 
 </core:FragmentDefinition>

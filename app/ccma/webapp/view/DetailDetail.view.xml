@@ -12,6 +12,16 @@
 			<f:DynamicPageTitle
                 id="detailDetaildynamicPageTitle"
             >
+			<f:heading>
+                    <VBox>
+                        <Title
+                            id = "idProductPackNameDetailDetail"
+                            text="{ui>/ProductName}"
+                            level="H2"
+                            class="sapUiTinyMarginBottom"
+                        />
+                    </VBox>
+			</f:heading>
             <f:navigationActions>
 					<!--<Button
 							text="Edit"
@@ -40,23 +50,30 @@
 				<OverflowToolbar class="sapFDynamicPageAlignContent">
 					
 					<ToolbarSpacer/>
-					<Button text="Sync"/>
+					<Button text="Terminate" icon="sap-icon://cancel" type="Emphasized" press=".onTerminateCCMContract" enabled="{= ${ui>/hasExistingContract}  &amp;&amp; !${ui>/hasCancelled}}"/>
+					<!-- <Button text="Ignore" icon="sap-icon://decline" type="Emphasized" press=".onIgnorePriceUpdate" enabled="true"/> -->
+					<Button text="Synchronize" icon="sap-icon://synchronize" type="Emphasized" press=".onCreateCCMContract" enabled="{= !${ui>/hasExistingContract}}"/>
 				</OverflowToolbar>
                 <VBox>
                     <VBox>
                         <core:Fragment fragmentName="com.bayer.tender.ccma.view.fragments.detail-detail.ContractInformation" type="XML"/>
                     </VBox>
-                    <VBox>
+                    <!-- <VBox>
                         <core:Fragment fragmentName="com.bayer.tender.ccma.view.fragments.detail-detail.Customers" type="XML"/>
-                    </VBox>
+                    </VBox> -->
 					<VBox>
 						<Panel
 							expandable="true"
 							expanded="true"
 							headerText="{i18n>MaterialNumbers}"
 						>
-							<TextArea value="15551515 - Active,
-							5115151 - Inactive" enabled="false"/>
+							<TextArea
+								id="idMaterialTextArea"
+								value="{ui>/materialsText}"
+								rows="{ui>/materialRowCount}"
+								enabled="false"
+								growing="false"
+							/>
 						</Panel>
 					</VBox>
                     <VBox>

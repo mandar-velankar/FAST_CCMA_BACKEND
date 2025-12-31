@@ -2,15 +2,28 @@ namespace com.bayer.SXTENDER.ccma;
 using { Currency, User, Country, managed, cuid, temporal } from '@sap/cds/common';
 
 entity FastConditionContracts: cuid, managed {
-  TenderID : Integer;
+  TenderID : String;
   OfferID  : String;
+  CountryCode : String;
   InstituteID  : Integer;
+  InstituteName: String;
   DistributorID: Integer;
   ContractStartDate: Date;
   ContractEndDate: Date;
   ContractType: String;
+  CustomerID: String;
+  Division: String;
+  Reference: String;
+  Status: String;
+  Owner: String;
+  OwnerName: String;
+  OwnerEmail: String;
+  BrandFilter: String;
+  ProductFilter: String;
   Extension: Boolean;
   ExtensionPeriod: String;
+  SAPID: String;
+  ExternalID: String;
   hasNewMaterialNumber: Boolean;
   hasActiveContracts: Boolean;
   hasUpdatedPVL: Boolean;
@@ -20,33 +33,77 @@ entity FastConditionContracts: cuid, managed {
   hasExpiringSoonContracts: Boolean;
   hasExpiredContracts: Boolean;
   hasCancelledContracts: Boolean;
-  hasContractsToBeSynchronized: Boolean;
   hasNewContracts: Boolean;
-  CCMContract: Association to many CCMContract on CCMContract.FastConditionContracts = $self;
-
+  CCMContract: Composition of many CCMContract on CCMContract.FastConditionContracts = $self;
 }
 
-entity CCMContract: cuid, managed, temporal {
+entity CCMContract: cuid, managed, temporal{
   ProductCode: String;
+  EANUPCCode: String;
+  CountryCode : String;
+  ProductName: String;
+  UoM: String;
+  PackFactor: Double;
+  NewMaterialNumber: String;
+  BrandID: String;
+  BrandName: String;
+  OfferPrice: Double;
+  hasRappel: String;
+  hasFOC: String;
   CCMContractStartDate: Date;
   CCMContractEndDate: Date;
+  PreviousContractNumber: String;
   ContractNumber: String;
-  Synchronized: Boolean;
+  ContractReferene: String;
+  Expired: Boolean;
+  ItemGUID: String;
+  Synchronized: Boolean default false;
   Notified: Boolean;
   Extension: Boolean;
   ExtensionPeriod: String;
   CreationDate: Date;
-  CCMCustomer: Association to CCMCustomer on CCMCustomer.CCMContract = $self;
-  CCMMaterial: Association to CCMMaterial on CCMMaterial.CCMContract = $self;
+  Cancelled: Boolean default false;
+  CancellationComment: String;
+  CCMCustomer: Composition of CCMCustomer on CCMCustomer.CCMContract = $self;
+  CCMMaterial: Composition of many CCMMaterial on CCMMaterial.CCMContract = $self;
+  CurrentInvoicePrice: Composition of CurrentInvoicePrice on CurrentInvoicePrice.CCMContract = $self;
+  ContractItemGUID: Composition of many ContractItemGUID on ContractItemGUID.CCMContract = $self;
+  PriceConditionInvoice: Composition of PriceConditionInvoice on PriceConditionInvoice.ProductCode = ProductCode and PriceConditionInvoice.CountryCode = CountryCode;
+  PriceConditionRebate:  Composition of PriceConditionRebate on PriceConditionRebate.ProductCode = ProductCode and PriceConditionRebate.CountryCode = CountryCode;
+  PriceConditionFOC: Composition of many PriceConditionFOC on PriceConditionFOC.ProductCode = ProductCode and PriceConditionFOC.CountryCode = CountryCode;
   FastConditionContracts: Association to FastConditionContracts
+}
+
+entity ContractItemGUID : cuid, managed {
+  ConditionDocument: String;
+  CustomerID: String;
+  FieldCombination: String;
+  ItemGUID: String;
+  CCMContract: Association to CCMContract;
 }
 
 entity CCMCustomer: cuid, managed, temporal{
   InstituteID: String;
+  AssortmentReference: String;
+  CustomerID: String;
   CountryCode: String;
   InstituteType: String;
-  InstituteName: Date;
+  InstituteName: String;
+  CustomerHierarchy: Composition of many CustomerHierarchy on CustomerHierarchy.ParentInstituteID = InstituteID and CustomerHierarchy.ParentCustomerID = CustomerID;
   CCMContract: Association to CCMContract;
+}
+
+entity CustomerHierarchy: cuid, managed {
+  InstituteID: String;
+  ParentInstituteID: String;
+  CustomerID: String;
+  ParentCustomerID: String;
+  InstituteName: String;
+  ParentInstituteName: String;
+  AssortmentReference: String;
+  Excluded: Boolean default false;
+  CCMContractID: UUID;
+  CCMCustomer: Association to CCMCustomer;
 }
 
 entity CCMMaterial: cuid, managed, temporal{
@@ -54,14 +111,13 @@ entity CCMMaterial: cuid, managed, temporal{
   ProductCode: String;
   MaterialNumber: String;
   FOCMaterialNumber: String;
+  ActiveRecord: Integer;
+  isNewMaterialNumber: Boolean default false;
   CCMContract: Association to CCMContract;
-  CurrentInvoicePrice: Association to CurrentInvoicePrice on CurrentInvoicePrice.CCMMaterial = $self;
-  PriceConditionInvoice: Association to PriceConditionInvoice on PriceConditionInvoice.CCMMaterial = $self;
-  PriceConditionRebate:  Association to PriceConditionRebate on PriceConditionRebate.CCMMaterial = $self;
-  PriceConditionFOC: Association to PriceConditionFOC on PriceConditionFOC.CCMMaterial = $self;
 }
 entity CurrentInvoicePrice: cuid, managed{
   ConditionType: String;
+  Currency: String;
   CountryCode: String;
   SoldToParty: String;
   Material: String;
@@ -73,13 +129,29 @@ entity CurrentInvoicePrice: cuid, managed{
   YD06: Double;
   YD02: Double;
   SapTax: Double;
-  CCMMaterial: Association to CCMMaterial;
+  Tax: Double;
+  ConfidentialPrice: Decimal;
+  RoyalDecree                         : String;
+  RoyalDecreeValue                    : Decimal;
+  RoyalDecreeIncl                     : Boolean default false;
+  NetPriceWithoutTaxAfterDeductionRD  : Decimal;
+  NetPriceWithTaxAfterDeductionRD     : Decimal;
+  NetPriceWithoutTax                  : Decimal;
+  NetPriceWithTax                     : Decimal;
+  MaximumPrice                        : Decimal;
+  RequestedVolume                     : Integer;
+  RentalPrice                         : Double;
+  MonthlyRentPerUnit                  : Double;
+  AnnualValue                         : Double;
+  CCMContract: Association to CCMContract;
 }
 
 entity PriceConditionInvoice: cuid, managed, temporal{
   OfferID                             : String;
   ProductCode                         : Integer;
   ConditionType: String;
+  Currency: String;
+  Region: String;
   CountryCode: String;
   YP00: Double;
   YP04: Double;
@@ -98,21 +170,29 @@ entity PriceConditionInvoice: cuid, managed, temporal{
   NetPriceWithoutTax                  : Decimal;
   NetPriceWithTax                     : Decimal;
   MaximumPrice                        : Decimal;
-  CCMMaterial: Association to CCMMaterial;
+  RequestedVolume                     : Integer;
+  RentalPrice                         : Double;
+  MonthlyRentPerUnit                  : Double;
+  AnnualValue                         : Double;
+  CCMContract: Association to CCMContract;
 }
 
 entity PriceConditionRebate: cuid, managed, temporal{
   OfferID                             : String;
   ProductCode                         : Integer;
+  CountryCode                         : String;
   YP00: Double;
   ConfidentialPrice: Decimal;
+  SettlementDescription: String;
   Tax: Double;
   RoyalDecree                         : String;
   Liquidation                         : String;
   RefundDate                          : Date;
   PriceConditionCode                  : String;
-  CCMMaterial: Association to CCMMaterial;
-  PriceConditionDiscountCondition: Association to many PriceConditionDiscountCondition on PriceConditionDiscountCondition.PriceConditionRebate = $self;
+  MarketIncentiveID                   : String;
+  MarketIncentiveDescription          : String;
+  CCMContract: Association to CCMContract;
+  PriceConditionDiscountCondition: Composition of many PriceConditionDiscountCondition on PriceConditionDiscountCondition.PriceConditionRebate = $self;
 }
 
 entity PriceConditionDiscountCondition: cuid, managed{
@@ -125,31 +205,68 @@ entity PriceConditionDiscountCondition: cuid, managed{
 
 entity PriceConditionFOC: cuid, managed, temporal{
   OfferID                             : String;
+  CountryCode                         : String;
   ProductCode: Integer;
   FreeGoodsOther: Double;
   FreeGoodsOther_Step: Double;
   FreeGoodsOther_ABS_PCT: String(4);
   VAT: Double; 
   FOCMinAmount                        : Integer;
-  FOCBonus                            : Decimal;
+  FOCBonus                            : String;
   PotentialGeneratedSavings           : Decimal;
   RoyalDecree                         : String;
   ADD_INCLUDE                         : String;
-  CCMMaterial: Association to CCMMaterial;
+  CCMContract: Association to CCMContract;
 }
 
-entity APIDefinition: cuid, managed{
-  Name: String;
+entity SettlementsDate: managed{
+  key CCMContractID          : UUID;
+  key FromDate               : Date;
+  ToDate                     : Date;
+  SettlementID               : String; 
+  RebateContractNumber       : String;
+  CreationDate              : Date;
+  Synchronized              : Boolean default false;
+}
+
+entity APIDefinition: cuid{
+    Provider            : String; 
+    Host                : String;
+    BasePath            : String;
+    Resource            : String;
+    ResourcePath        : String;
+    RequestDelay        : Integer;
+    RequestMaxRetry     : Integer;
+    AuthType            : String;
+    CountryCode         : String;
+    Name                : String;     
+    OAuth: Association to APIConfigOAuth;
+    APIBody: Association to APIBody on APIBody.APIDefinition = $self;
+}
+
+entity APIConfigOAuth: cuid{
+    OAuthProvider : String;
+    GrantType     : String;
+    ClientID      : String;
+    ClientSecret  : String;
+    Scope         : String;
+}
+
+entity APIBody: cuid{
   Source: String;
-  Endpoint: String;
-  APIBody: Association to many APIBody on APIBody.APIDefinition = $self;
+  Target: String;
+  APIDefinition: Association to APIDefinition;
 }
 
-entity APIBody: cuid, managed{
-  Name: String;
-  Type: String;
-  Value: String;
-  Children      : Association to many APIBody on Children.Parent = $self;
-  Parent        : Association to APIBody;
-  APIDefinition: Association to APIDefinition;
+entity ConditionContractsLog : cuid {
+  ContractNumber        : String;
+  ContractType      : String;
+  ContractReference : String;        
+  PayloadType       : String;         
+  PayloadToSAP      : LargeString; 
+  Synchronized      : Boolean default false;       
+  createdAt         : Date;
+  createdBy         : String;
+  ErrorMessage     : String;
+  CCMContractID: UUID;
 }

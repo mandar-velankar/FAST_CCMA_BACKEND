@@ -1,1 +1,7 @@
 /* Enter your custom styles here */
+tr[data-mydata="trueES"]{
+    background: #ffcccb !important;
+    }
+ tr[data-mydata1="truefalseES"]{
+        background: #ffcccb !important;
+        }

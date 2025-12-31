@@ -1,141 +1,247 @@
 <mvc:View
-	controllerName="com.bayer.tender.ccma.controller.Master"
-	xmlns="sap.m"
-	xmlns:t="sap.ui.table"
-	xmlns:f="sap.f"
-	xmlns:form="sap.ui.layout.form"
-	xmlns:l="sap.ui.layout"
-	xmlns:core="sap.ui.core"
-	xmlns:mvc="sap.ui.core.mvc"
-	xmlns:tree="sap.ui.table">
+    controllerName="com.bayer.tender.ccma.controller.Master"
+    xmlns="sap.m"
+    xmlns:t="sap.ui.table"
+    xmlns:f="sap.f"
+    xmlns:form="sap.ui.layout.form"
+    xmlns:semantic="sap.f.semantic"
+    xmlns:l="sap.ui.layout"
+    xmlns:core="sap.ui.core"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns:tree="sap.ui.table"
+>
+    <f:DynamicPage
+        id="masterPage"
+        preserveHeaderStateOnScroll="true"
+        toggleHeaderOnTitleClick="false"
+    >
+        <!-- DynamicPage Title -->
+        <f:title>
+            <f:DynamicPageTitle>
+                <f:heading>
+                    <Title text="{i18n>title}" />
+                </f:heading>
+            </f:DynamicPageTitle>
+        </f:title>
 
-	<f:DynamicPage
-		id="masterPage"
-		preserveHeaderStateOnScroll="true"
-		toggleHeaderOnTitleClick="false">
-		
-		<!-- DynamicPage Title -->
-		<f:title>
-			<f:DynamicPageTitle>
-				<f:heading>
-					<Title text ="{i18n>title}"/>
-				</f:heading>
-			</f:DynamicPageTitle>
-		</f:title>
+        <f:content>
+            <VBox>
+                <OverflowToolbar class="sapFDynamicPageAlignContent">
+                    <Label
+                        text="Country"
+                        labelFor="idSlctCountry"
+                    />
+                    <Select
+                        id="idSlctCountry"
+                        selectedKey="{ui>/SelectedCountry}"
+                        items="{ path: 'ui>/UserCountries' }"
+                        change=".onCountriesReceived"
+                    >
+                        <core:Item key="{ui>CountryCode}" text="{ui>CountryName}" />
+                    </Select>
+                    <Label
+                        text="Brand"
+                        labelFor="idSlctBrand"
+                    />
+                    <Select 
+                        id="idSlctBrand" 
+                        change=".setSelectBrand; .setFilter"
+                        items="{
+                            path: '/BrandsView'
+                        }"
+                    >
+                        <core:Item
+                            key="{BrandID}"
+                            text="{BrandName}"
+                        />
+                    </Select>
+                    <Label
+                        text="Product"
+                        labelFor="idSelectProduct"
+                    />
+                    <Select 
+                        id="idSelectProduct" 
+                        change=".setFilter"
+                        items="{
+                            path: '/BrandProductsView'
+                        }"
+                    >
+                        <core:Item
+                            key="{ProductCode}"
+                            text="{ProductName}"
+                        />
+                    </Select>
+                    <Select id="idslctfilter" change=".setFilter" selectedKey="{ui>/selectedContractStatus}">
+                        <core:Item
+                            key=""
+                            text="All"
+                        />
+                        <core:Item
+                            key="newContractsKey"
+                            text="New Contracts"
+                        />
+                        <core:Item
+                            key="newMaterialNumbersKey"
+                            text="New Material Numbers"
+                        />
+                        <core:Item
+                            key="activeContractsKey"
+                            text="Active Contracts"
+                        />
+                        <core:Item
+                            key="updatedPVLKey"
+                            text="Updated PVL"
+                        />
+                        <core:Item
+                            key="updatedConfidentialPriceKey"
+                            text="Updated Confidential Price"
+                        />
+                        <core:Item
+                            key="netPriceAbovePVLKey"
+                            text="Net Price Above PVL"
+                        />
+                        <core:Item
+                            key="netPriceBelowFloorPriceKey"
+                            text="Net Price Below Floor Price"
+                        />
+                        <core:Item
+                            key="expiringSoonKey"
+                            text="Expiring Soon"
+                        />
+                        <core:Item
+                            key="expiredKey"
+                            text="Expired"
+                        />
+                        <core:Item
+                            key="cancelledKey"
+                            text="Cancelled"
+                        />
+                    </Select>
 
-
-		<f:content>
-			<VBox>
-				<OverflowToolbar class="sapFDynamicPageAlignContent">
-					<Label
-						text="Country"
-						labelFor="idSlctCountry"
-					/>
-					<Select 
-						id="idSlctCountry" 
-					>
-						<core:Item key="" text=""/>
-					</Select>
-					<Label
-						text="Brand"
-						labelFor="idSlctBrand"
-					/>
-					<Select 
-						id="idSlctBrand" 
-					>
-						<core:Item key="" text=""/>
-					</Select>
-					<Label
-						text="Product"
-						labelFor="idSelectProduct"
-					/>
-					<Select 
-						id="idSelectProduct"
-					>
-						<core:Item key="" text=""/>
-					</Select>
-
-					<ToolbarSpacer/>
-					<SearchField id="idSearch" search=".setFilter" width="17.5rem"/>
-				</OverflowToolbar>
-                <tree:Table 
+                    <ToolbarSpacer />
+                    <SearchField
+                        id="idSearch"
+                        search=".setFilter"
+                        width="17.5rem"
+                    />
+                    <Button
+                        icon="sap-icon://synchronize"
+                        type="Transparent"
+                        enabled="{= ${ui>/selectedContractStatus} === 'newMaterialNumbersKey'}"
+                        press=".onUpdateCCMContracts" 
+                        text="Update Contracts"/>
+                </OverflowToolbar>
+                <Table
                     id="idContractsMasterTable"
-                    rows="{
-                        path: 'masterModel>/contract'
+                    inset="false"
+                    items="{
+							path: '/FastConditionContractsView',
+							sorter: {
+								path: 'createdAt',
+								descending: true
+							}
                     }"
-                    selectionMode="Single"
-                    rowActionCount="1"
-                    rowSelectionChange=".onHandleSelectionChange"
+                    class="sapFDynamicPageAlignContent"
+                    width="auto"
+                    updateFinished=".onUpdateFinished"
+                    alternateRowColors="true"
+                    contextualWidth="Auto"
+                    growing="true"
+                    growingThreshold="15"
+                    growingScrollToLoad="false"
                 >
-                    <tree:rowActionTemplate> 
-                        <tree:RowAction> 
-                            <tree:RowActionItem type="Navigation" press=".onListItemPress" /> 
-                        </tree:RowAction> 
-                    </tree:rowActionTemplate>
-                    <tree:columns>
-                        <tree:Column sortProperty="ID" filterProperty="ID">
-                            <Label text="{i18n>id}" />
-                            <tree:template>
-                                <Text text="{masterModel>ID}" />
-                            </tree:template>
-                        </tree:Column>
-                        <tree:Column sortProperty="Owner" filterProperty="Owner">
-                            <Label text="{i18n>owner}" />
-                            <tree:template>
-                                <Text text=""/>
-                            </tree:template>
-                        </tree:Column>
-                        <tree:Column sortProperty="Classification" filterProperty="Classification">
-                            <Label text="{i18n>classification}" />
-                            <tree:template>
-                                <Text text=""/>
-                            </tree:template>
-                        </tree:Column>
-                        <tree:Column sortProperty="Reference" filterProperty="Reference">
-                            <Label text="{i18n>reference}" />
-                            <tree:template>
-                                <Text text=""/>
-                            </tree:template>
-                        </tree:Column>
-                        <tree:Column sortProperty="Division" filterProperty="Division">
-                            <Label text="{i18n>division}" />
-                            <tree:template>
-                                <Text text=""/>
-                            </tree:template>
-                        </tree:Column>
-                        <tree:Column sortProperty="CustomerCode" filterProperty="CustomerCode">
-                            <Label text="{i18n>customerCode}" />
-                            <tree:template>
-                                <Text text=""/>
-                            </tree:template>
-                        </tree:Column>
-                        <tree:Column sortProperty="Institute" filterProperty="Institute">
-                            <Label text="{i18n>institute}" />
-                            <tree:template>
-                                <Text text=""/>
-                            </tree:template>
-                        </tree:Column>
-                        <tree:Column sortProperty="EffectiveDate" filterProperty="EffectiveDate">
-                            <Label text="{i18n>effectiveDate}" />
-                            <tree:template>
-                                <Text text=""/>
-                            </tree:template>
-                        </tree:Column>
-                        <tree:Column sortProperty="ExpiryDate" filterProperty="ExpiryDate">
-                            <Label text="{i18n>expiryDate}" />
-                            <tree:template>
-                                <Text text=""/>
-                            </tree:template>
-                        </tree:Column>
-                        <tree:Column sortProperty="Status" filterProperty="Status">
-                            <Label text="{i18n>status}" />
-                            <tree:template>
-                                <Text text=""/>
-                            </tree:template>
-                        </tree:Column>
-                    </tree:columns>
-                </tree:Table>
-			</VBox>
-		</f:content>
-	</f:DynamicPage>
+                    <columns>
+                        <Column>
+                            <header>
+                                <ObjectIdentifier title="{i18n>id}" titleActive="true" titlePress="onClick"/>
+                            </header>
+                        </Column>
+                        <Column>
+                            <header>
+                                <ObjectIdentifier title="{i18n>owner}" titleActive="true" titlePress="onClick"/>
+                            </header>
+                        </Column>
+                        <Column>
+                            <header>
+                                <ObjectIdentifier
+                                    title="{i18n>classification}" titleActive="true" titlePress="onClick"
+                                />
+                            </header>
+                        </Column>
+                        <Column>
+                            <header>
+                                <ObjectIdentifier title="{i18n>reference}" titleActive="true" titlePress="onClick"/>
+                            </header>
+                        </Column>
+                        <Column>
+                            <header>
+                                <ObjectIdentifier title="{i18n>division}" titleActive="true" titlePress="onClick"/>
+                            </header>
+                        </Column>
+                        <Column>
+                            <header>
+                                <ObjectIdentifier title="{i18n>customerCode}" titleActive="true" titlePress="onClick"/>
+                            </header>
+                        </Column>
+                        <Column>
+                            <header>
+                                <ObjectIdentifier title="{i18n>institute}" titleActive="true" titlePress="onClick"/>
+                            </header>
+                        </Column>
+                        <Column>
+                            <header>
+                                <ObjectIdentifier
+                                    title="{i18n>effectiveDate}" titleActive="true" titlePress="onClick"
+                                />
+                            </header>
+                        </Column>
+                        <Column>
+                            <header>
+                                <ObjectIdentifier title="{i18n>expiryDate}" titleActive="true" titlePress="onClick"/>
+                            </header>
+                        </Column>
+                    </columns>
+                    <items>
+                        <ColumnListItem
+                            type="Navigation"
+                            press=".onListItemPress"
+                            highlight="{path: 'hasActiveContracts', formatter: '.formatter.formatHighlight'}"
+                            id="items"
+                        >
+                        <customData> <core:CustomData key="mydata" value="{hasCancelledContracts}{CountryCode}" writeToDom='true'></core:CustomData><core:CustomData key="mydata1" value="{hasExpiredContracts}{hasCancelledContracts}{CountryCode}" writeToDom='true'></core:CustomData></customData>
+                            <cells>
+                                <VBox>
+                                    <Text text="{OfferID}" />
+                                    <Text text="{SAPID}" />
+                                    <Text text="{ExternalID}" />
+                                </VBox>
+                                <Text text="{Owner}" />
+                                <Text text="{ContractType}" />
+                                <Text text="{Reference}" />
+                                <Text text="{Division}" />
+                                <Text text="{CustomerID}" />   
+                                <Text text="{InstituteName}" />
+                                <Text text="{
+										path: 'ContractStartDate',
+										type: 'sap.ui.model.odata.type.Date',
+										formatOptions: {
+											pattern: 'yyyy-MM-dd'
+										}
+									}" 
+								/>
+                                <Text text="{
+										path: 'ContractEndDate',
+										type: 'sap.ui.model.odata.type.Date',
+										formatOptions: {
+											pattern: 'yyyy-MM-dd'
+										}
+									}" 
+								/>
+                            </cells>
+                        </ColumnListItem>
+                    </items>
+                </Table>
+            </VBox>
+        </f:content>
+    </f:DynamicPage>
 </mvc:View>

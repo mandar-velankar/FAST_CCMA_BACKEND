@@ -5,6 +5,37 @@ import UIComponent from "sap/ui/core/UIComponent";
 import Model from "sap/ui/model/Model";
 import ResourceModel from "sap/ui/model/resource/ResourceModel";
 import ResourceBundle from "sap/base/i18n/ResourceBundle";
+import * as formatter from "../model/formatter"; 
+import CustomPercentageType from "../model/datatypes/CustomPercentageType";
+import PercentageType from "../model/datatypes/PercentageType";
+import CustomNumberType from "../model/datatypes/CustomNumberType";
+import CustomDecimalType from "../model/datatypes/CustomDecimalType";
+import CustomCurrencyType from "../model/datatypes/CustomCurrencyType";
+import MessagePopover from "sap/m/MessagePopover";
+import MessageItem from "sap/m/MessageItem";
+import MessageView from "sap/m/MessageView";
+import Button from "sap/m/Button";
+import Text from "sap/m/Text";
+import Dialog from "sap/m/Dialog";
+import Bar from "sap/m/Bar";
+import MessageType from "sap/ui/core/message/MessageType";
+import { PropertyBindingInfo } from "sap/ui/base/ManagedObject";
+import Context from "sap/ui/model/odata/v4/Context";
+import JSONModel from "sap/ui/model/json/JSONModel";
+type Message = {
+	type: `{${string}}` | MessageType | "Error" | "Information" | "None" | "Success" | "Warning" | PropertyBindingInfo | undefined;
+	message: string;
+	additionalText:  string;
+	description: string;
+}
+
+export type CompositeMessageType = {
+	type: string;
+	title: string;
+	subtitle?: string;
+	description?: string;
+	counter: number;
+}
 /**
  * @namespace com.bayer.tender.ccma.controller
  */
@@ -14,6 +45,15 @@ export default class BaseController extends Controller {
 	 * @public
 	 * @returns {sap.ui.core.routing.Router} the router for this component
 	 */
+
+	public formatter = formatter;
+
+	public customTypes = {
+			percentage: PercentageType,
+			number: CustomNumberType,
+			decimal: CustomDecimalType,
+			currency: CustomCurrencyType,
+	}
 	public getRouter(): Router {
 		return (this.getOwnerComponent() as UIComponent).getRouter();
 	}
@@ -64,4 +104,130 @@ export default class BaseController extends Controller {
 			this.getRouter().navTo("master", {},{}, true);
 		}
 	}
+
+	public getUniqueMessages (messages: any) {
+		return messages.reduce((acc: any, msg: any) => {
+			const targets = msg.getTargets?.(); // or msg.getTarget() if it's single target
+			if (!targets || targets.length === 0) return acc;
+		
+			const isAlreadyIncluded = acc.some((existingMsg: any) => {
+				const existingTargets = existingMsg.getTargets?.();
+				return existingTargets?.some(t => targets.includes(t));
+			});
+		
+			if (!isAlreadyIncluded) {
+				acc.push(msg);
+			}
+		
+			return acc;
+		}, []);
+	} 
+
+	public setMessageSection (context: Context, sectionName: string): void {
+		const messages = this.getModel().getMessages(context);
+		const uniqueMessages = this.getUniqueMessages(messages);
+		this.getModel("messages").setProperty(`/${sectionName}`, uniqueMessages);
+	}
+
+	public onMessagePopoverPress (event: Event, sectionName: string) {
+		const sourceControl = (event.getSource() as any);
+		const popover = this.createMessagePopover(sectionName);
+		const messagesModel = this.getModel("messages");
+		popover.setModel(messagesModel, "messages");
+		popover.openBy(sourceControl);
+	}
+
+	public createMessagePopover(sectionName: string): MessagePopover {
+		return new MessagePopover({
+			items: {
+				path: `messages>/${sectionName}`,
+				template: new MessageItem({
+					type: "{messages>type}",
+					title: "{messages>message}",
+					subtitle: "{messages>additionalText}",
+					description: "{messages>description}"
+				})
+			}
+		})
+	}
+
+	// TODO: Check what is the best way to reset error messages from the model
+	public removeMessageFromMessageManager (sectionName: string) {
+		this.getModel()?.setMessages({});
+		this.getModel("messages").setProperty(`/${sectionName}`, []);
+	}
+
+	public getUIModel (): JSONModel {
+        return this.getModel("ui") as JSONModel;
+    }
+
+	public subscribeEventEmitter (channelId: string, eventId: string, cb: any) {
+		this.getOwnerComponent()?.getEventBus().subscribe(channelId, eventId, cb, this);
+	}
+
+	public publishEventEmitter (channelId: string, eventId: string) {
+		this.getOwnerComponent()?.getEventBus().publish(channelId, eventId);
+	}
+
+	public showMessageCompositeView ({sTitle, aMessages, sState}: {sTitle: string, aMessages: CompositeMessageType[], sState: string}) {
+			const oMessageTemplate = new MessageItem({
+				type: '{type}',
+				title: '{title}',
+				description: '{description}',
+				subtitle: '{subtitle}',
+				// counter: '{counter}',
+				markupDescription: "{markupDescription}"
+			});
+
+			//Message view (where multiple errors can be bundeled)
+			const oMessageView = new MessageView({
+					showDetailsPageHeader: false,
+					itemSelect: function () {
+						oBackButton.setVisible(true);
+					},
+					items: {
+						path: "/",
+						template: oMessageTemplate
+					}
+				})
+			const oBackButton = new Button({
+					icon: sap.ui.core.IconPool.getIconURI("nav-back"),
+					visible: false,
+					press: function () {
+						oMessageView.navigateBack();
+						this.setVisible(false);
+					}
+				});
+
+			//add messages	
+			const oMessageModel = new JSONModel();
+			oMessageModel.setData(aMessages);
+			oMessageView.setModel(oMessageModel);
+
+			//show dialog
+			const oDialogMessages = new Dialog({
+				resizable: true,
+				content: oMessageView,
+				state: sState,
+				beginButton: new Button({
+					press: function () {
+						this.getParent().close();
+					},
+					text: "Close"
+				}),
+				customHeader: new Bar({
+					contentMiddle: [
+						new Text({
+							text: sTitle
+						})
+					],
+					contentLeft: [oBackButton]
+				}),
+				contentHeight: "300px",
+				contentWidth: "500px",
+				verticalScrolling: false
+			});
+
+			oDialogMessages.open();
+		}
 }
