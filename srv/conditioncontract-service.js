@@ -692,7 +692,7 @@ module.exports = (srv) => {
 
             let rebateMsg = `${rebateResponses.length} Rebate Contract${rebateResponses.length !== 1 ? "s" : ""}`;
 
-            const successMessage = [invoiceMsg, excludedMsg, updatedMsg, skippedMsg, rebateMsg].filter(Boolean).join(" + ");
+            const successMessage = [invoiceMsg, excludedMsg, updatedMsg, rebateMsg].filter(Boolean).join(" + ");
 
             return req.reply(`${successMessage} created/updated successfully into SAP`);
 
@@ -1710,7 +1710,7 @@ module.exports = (srv) => {
 
             let rebateMsg = rebateCount ? `${rebateCount} Rebate Contract${rebateCount !== 1 ? "s" : ""}` : "No Rebate Contracts";
 
-            const successMessage = [invoiceMsg, excludedMsg, updatedMsg, skippedMsg, rebateMsg].filter(Boolean).join(" + ");
+            const successMessage = [invoiceMsg, excludedMsg, updatedMsg, rebateMsg].filter(Boolean).join(" + ");
 
             return req.reply(`${successMessage} created/updated successfully into SAP`);
             
