@@ -623,5 +623,36 @@ entity CCMContractsExtendedView as
         and ccm.ContractNumber is not null
         and ccm.hasFOC = 'No'
         and ccm.hasRappel = 'No'
-        and mat.isNewMaterialNumber = true
+        and mat.isNewMaterialNumber = true;
+
+
+    entity CCMContractsCancelledNotificationMailJob as select from FastConditionContracts as fcc
+        inner join CCMContract as ccm on ccm.FastConditionContracts.ID = fcc.ID
+        inner join CCMMaterial as mat on mat.CCMContract.ID = ccm.ID and mat.ActiveRecord = 1
+    {
+        fcc.ID as FastConditionContractID,
+        ccm.ID as CCMContractID,
+        fcc.CountryCode,
+        ccm.modifiedBy as CWID,
+        fcc.Owner,
+        fcc.OwnerEmail as UserEmail,
+        fcc.OwnerName,
+    key fcc.CustomerID as InstituteID,
+        ccm.CCMCustomer.InstituteName,
+    key mat.MaterialNumber,
+        ccm.ProductName as PRODUCTPACKNAME,
+        fcc.OfferID,
+        fcc.Division,
+        'Invoice' as ContractType: String,
+        ccm.ContractNumber as ContractNumber,
+        ccm.CCMContractStartDate as EffectiveDate,
+        ccm.CCMContractEndDate as ExpiryDate,
+        ccm.CreationDate as ContractCreationDate,
+        ccm.ContractReferene,
+        fcc.TenderID,
+        fcc.ContractType as Classification
+    }
+    where ccm.ContractNumber is not null
+      and ccm.ContractNumber <> ''
+      and ccm.Cancelled = true
 }
