@@ -174,6 +174,7 @@ entity PriceConditionInvoice: cuid, managed, temporal{
   RentalPrice                         : Double;
   MonthlyRentPerUnit                  : Double;
   AnnualValue                         : Double;
+  PriceConditionCode                  : String;
   CCMContract: Association to CCMContract;
 }
 

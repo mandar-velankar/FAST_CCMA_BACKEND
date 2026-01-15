@@ -1272,7 +1272,7 @@ module.exports = (srv) => {
                 }
 
                 if (field === 'ConditionType' && Target.includes('ConditionType')) {
-                    conditionTypeValue = conditionTypeMap[value] || value;
+                    conditionTypeValue = value === 'PrecioNeto' ? (row?.PriceConditionCode === 'YP11' ? 'YP11' : 'YP10') : conditionTypeMap[value] || value;
                     value = conditionTypeValue;
                 }
 
@@ -1292,7 +1292,7 @@ module.exports = (srv) => {
                 const key = pathSegments[pathSegments.length - 1];
 
                 if (Target.includes('CndnContrConditionRecordType')) {
-                    if (conditionTypeValue === 'YP10') {
+                    if (conditionTypeValue === 'YP10' || conditionTypeValue === 'YP11') {
                         conditionRecord['ConditionCalculationType'] = 'C';
                         conditionRecord['ConditionQuantityUnit'] = 'PC';
                         conditionRecord['ConditionQuantityUnitISOCode'] = 'PCE';
@@ -1310,7 +1310,7 @@ module.exports = (srv) => {
                 if (conditionRecord.ConditionType === 'YD02') {
                     delete conditionRecord.ConditionRateAmount;
                 }
-                if (conditionRecord.ConditionType === 'YP10') {
+                if (conditionRecord.ConditionType === 'YP10' || conditionRecord.ConditionType === 'YP11') {
                     delete conditionRecord.ConditionRateRatioUnit;
                     delete conditionRecord.ConditionRateRatio;
                     delete conditionRecord.ConditionRateRatioUnitISOCode;
@@ -2409,7 +2409,7 @@ module.exports = (srv) => {
                 if (value === undefined || value === null) continue;
 
                 if (field === 'ConditionType' && Target.includes('ConditionType')) {
-                    conditionTypeValue = conditionTypeMap[value] || value;
+                    conditionTypeValue = value === 'PrecioNeto' ? (row?.PriceConditionCode === 'YP11' ? 'YP11' : 'YP10') : conditionTypeMap[value] || value;
                     value = conditionTypeValue;
                 }
 
@@ -2429,7 +2429,7 @@ module.exports = (srv) => {
                 const key = pathSegments[pathSegments.length - 1];
 
                 if (Target.includes('CndnContrConditionRecordType')) {
-                    if (conditionTypeValue === 'YP10') {
+                    if (conditionTypeValue === 'YP10' || conditionTypeValue === 'YP11') {
                         conditionRecord['ConditionCalculationType'] = 'C';
                         conditionRecord['ConditionQuantityUnit'] = 'PC';
                         conditionRecord['ConditionQuantityUnitISOCode'] = 'PCE';
@@ -2447,7 +2447,7 @@ module.exports = (srv) => {
                 if (conditionRecord.ConditionType === 'YD02') {
                     delete conditionRecord.ConditionRateAmount;
                 }
-                if (conditionRecord.ConditionType === 'YP10') {
+                if (conditionRecord.ConditionType === 'YP10' || conditionRecord.ConditionType === 'YP11') {
                     delete conditionRecord.ConditionRateRatioUnit;
                     delete conditionRecord.ConditionRateRatio;
                     delete conditionRecord.ConditionRateRatioUnitISOCode;

@@ -126,7 +126,8 @@ service ConditionContract @(requires:['f_tndr_cag_admin','f_tndr_cag_ccma_user',
             fcc.ExternalID,
             fcc.Reference,
             fcc.TenderID,
-            fcc.ContractType
+            fcc.ContractType,
+            pci.PriceConditionCode
     }
 
  entity ContractRebatePayloadView as select from FastConditionContracts as fcc 
@@ -617,7 +618,8 @@ entity CCMContractsExtendedView as
             fcc.ExternalID,
             fcc.Reference,
             fcc.TenderID,
-            fcc.ContractType
+            fcc.ContractType,
+            pci.PriceConditionCode
     }where fcc.hasNewMaterialNumber = true 
         and ccm.Synchronized = true
         and ccm.ContractNumber is not null
