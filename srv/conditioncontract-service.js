@@ -1817,6 +1817,10 @@ module.exports = (srv) => {
                 new Map(exclusiveESUsers.map(user => [user.CWID, user])).values()
             );
 
+            exclusiveESUsers.sort((a, b) =>
+                a.UserName.localeCompare(b.UserName, 'en', { sensitivity: 'base' })
+            );
+
             return exclusiveESUsers;
 
         }catch(error){
