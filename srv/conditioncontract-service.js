@@ -231,7 +231,7 @@ module.exports = (srv) => {
             const { sourceData, case: caseType, contracts } = item;
             const newOffer = sourceData[0];
 
-            const uniqueContracts = [...new Map(contracts.map(c => [c.CCMContractID, c])).values()];
+            const uniqueContracts = [...new Map((contracts || []).map(c => [c.CCMContractID, c])).values()];
 
             let shouldCreateNew = false;         
             // let shouldCreateExcludingCustomer = false;  
