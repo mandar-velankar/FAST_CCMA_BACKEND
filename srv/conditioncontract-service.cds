@@ -207,7 +207,9 @@ entity CCMContractPricingFormView                  as
             invoice.RequestedVolume,
             invoice.RentalPrice,
             invoice.MonthlyRentPerUnit,
-            invoice.AnnualValue
+            invoice.AnnualValue,
+            invoice.PriceConditionCode,
+            fcc.ContractType
     }
 
 entity CCMContractFOCTableView                     as
@@ -401,6 +403,8 @@ entity CurrentCCMPricingView as select from CCMContract as ccmcontract
         on currentPrice.CCMContract.ID = ccmcontract.ID{
     key ccmcontract.ID,
     ccmcontract.CountryCode,
+    fcc.ContractType,
+    invoice.PriceConditionCode,
     ifnull(currentPrice.ConditionType, invoice.ConditionType) as ConditionType: String,
     ifnull(currentPrice.Currency, invoice.Currency) as Currency: String,
     ifnull(currentPrice.YP00, invoice.YP00) as YP00: Double,
