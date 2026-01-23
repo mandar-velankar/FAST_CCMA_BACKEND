@@ -2064,36 +2064,31 @@ module.exports = (srv) => {
         
             // Handle PricingProcedureStep-specific values
             if (PricingProcedureStep === "330") {
-                result.SAPTAX = parseFloat(ConditionRateValue) / 10000 || 0;
-            }
-        
-            if (PricingProcedureStep === "332") {
-                // if(conditions["YP10"]){
-                // 	result.SAPPriceWithTax = parseFloat((ConditionAmount * conditions["YP10"]?.ConditionQuantity) || 0);
-                // }else{
-                // 	result.SAPPriceWithTax = parseFloat(ConditionAmount || 0);
-                // }
-                result.SAPPriceWithTax = parseFloat(ConditionRateValue || 0);
+                const sapTax = parseFloat(ConditionAmount || 0);
+                result.SapTax = sapTax ? (UoM === "Pack" ? (sapTax / 10000) : (sapTax / 10000 / packFactor)) : 0;
             }
 
+
             if (PricingProcedureStep === "306") {
-                result.NETPRICEWITHOUTTAX = parseFloat(ConditionAmount || 0);
+                const netPriceWithoutTax = parseFloat(ConditionAmount || 0);
+			    result.NetPriceWithoutTax = netPriceWithoutTax ? (UoM === "Pack" ? (netPriceWithoutTax / 10000) : (netPriceWithoutTax / 10000 / packFactor)) : 0;
             }
 		}
 	
 		// Assign the condition values
-		const YP00 = conditions["YP00"]?.ConditionRateValue || 0;
+		const YP00 = conditions["YP00"]?.ConditionAmount || 0;
 		const YP04 = conditions["YP04"] ? Math.abs(conditions["YP04"].ConditionRateValue) / 100 : 0;
-		const YP10 = conditions["YP10"]?.ConditionRateValue ?? null;
+		const YP10 = conditions["YP10"]?.ConditionAmount ?? null;
 		const YD02 = conditions["YD02"] ? Math.abs(conditions["YD02"].ConditionRateValue) / 100 : 0;
 		const YD06 = conditions["YD06"] ? Math.abs(conditions["YD06"].ConditionRateValue) / 100 : 0;
 		const YD75 = conditions["YD75"]?.ConditionAmount ?? null;
-		const YD30 = conditions["YD30"]?.ConditionRateValue ?? 0;
+		const YD30 = conditions["YD30"]?.ConditionAmount ?? 0;
 
-        const isPVLUpdated = !!(YP00 && fastContractPrice?.YP00 !== YP00);
+        result.YP00 = YP00 ? UoM === 'Pack' ? (YP00 / 10000) : (YP00 / 10000 / packFactor) : 0;
+        const isPVLUpdated = !!(result.YP00 && fastContractPrice?.YP00 !== YP00);
         const isConfidentialPriceUpdated = !!(YP04 && fastContractPrice?.YP04 !== YP04);
         
-        result.YP00 = isPVLUpdated ? contract.UoM === 'Pack' ? YP00 : (YP00 / contract.PackFactor) : fastContractPrice.YP00;
+        result.YP00 = isPVLUpdated ? result.YP00 : fastContractPrice.YP00;
         result.YP04 = isConfidentialPriceUpdated ? YP04 : fastContractPrice.YP04;
         result.ConfidentialPrice = isConfidentialPriceUpdated ? result.YP00 * (1 - result.YP04) : result.YP00;
 
@@ -2103,12 +2098,12 @@ module.exports = (srv) => {
         result.YD75 = (basePrice - result.YP10) / basePrice;
     
         // Mapped values for NETPRICE fields
-        result.NetPriceWithoutTax = fastContractPrice.ConditionType === "DescuentoComercial" ? result.ConfidentialPrice * (1 - result.YD02) * (1 - result.YD06) : null;  
+        result.NetPriceWithoutTax = fastContractPrice.ConditionType === "DescuentoComercial" ? result.ConfidentialPrice * (1 - result.YD02 - result.YD06) : null;  
         result.NetPriceWithTax = fastContractPrice.ConditionType === "DescuentoComercial" ? result.NetPriceWithoutTax * (1 + result.Tax) : result.NetPriceWithTax;  
 
 	
         const priceUpdateStatuses = {
-            "hasUpdatedPVL": Number(YP00) !== Number(fastContractPrice.YP00),
+            "hasUpdatedPVL": Number(result.YP00) !== Number(fastContractPrice.YP00),
             "hasUpdatedConfidentialPrice": Number(YP04) !== Number(fastContractPrice.YP04),
             "hasNetPriceAbovePVL": false,
             "hasNetPriceBelowFloorPrice": false
