@@ -294,7 +294,7 @@ type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                     </form:FormElement>
                     <form:FormElement
                         label="{i18n>ESPricingFragment.MaximumPrice}"
-                        visible="{= %{ConditionType} === 'PrecioNeto' &amp;&amp; %{ui>/Classification} === 'Tender' }"
+                        visible="{= %{ConditionType} === 'PrecioNeto' &amp;&amp; %{ContractType} === 'Tender' }"
                     >
                         <form:fields>
                             <m:Input
@@ -302,7 +302,7 @@ type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                 value="{ parts: ['MaximumPrice', 'Currency'], 
 type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                 enabled="false"
-                                visible="{= %{ConditionType} === 'PrecioNeto' &amp;&amp; %{ui>/Classification} === 'Tender' }"
+                                visible="{= %{ConditionType} === 'PrecioNeto' &amp;&amp; %{ContractType} === 'Tender' }"
                                 fieldGroupIds="priceInputPrecioNeto"
                                 valueState="{
                                     parts: [

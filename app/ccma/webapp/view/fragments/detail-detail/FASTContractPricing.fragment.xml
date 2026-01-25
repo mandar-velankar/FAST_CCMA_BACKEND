@@ -103,26 +103,26 @@ type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'}"
                     </form:FormElement>
                     <form:FormElement
                         label="{i18n>ESPricingFragment.RoyalDecree}"
-                        visible="{= !%{RoyalDecreeIncl} &amp;&amp; %{ConditionType} !== 'Rental'}"
+                        visible="{= ${RoyalDecree} === 'Yes' &amp;&amp; %{ConditionType} !== 'Rental'}"
                     >
                         <form:fields>
                             <m:Input
                                 value="{ path: 'YD06', 
 type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'}"
                                 enabled="false"
-                                visible="{= !%{RoyalDecreeIncl} &amp;&amp; %{ConditionType} !== 'Rental'}"
+                                visible="{= ${RoyalDecree} === 'Yes' &amp;&amp; %{ConditionType} !== 'Rental'}"
                             />
                         </form:fields>
                     </form:FormElement>
                     <form:FormElement
                         label="{i18n>ESPricingFragment.royalDecreeIncl}"
-                        visible="false"
+                        visible="{= ${ConditionType} === 'PrecioNeto'}"
                     >
                         <form:fields>
                             <m:CheckBox
                                 enabled="false"
                                 selected="{RoyalDecreeIncl}"
-                                visible="false"
+                                visible="{= ${ConditionType} === 'PrecioNeto'}"
                             />
                         </form:fields>
                     </form:FormElement>
@@ -204,14 +204,14 @@ type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                     </form:FormElement>
                     <form:FormElement
                         label="{i18n>ESPricingFragment.MaximumPrice}"
-                        visible="{= %{ConditionType} === 'PrecioNeto' &amp;&amp; %{ui>/Classification} === 'Tender' }"
+                        visible="{= %{ConditionType} === 'PrecioNeto' &amp;&amp; %{ContractType} === 'Tender' }"
                     >
                         <form:fields>
                             <m:Input
                                 value="{ parts: ['MaximumPrice', 'Currency'], 
 type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                 enabled="false"
-                                visible="{= %{ConditionType} === 'PrecioNeto' &amp;&amp; %{ui>/Classification} === 'Tender' }"
+                                visible="{= %{ConditionType} === 'PrecioNeto' &amp;&amp; %{ContractType} === 'Tender' }"
                                 fieldGroupIds="priceInputPrecioNeto"
                             />
                         </form:fields>
