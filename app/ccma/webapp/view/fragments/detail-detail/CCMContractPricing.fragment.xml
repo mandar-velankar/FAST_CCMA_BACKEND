@@ -250,7 +250,7 @@ type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'}"
                     </form:FormElement>
                     <form:FormElement
                         label="{i18n>ESPricingFragment.RoyalDecreeValue}"
-                        visible="{= %{RoyalDecree} === 'Yes' &amp;&amp; %{ConditionType} !== 'Rental' &amp;&amp; %{ConditionType} !== 'DescuentoEspecial'}"
+                        visible="{= %{RoyalDecree} === 'Yes' &amp;&amp; Number(%{RoyalDecreeValue}) > 0 &amp;&amp; %{ConditionType} !== 'Rental' &amp;&amp; %{ConditionType} !== 'DescuentoEspecial'}"
                     >
                         <form:fields>
                             <m:Input
@@ -258,7 +258,7 @@ type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'}"
                                 value="{ parts: ['RoyalDecreeValue', 'Currency'], 
 type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                 enabled="false"
-                                visible="{= %{RoyalDecree} === 'Yes' &amp;&amp; %{ConditionType} !== 'Rental' &amp;&amp; %{ConditionType} !== 'DescuentoEspecial'}"
+                                visible="{= %{RoyalDecree} === 'Yes' &amp;&amp; Number(%{RoyalDecreeValue}) > 0 &amp;&amp; %{ConditionType} !== 'Rental' &amp;&amp; %{ConditionType} !== 'DescuentoEspecial'}"
                                 valueState="{
                                     parts: [
                                         { path: 'RoyalDecreeValue' },
