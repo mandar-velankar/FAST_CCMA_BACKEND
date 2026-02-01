@@ -103,38 +103,38 @@ type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'}"
                     </form:FormElement>
                     <form:FormElement
                         label="{i18n>ESPricingFragment.RoyalDecree}"
-                        visible="{= ${RoyalDecree} === 'Yes' &amp;&amp; %{ConditionType} !== 'Rental'}"
+                        visible="{= %{RoyalDecree} === 'Yes' &amp;&amp; !['Rental','PVL'].includes(%{ConditionType})}"
                     >
                         <form:fields>
                             <m:Input
                                 value="{ path: 'YD06', 
 type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'}"
                                 enabled="false"
-                                visible="{= ${RoyalDecree} === 'Yes' &amp;&amp; %{ConditionType} !== 'Rental'}"
+                                visible="{= %{RoyalDecree} === 'Yes' &amp;&amp; !['Rental','PVL'].includes(%{ConditionType})}"
                             />
                         </form:fields>
                     </form:FormElement>
                     <form:FormElement
                         label="{i18n>ESPricingFragment.royalDecreeIncl}"
-                        visible="{= ${ConditionType} === 'PrecioNeto'}"
+                        visible="{= %{ConditionType} === 'PrecioNeto' &amp;&amp; ${YD06} > 0}"
                     >
                         <form:fields>
                             <m:CheckBox
                                 enabled="false"
                                 selected="{RoyalDecreeIncl}"
-                                visible="{= ${ConditionType} === 'PrecioNeto'}"
+                                visible="{= %{ConditionType} === 'PrecioNeto' &amp;&amp; ${YD06} > 0}"
                             />
                         </form:fields>
                     </form:FormElement>
                     <form:FormElement
                         label="{i18n>ESPricingFragment.RoyalDecreeApplies}"
-                        visible="{= !%{RoyalDecreeIncl} &amp;&amp; %{ConditionType} !== 'Rental' &amp;&amp; %{ConditionType} !== 'DescuentoEspecial'}"
+                        visible="{= %{RoyalDecree} === 'Yes' &amp;&amp; !['Rental','DescuentoEspecial','PVL'].includes(%{ConditionType})}"
                     >
                         <form:fields>
                             <m:Select
                                 selectedKey="{= %{RoyalDecree} ? %{RoyalDecree} : 'No'}"
                                 enabled="false"
-                                visible="{= !%{RoyalDecreeIncl} &amp;&amp; %{ConditionType} !== 'Rental' &amp;&amp; %{ConditionType} !== 'DescuentoEspecial'}"
+                                visible="{= %{RoyalDecree} === 'Yes' &amp;&amp; !['Rental','DescuentoEspecial','PVL'].includes(%{ConditionType})}"
                             >
                                 <m:items>
                                     <core:Item
@@ -151,14 +151,14 @@ type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'}"
                     </form:FormElement>
                     <form:FormElement
                         label="{i18n>ESPricingFragment.NetPriceBeforeRC}"
-                        visible="{= %{ConditionType} === 'PrecioNeto' || %{ConditionType} === 'PVL'}"
+                        visible="{= %{ConditionType} === 'PrecioNeto'}"
                     >
                         <form:fields>
                             <m:Input
                                 value="{ parts: ['YP10', 'Currency'], 
                                         type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                 enabled="false"
-                                visible="{= %{ConditionType} === 'PrecioNeto' || %{ConditionType} === 'PVL'}"
+                                visible="{= %{ConditionType} === 'PrecioNeto'}"
                                 fieldGroupIds="priceInputPrecioNeto"
                             />
                         </form:fields>
@@ -178,27 +178,27 @@ type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'}"
                     </form:FormElement>
                     <form:FormElement
                         label="{i18n>ESPricingFragment.RoyalDecreeValue}"
-                        visible="{= !%{RoyalDecreeIncl} &amp;&amp; %{ConditionType} !== 'Rental' &amp;&amp; %{ConditionType} !== 'DescuentoEspecial'}"
+                        visible="{= %{RoyalDecree} === 'Yes' &amp;&amp; Number(%{RoyalDecreeValue}) > 0 &amp;&amp; !['Rental','DescuentoEspecial','PVL'].includes(%{ConditionType})}"
                     >
                         <form:fields>
                             <m:Input
                                 value="{ parts: ['RoyalDecreeValue', 'Currency'], 
 type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                 enabled="false"
-                                visible="{= !%{RoyalDecreeIncl} &amp;&amp; %{ConditionType} !== 'Rental' &amp;&amp; %{ConditionType} !== 'DescuentoEspecial'}"
+                                visible="{= %{RoyalDecree} === 'Yes' &amp;&amp; Number(%{RoyalDecreeValue}) > 0 &amp;&amp; !['Rental','DescuentoEspecial','PVL'].includes(%{ConditionType})}"
                             />
                         </form:fields>
                     </form:FormElement>
                     <form:FormElement
                         label="{i18n>ESPricingFragment.NetPriceAfterRC}"
-                        visible="{= !%{RoyalDecreeIncl} &amp;&amp; (%{ConditionType} === 'PrecioNeto' || %{ConditionType} === 'PVL')}"
+                        visible="{= %{RoyalDecree} === 'Yes' &amp;&amp; %{ConditionType} === 'PrecioNeto'}"
                     >
                         <form:fields>
                             <m:Input
                                 value="{ parts: ['NetPriceWithoutTaxAfterDeductionRD', 'Currency'], 
 type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                 enabled="false"
-                                visible="{= !%{RoyalDecreeIncl} &amp;&amp; (%{ConditionType} === 'PrecioNeto' || %{ConditionType} === 'PVL')}"
+                                visible="{= %{RoyalDecree} === 'Yes' &amp;&amp; %{ConditionType} === 'PrecioNeto'}"
                             />
                         </form:fields>
                     </form:FormElement>
@@ -218,27 +218,27 @@ type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                     </form:FormElement>
                     <form:FormElement
                         label="{i18n>ESPricingFragment.Tax}"
-                        visible="{= %{ConditionType} !== 'Rental'}"
+                        visible="{= %{ConditionType} !== 'Rental' || %{ConditionType} !== 'PVL'}"
                     >
                         <form:fields>
                             <m:Input
                                 value="{ path: 'Tax', 
 type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'}"
                                 enabled="false"
-                                visible="{= %{ConditionType} !== 'Rental'}"
+                                visible="{= %{ConditionType} !== 'Rental' || %{ConditionType} !== 'PVL'}"
                             />
                         </form:fields>
                     </form:FormElement>
                     <form:FormElement
                         label="{i18n>ESPricingFragment.NetPriceWtax}"
-                        visible="{= %{ConditionType} !== 'Rental'}"
+                        visible="{= %{ConditionType} !== 'Rental' || %{ConditionType} !== 'PVL'}"
                     >
                         <form:fields>
                             <m:Input
                                 value="{ parts: ['NetPriceWithTax', 'Currency'], 
 type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                                 enabled="false"
-                                visible="{= %{ConditionType} !== 'Rental'}"
+                                visible="{= %{ConditionType} !== 'Rental' || %{ConditionType} !== 'PVL'}"
                             />
                         </form:fields>
                     </form:FormElement>
