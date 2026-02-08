@@ -2495,12 +2495,7 @@ module.exports = (srv) => {
             const hasSettlement = settlementByContract.has(row.CCMContractID);
 
             if (!hasSettlement) {
-                const msg =
-                    `Settlement calendar is missing for Rappel. ` +
-                    `CCMContractID: ${row.CCMContractID}, ` +
-                    `ProductID: ${row.ProductCode}. ` +
-                    `Contract creation was stopped.`;
-
+                const msg = `Please apply the settlement dates, as Rappels are included in the contract. Contract creation cannot proceed until the settlement dates are applied.`;
                 const err = new Error(msg);
                 err.code = 400;
                 throw err;     
