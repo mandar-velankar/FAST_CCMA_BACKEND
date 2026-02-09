@@ -388,17 +388,6 @@ module.exports = (srv) => {
 
     async function excludeChildCustomer(tx, contract, newOffer) {
 
-        // const existingEnd = contract.ConditionValidityEndDate;
-        // const newStart   = newOffer.ConditionValidityStartDate;
-
-        // // Skip update if the contract already ended before the new contract starts
-        // if (existingEnd < newStart) {
-        //     console.log(`Skipping update: contract ${contract.ContractNumber} ended before new offer start date`);
-        //     return false;
-        // }
-        
-        // const prevDay = d => new Date(new Date(d).setDate(new Date(d).getDate() - 1)).toISOString().slice(0, 10);
-
         const {response, body} = await handleExcludeChildCustomer(tx,'ES',"ConditionContract",{ExistingContractNumber: contract.ContractNumber, customer: newOffer.Customer, validfrom: newOffer.ConditionValidityStartDate, validto:newOffer.ConditionValidityEndDate});
 
         const batchText = response?.data ?? "";
@@ -469,58 +458,6 @@ module.exports = (srv) => {
         return {response, body};
     }
 
-    /*async function createCCMContractExcludeCustomer(tx, countryCode, resource, sourceData, contract) {
-        let body;
-        try {
-            const apiConfig = await tx.run(SELECT.one.from(APIDefinition).where({ Provider: 'ConditionContract', CountryCode: countryCode, Resource: resource, Name: 'InvoicePrice' }));
-            const apiBodyMappings = await tx.run(SELECT.from(APIBody).where({ APIDefinition_ID: apiConfig.ID }));
-            if (!apiBodyMappings) {
-                throw new Error("ERR_MISSING_PARAMETER:API body Mappings not found");
-            }
-            body = buildPayloadFromMappings(sourceData, apiBodyMappings);
-            if (!body) {
-                throw new Error("ERR_MISSING_PARAMETER:API Body not found");
-            }
-
-            //update Payload to exclude customer
-            body =  updatePayloadToExcludeCustomer(body, contract);
-
-            const oauthAuth = await tx.run(SELECT.one.from(APIConfigOAuth, apiConfig.OAuth_ID));
-            const url = `${apiConfig.Host}${apiConfig.BasePath}${apiConfig.ResourcePath}`;
-
-            const oauthCredentials = await getBearerToken(oauthAuth);
-
-            return axios({
-                method: 'post',
-                url: url,
-                headers: {
-                    'Authorization': `Bearer ${oauthCredentials.data.access_token}`,
-                    'Content-Type': 'application/json'
-                },
-                data: JSON.stringify(body)
-            });
-        } catch (error) {
-            error.payload = body;
-            throw error
-        }
-    }
-
-    function updatePayloadToExcludeCustomer(payload, contract) {
-        // Add another entry for bvheader to exclude customer
-        payload.ConditionContract.bvheader.push({
-                FieldCombination: "Y001",
-                ConditionDocument: "",
-                incl_excl: "E",
-                customer: contract.Customer,
-                validfrom: `${contract.ConditionValidityStartDate}T00:00:00`,
-                validto: `${contract.ConditionValidityEndDate}T00:00:00`
-            });
-
-
-        return payload;
-    } */
-
-
     srv.on('createCCMContract', async (req) => {
         const tx = cds.tx(req);
         try {
@@ -546,6 +483,8 @@ module.exports = (srv) => {
             const rebateSettlementData = await tx.run(SELECT.from(SettlementsDate).where({
                 CCMContractID: CCMContractID
             }));
+
+            await validateSettlementCalendar({tx, req, rebateSourceData, settlementData: rebateSettlementData});
 
             // Skip invoice contract creation if ConditionType is PVL
             const isPVLContract = sourceData.some(d => d.ConditionType === 'PVL' || d.ConditionType === 'Rental');
@@ -629,21 +568,6 @@ module.exports = (srv) => {
                             }
                         }
                     }
-
-                    /**if (bvheaders.length) {
-                        const inserts = bvheaders.map((bvh) => ({
-                            CCMContract_ID: CCMContractID,
-                            ConditionDocument: bvh.ConditionDocument,
-                            CustomerID: bvh.customer,
-                            FieldCombination: bvh.FieldCombination,
-                            ItemGUID: bvh.itemguid,
-                            createdAt: new Date(),
-                            createdBy: req.user.id,
-                        }));
-
-                        await tx.run(INSERT.into(ContractItemGUID).entries(inserts));
-                    }**/
-                    //console.log("Invoice response from SAP:", invoiceResult?.data);
                 }
             }else{
                 console.log("No invoice contract created.");
@@ -1327,25 +1251,6 @@ module.exports = (srv) => {
                 bvheaderList.push(bvheaderEntry);
             }
 
-           /** if (row.YD06 !== undefined && row.YD06 !== null && row.YD06 !== 0) {
-                const royalDecreeRecord = { ...staticConditionRecord };
-
-                for (const { Source, Target } of dynamicMappings) {
-                    const field = Source.replace('ContractPayloadView.', '');
-                    if (!Target.includes('CndnContrConditionRecordType')) continue;
-
-                    royalDecreeRecord['ConditionRateRatio'] = row.YD06 * 100;
-
-                    if (row[field] !== undefined && row[field] !== null) {
-                        const key = Target.split('.').pop();
-                        royalDecreeRecord[key] = row[field];
-                    }
-                }
-
-                royalDecreeRecord['ConditionType'] = 'YD06';
-                delete royalDecreeRecord['ConditionRateAmount'];
-                conditionRecords.push(royalDecreeRecord);
-            }*/
         }
 
         if (conditionRecords.length > 0) {
@@ -1484,14 +1389,7 @@ module.exports = (srv) => {
                 method: 'GET',
                 path: `/v2/conditioncontracting/MailTemplate(CountryCode='ES',Language='ES',TemplateId='${templateId}')?$expand=MailTemplateFile&$select=MailTemplateFile.content`
             });
-            // const result = await fastbackendAPI.send({
-            //     query: SELECT.one.from("ConditionContractService.MailTemplate")
-            //     .columns('*', 'MailTemplateFile.title', 'MailTemplateFile.content')
-            //     .where({ TemplateId: templateId })
-            // })
-            // const result = await fastbackendAPI.run(SELECT.one.from(MailTemplate)
-			// .columns('*', 'MailTemplateFile.title', 'MailTemplateFile.content')
-			// .where({ TemplateId: templateId }))
+
             return result;
         }catch(error){
             console.error("No mail template found");
@@ -1527,6 +1425,8 @@ module.exports = (srv) => {
             const rebateSettlementData = await tx.run(SELECT.from(SettlementsDate).where({
                 CCMContractID: {in: rebateContractIDs}
             }));
+
+            await validateSettlementCalendar({tx, req, rebateSourceData, settlementData: rebateSettlementData});
 
             console.log("Process Rebate Contracts");
             const rebatePromise = rebateSourceData.length > 0
@@ -1646,20 +1546,6 @@ module.exports = (srv) => {
                                 }
                             }
                         }
-
-                        /**if (bvheaders.length) {
-                            const inserts = bvheaders.map((bvh) => ({
-                                CCMContract_ID: CCMContractID,
-                                ConditionDocument: bvh.ConditionDocument,
-                                CustomerID: bvh.customer,
-                                FieldCombination: bvh.FieldCombination,
-                                ItemGUID: bvh.itemguid,
-                                createdAt: new Date(),
-                                createdBy: req.user.id,
-                            }));
-
-                            await tx.run(INSERT.into(ContractItemGUID).entries(inserts));
-                        }**/
                         console.log("Invoice response from SAP:", invoiceResult?.data);
                         if (updatedContracts.length) console.log("Updated Contracts:", updatedContracts);
                         if (skippedContracts.length) console.log("Skipped Contracts:", skippedContracts);
@@ -2593,5 +2479,27 @@ module.exports = (srv) => {
 
         await Promise.all(promises.flat());
         return flatParsedBatchResponses;
+    }
+
+    async function validateSettlementCalendar({tx, req, rebateSourceData, settlementData}) {
+        // No rebate → no settlement needed → do nothing
+        if (!Array.isArray(rebateSourceData) || rebateSourceData.length === 0) {
+            return;
+        }
+
+        const settlementByContract = new Map(
+            settlementData.map(s => [s.CCMContractID, s])
+        );
+
+        for (const row of rebateSourceData) {
+            const hasSettlement = settlementByContract.has(row.CCMContractID);
+
+            if (!hasSettlement) {
+                const msg = `Please apply the settlement dates, as Rappels are included in the contract. Contract creation cannot proceed until the settlement dates are applied.`;
+                const err = new Error(msg);
+                err.code = 400;
+                throw err;     
+            }
+        }
     }
 };
