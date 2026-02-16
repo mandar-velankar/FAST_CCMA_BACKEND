@@ -258,6 +258,16 @@
                                         </form:fields>
                                     </form:FormElement>
                                     <form:FormElement
+                                        label="{i18n>ESRebateFragment.BrandLevelRappel}"
+                                    >
+                                        <form:fields>
+                                            <m:Input
+                                                value="{BrandLevelRappel}"
+                                                enabled="false"
+                                            />
+                                        </form:fields>
+                                    </form:FormElement>
+                                    <form:FormElement
                                         label="{i18n>ESRebateFragment.Settlement}"
                                     >
                                         <form:fields>
