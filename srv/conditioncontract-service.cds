@@ -192,6 +192,9 @@ service ConditionContract @(requires:['f_tndr_cag_admin','f_tndr_cag_ccma_user',
         pcr.RefundDate,
         pcr.PriceConditionCode,
         pcr.MarketIncentiveID,
+        pcr.BrandLevelRappel,
+        pcr.HLEVEL4_CODE,
+        pcr.HLEVEL4_NAME,
         ccm.CCMContractStartDate as ConditionValidityStartDate,
         ccm.CCMContractEndDate as ConditionValidityEndDate,
         ccm.OfferPrice as ConditionRateAmount,
@@ -292,6 +295,9 @@ entity CCMContractRebateFormView                   as
             rebate.RefundDate,
             rebate.PriceConditionCode,
             rebate.MarketIncentiveID,
+            rebate.BrandLevelRappel,
+            rebate.HLEVEL4_CODE,
+            rebate.HLEVEL4_NAME,
             rebate.MarketIncentiveDescription
     }
 

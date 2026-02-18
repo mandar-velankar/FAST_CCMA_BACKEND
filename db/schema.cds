@@ -195,6 +195,9 @@ entity PriceConditionRebate: cuid, managed, temporal{
   RefundDate                          : Date;
   PriceConditionCode                  : String;
   MarketIncentiveID                   : String;
+  BrandLevelRappel                    : String;
+  HLEVEL4_CODE                        : String;
+  HLEVEL4_NAME                        : String;
   MarketIncentiveDescription          : String;
   CCMContract: Association to CCMContract;
   PriceConditionDiscountCondition: Composition of many PriceConditionDiscountCondition on PriceConditionDiscountCondition.PriceConditionRebate = $self;
