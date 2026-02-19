@@ -1810,27 +1810,23 @@ module.exports = (srv) => {
         if (sourceData[0].AssortmentReference) {
             bvheaderEntry['FieldCombination'] = 'Y002';
             delete bvheaderEntry['customer'];
-
-            bvheaderList.push(bvheaderEntry);
-
-            bvheaderList.push({
-                FieldCombination: "Y047",
-                ConditionDocument: "",
-                incl_excl: "I",
-                EANUPCCode: sourceData[0].EANUPCCode
-            });
-        }else {
+        } else {
             bvheaderEntry['FieldCombination'] = 'Y001';
-
-            bvheaderList.push(bvheaderEntry);
-
-            bvheaderList.push({
-                FieldCombination: "Y047",
-                ConditionDocument: "",
-                incl_excl: "I",
-                EANUPCCode: sourceData[0].EANUPCCode
-            });
         }
+
+        bvheaderList.push(bvheaderEntry);
+
+        const isBrandLevelRappel = sourceData[0].BrandLevelRappel === 'Yes';
+
+        bvheaderList.push({
+            FieldCombination: isBrandLevelRappel ? "Y004" : "Y047",
+            ConditionDocument: "",
+            incl_excl: "I",
+            ...(isBrandLevelRappel
+                ? { ProductHierarchy: sourceData[0].HLEVEL4_CODE }
+                : { EANUPCCode: sourceData[0].EANUPCCode }
+            )
+        });
 
         for (const { Source, Target } of dynamicMappings) {
             const field = Source.replace('ContractRebatePayloadView.', '');
