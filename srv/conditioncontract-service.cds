@@ -126,7 +126,8 @@ service ConditionContract @(requires:['f_tndr_cag_admin','f_tndr_cag_ccma_user',
             fcc.ExternalID,
             fcc.Reference,
             fcc.TenderID,
-            fcc.ContractType
+            fcc.ContractType,
+            pci.PriceConditionCode
     }
 
  entity ContractRebatePayloadView as select from FastConditionContracts as fcc 
@@ -206,7 +207,9 @@ entity CCMContractPricingFormView                  as
             invoice.RequestedVolume,
             invoice.RentalPrice,
             invoice.MonthlyRentPerUnit,
-            invoice.AnnualValue
+            invoice.AnnualValue,
+            invoice.PriceConditionCode,
+            fcc.ContractType
     }
 
 entity CCMContractFOCTableView                     as
@@ -400,6 +403,8 @@ entity CurrentCCMPricingView as select from CCMContract as ccmcontract
         on currentPrice.CCMContract.ID = ccmcontract.ID{
     key ccmcontract.ID,
     ccmcontract.CountryCode,
+    fcc.ContractType,
+    invoice.PriceConditionCode,
     ifnull(currentPrice.ConditionType, invoice.ConditionType) as ConditionType: String,
     ifnull(currentPrice.Currency, invoice.Currency) as Currency: String,
     ifnull(currentPrice.YP00, invoice.YP00) as YP00: Double,
@@ -617,7 +622,8 @@ entity CCMContractsExtendedView as
             fcc.ExternalID,
             fcc.Reference,
             fcc.TenderID,
-            fcc.ContractType
+            fcc.ContractType,
+            pci.PriceConditionCode
     }where fcc.hasNewMaterialNumber = true 
         and ccm.Synchronized = true
         and ccm.ContractNumber is not null
