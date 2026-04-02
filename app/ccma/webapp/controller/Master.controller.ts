@@ -131,7 +131,7 @@ export default class Master extends BaseController {
 		let andFilters = [];
 
 		const contractsMasterTable = this.byId("idContractsMasterTable");
-		const binding = contractsMasterTable?.getBinding("items");
+		const binding = contractsMasterTable?.getBinding("items") as ListBinding;
 
 		let sSearch = this.byId("idSearch")?.getProperty("value");
 		let countryCode = (this.byId("idSlctCountry") as Select)?.getSelectedKey();
@@ -221,13 +221,12 @@ export default class Master extends BaseController {
 				caseSensitive: false
 			}));
 
-			if (/^\d+$/.test(sSearch)) {
-				orFilters.push(new Filter({
-					path: "CustomerID",
-					operator: FilterOperator.EQ,
-					value1: parseInt(sSearch)
-				}));
-			}
+			orFilters.push(new Filter({
+				path: "CustomerID",
+				operator: FilterOperator.Contains,
+				value1: sSearch,
+				caseSensitive: false
+			}));
 
 			// Date filters
 			if (isNaN(Number(sSearch))) {
@@ -249,6 +248,13 @@ export default class Master extends BaseController {
 					}));
 				}
 			}
+
+			orFilters.push(new Filter({
+				path: "AllMaterialNumbers",
+				operator: FilterOperator.Contains,
+				value1: sSearch,
+				caseSensitive: false
+			}));
 
 			andFilters.push(new Filter(orFilters, false));
 		}
@@ -288,7 +294,7 @@ export default class Master extends BaseController {
 			var oFilters = new Filter(andFilters, true);
 
 			//Binding to table with the filters and the sorters
-			(this.getView()?.byId("idContractsMasterTable")?.getBinding("items") as ListBinding)?.filter(oFilters, FilterType.Application);
+			binding?.filter(oFilters, FilterType.Application);
 		} else {
 			(binding as ListBinding)?.filter();
 
