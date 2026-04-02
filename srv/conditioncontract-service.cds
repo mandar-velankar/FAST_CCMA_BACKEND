@@ -22,9 +22,86 @@ service ConditionContract @(requires:['f_tndr_cag_admin','f_tndr_cag_ccma_user',
 
 
     entity FastConditionContractsView             as
-        select from FastConditionContracts {
-            *
-        }
+        select from FastConditionContracts as fcc
+        left join CCMContract as ccm on ccm.FastConditionContracts.ID = fcc.ID
+        left join CCMMaterial as mat on mat.CCMContract.ID = ccm.ID and mat.ActiveRecord = 1
+    {
+        key fcc.ID,
+        fcc.OfferID,
+        fcc.TenderID,
+        fcc.SAPID,
+        fcc.ExternalID,
+        fcc.Reference,
+        fcc.ContractType,
+        fcc.InstituteName,
+        fcc.Owner,
+        fcc.OwnerName,
+        fcc.OwnerEmail,
+        fcc.Division,
+        fcc.CustomerID,
+        fcc.InstituteID,
+        fcc.CountryCode,
+        fcc.ContractStartDate,
+        fcc.ContractEndDate,
+        fcc.BrandFilter,
+        fcc.ProductFilter,
+        fcc.Extension,
+        fcc.ExtensionPeriod,
+        fcc.Status,
+        fcc.DistributorID,
+        fcc.hasNewContracts,
+        fcc.hasNewMaterialNumber,
+        fcc.hasActiveContracts,
+        fcc.hasUpdatedPVL,
+        fcc.hasUpdatedConfidentialPrice,
+        fcc.hasNetPriceAbovePVL,
+        fcc.hasNetPriceBelowFloorPrice,
+        fcc.hasExpiringSoonContracts,
+        fcc.hasExpiredContracts,
+        fcc.hasCancelledContracts,
+        fcc.createdAt,
+        fcc.createdBy,
+        fcc.modifiedAt,
+        fcc.modifiedBy,
+        STRING_AGG(mat.MaterialNumber, ',') as AllMaterialNumbers: String
+    }
+    group by fcc.ID,
+        fcc.OfferID,
+        fcc.TenderID,
+        fcc.SAPID,
+        fcc.ExternalID,
+        fcc.Reference,
+        fcc.ContractType,
+        fcc.InstituteName,
+        fcc.Owner,
+        fcc.OwnerName,
+        fcc.OwnerEmail,
+        fcc.Division,
+        fcc.CustomerID,
+        fcc.InstituteID,
+        fcc.CountryCode,
+        fcc.ContractStartDate,
+        fcc.ContractEndDate,
+        fcc.BrandFilter,
+        fcc.ProductFilter,
+        fcc.Extension,
+        fcc.ExtensionPeriod,
+        fcc.Status,
+        fcc.DistributorID,
+        fcc.hasNewContracts,
+        fcc.hasNewMaterialNumber,
+        fcc.hasActiveContracts,
+        fcc.hasUpdatedPVL,
+        fcc.hasUpdatedConfidentialPrice,
+        fcc.hasNetPriceAbovePVL,
+        fcc.hasNetPriceBelowFloorPrice,
+        fcc.hasExpiringSoonContracts,
+        fcc.hasExpiredContracts,
+        fcc.hasCancelledContracts,
+        fcc.createdAt,
+        fcc.createdBy,
+        fcc.modifiedAt,
+        fcc.modifiedBy;
 
     entity CCMContractView                        as
         select from FastConditionContracts {
@@ -331,7 +408,7 @@ action   sendFOCToInteractMail(FastCCMContractId : UUID, CCMContractID : UUID, P
 action   terminateCCMContract(FastCCMContractId : UUID, CCMContractID : UUID, ProductCode : String, TerminationDate: Date, CancellationNote: String) returns String;
 action   getSAPSalesOrderSimulation(CCMContractID: UUID) returns String;
 action   ignoreCurrentCCMPrice(CCMContractID: UUID) returns String;
-action   addNewMaterialNumberToExistingContract(FastCCMContractId : UUID) returns String;
+    action   addNewMaterialNumberToExistingContract(FastCCMContractId : UUID) returns String;
 
 entity BrandsView as select from CCMContract {
     key BrandID,
