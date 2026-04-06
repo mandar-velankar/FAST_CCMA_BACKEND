@@ -250,7 +250,7 @@ export default class Master extends BaseController {
 			}
 
 			orFilters.push(new Filter({
-				path: "AllMaterialNumbers",
+				path: "ContractMaterialNumbers",
 				operator: FilterOperator.Contains,
 				value1: sSearch,
 				caseSensitive: false
@@ -272,10 +272,9 @@ export default class Master extends BaseController {
 		//Brand filter
 		if (brandID && brandID !== "All_Brands") {
 			andFilters.push(new Filter({
-				path: "CCMContract/BrandID",
-				operator: FilterOperator.EQ,
-				value1: brandID,
-				caseSensitive: false
+				path: "ContractBrandIDs",
+				operator: FilterOperator.Contains,
+				value1: brandID
 			}));
 		}
 

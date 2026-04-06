@@ -21,87 +21,12 @@ service ConditionContract @(requires:['f_tndr_cag_admin','f_tndr_cag_ccma_user',
     entity CustomerHierarchy                      as projection on ccma.CustomerHierarchy;
 
 
-    entity FastConditionContractsView             as
-        select from FastConditionContracts as fcc
-        left join CCMContract as ccm on ccm.FastConditionContracts.ID = fcc.ID
-        left join CCMMaterial as mat on mat.CCMContract.ID = ccm.ID and mat.ActiveRecord = 1
-    {
+   entity FastConditionContractsView as select from FastConditionContracts as fcc
+        left join FastConditionContractMaterialsAndBrands as fccmab
+            on fccmab.FastConditionContractID = fcc.ID {
         key fcc.ID,
-        fcc.OfferID,
-        fcc.TenderID,
-        fcc.SAPID,
-        fcc.ExternalID,
-        fcc.Reference,
-        fcc.ContractType,
-        fcc.InstituteName,
-        fcc.Owner,
-        fcc.OwnerName,
-        fcc.OwnerEmail,
-        fcc.Division,
-        fcc.CustomerID,
-        fcc.InstituteID,
-        fcc.CountryCode,
-        fcc.ContractStartDate,
-        fcc.ContractEndDate,
-        fcc.BrandFilter,
-        fcc.ProductFilter,
-        fcc.Extension,
-        fcc.ExtensionPeriod,
-        fcc.Status,
-        fcc.DistributorID,
-        fcc.hasNewContracts,
-        fcc.hasNewMaterialNumber,
-        fcc.hasActiveContracts,
-        fcc.hasUpdatedPVL,
-        fcc.hasUpdatedConfidentialPrice,
-        fcc.hasNetPriceAbovePVL,
-        fcc.hasNetPriceBelowFloorPrice,
-        fcc.hasExpiringSoonContracts,
-        fcc.hasExpiredContracts,
-        fcc.hasCancelledContracts,
-        fcc.createdAt,
-        fcc.createdBy,
-        fcc.modifiedAt,
-        fcc.modifiedBy,
-        STRING_AGG(mat.MaterialNumber, ',') as AllMaterialNumbers: String
-    }
-    group by fcc.ID,
-        fcc.OfferID,
-        fcc.TenderID,
-        fcc.SAPID,
-        fcc.ExternalID,
-        fcc.Reference,
-        fcc.ContractType,
-        fcc.InstituteName,
-        fcc.Owner,
-        fcc.OwnerName,
-        fcc.OwnerEmail,
-        fcc.Division,
-        fcc.CustomerID,
-        fcc.InstituteID,
-        fcc.CountryCode,
-        fcc.ContractStartDate,
-        fcc.ContractEndDate,
-        fcc.BrandFilter,
-        fcc.ProductFilter,
-        fcc.Extension,
-        fcc.ExtensionPeriod,
-        fcc.Status,
-        fcc.DistributorID,
-        fcc.hasNewContracts,
-        fcc.hasNewMaterialNumber,
-        fcc.hasActiveContracts,
-        fcc.hasUpdatedPVL,
-        fcc.hasUpdatedConfidentialPrice,
-        fcc.hasNetPriceAbovePVL,
-        fcc.hasNetPriceBelowFloorPrice,
-        fcc.hasExpiringSoonContracts,
-        fcc.hasExpiredContracts,
-        fcc.hasCancelledContracts,
-        fcc.createdAt,
-        fcc.createdBy,
-        fcc.modifiedAt,
-        fcc.modifiedBy;
+        *,
+    };
 
     entity CCMContractView                        as
         select from FastConditionContracts {
@@ -737,5 +662,15 @@ entity CCMContractsExtendedView as
     }
     where ccm.ContractNumber is not null
       and ccm.ContractNumber <> ''
-      and ccm.Cancelled = true
+      and ccm.Cancelled = true;
+
+    
+    entity FastConditionContractMaterialsAndBrands as select from FastConditionContracts as fcc
+        left join CCMContract as ccm on ccm.FastConditionContracts.ID = fcc.ID
+        left join CCMMaterial as mat on mat.CCMContract.ID = ccm.ID and mat.ActiveRecord = 1
+    {
+        key fcc.ID as FastConditionContractID,
+        STRING_AGG(mat.MaterialNumber, ',') as ContractMaterialNumbers: String,
+        STRING_AGG(ccm.BrandID, ',') as ContractBrandIDs: String
+     } group by fcc.ID;
 }
