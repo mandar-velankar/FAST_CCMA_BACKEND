@@ -128,6 +128,11 @@ export default class Detail extends BaseController {
                     });
                     uiModel.setProperty("/hasExistingContract", bAllContractsHaveNumber);
 
+                    const offerID = items?.OfferID || "";
+                    const isHistoricalCCM = offerID.includes("CCM");
+
+                    uiModel.setProperty("/isHistoricalCCM", isHistoricalCCM);
+
                     const contractIDs: string[] = items?.CCMContract?.map((c: any) => c.ID) || [];
 
                     let showExtensionFields = false;
