@@ -121,11 +121,13 @@ service ConditionContract @(requires:['f_tndr_cag_admin','f_tndr_cag_ccma_user',
             ccm.CCMContractStartDate as ConditionValidityStartDate,
             ccm.CCMContractEndDate as ConditionValidityEndDate,
             ccm.OfferPrice as ConditionRateAmount,
+            ccm.EANUPCCode,
             mat.MaterialNumber as Product,
             fcc.SAPID,
             fcc.ExternalID,
             fcc.Reference,
             fcc.TenderID,
+            fcc.OfferID,
             fcc.ContractType,
             pci.PriceConditionCode
     }
