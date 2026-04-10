@@ -870,6 +870,11 @@ module.exports = (srv) => {
                 continue;
             }
 
+            if (Target.endsWith("ConditionContract.ConditionContractType.ExternalDocumentReferenceID")) {
+                setNestedValue(finalResult, Target, `${sourceData.OfferID}_${sourceData.EANUPCCode}`);
+                continue;
+            }
+
             setNestedValue(finalResult, Target, "");
 
         }
