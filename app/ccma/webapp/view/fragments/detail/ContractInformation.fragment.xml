@@ -142,6 +142,11 @@
 							<Text text="{ContractType}" visible="false"/>
 						</form:fields>
 					</form:FormElement>
+					<form:FormElement label="Offer ID" visible="false">
+						<form:fields>
+							<Text text="{OfferID}" visible="false"/>
+						</form:fields>
+					</form:FormElement>
 					<form:FormElement label="Contract Number" visible="false">
 						<form:fields>
 							<Text text="{CCMContract/ContractNumber}" visible="false"/>
