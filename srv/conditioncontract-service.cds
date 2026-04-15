@@ -21,10 +21,12 @@ service ConditionContract @(requires:['f_tndr_cag_admin','f_tndr_cag_ccma_user',
     entity CustomerHierarchy                      as projection on ccma.CustomerHierarchy;
 
 
-    entity FastConditionContractsView             as
-        select from FastConditionContracts {
-            *
-        }
+   entity FastConditionContractsView as select from FastConditionContracts as fcc
+        left join FastConditionContractMaterialsAndBrands as fccmab
+            on fccmab.FastConditionContractID = fcc.ID {
+        key fcc.ID,
+        *,
+    };
 
     entity CCMContractView                        as
         select from FastConditionContracts {
@@ -331,7 +333,7 @@ action   sendFOCToInteractMail(FastCCMContractId : UUID, CCMContractID : UUID, P
 action   terminateCCMContract(FastCCMContractId : UUID, CCMContractID : UUID, ProductCode : String, TerminationDate: Date, CancellationNote: String) returns String;
 action   getSAPSalesOrderSimulation(CCMContractID: UUID) returns String;
 action   ignoreCurrentCCMPrice(CCMContractID: UUID) returns String;
-action   addNewMaterialNumberToExistingContract(FastCCMContractId : UUID) returns String;
+    action   addNewMaterialNumberToExistingContract(FastCCMContractId : UUID) returns String;
 
 entity BrandsView as select from CCMContract {
     key BrandID,
@@ -660,5 +662,15 @@ entity CCMContractsExtendedView as
     }
     where ccm.ContractNumber is not null
       and ccm.ContractNumber <> ''
-      and ccm.Cancelled = true
+      and ccm.Cancelled = true;
+
+    
+    entity FastConditionContractMaterialsAndBrands as select from FastConditionContracts as fcc
+        left join CCMContract as ccm on ccm.FastConditionContracts.ID = fcc.ID
+        left join CCMMaterial as mat on mat.CCMContract.ID = ccm.ID and mat.ActiveRecord = 1
+    {
+        key fcc.ID as FastConditionContractID,
+        STRING_AGG(mat.MaterialNumber, ',') as ContractMaterialNumbers: String,
+        STRING_AGG(ccm.BrandID, ',') as ContractBrandIDs: String
+     } group by fcc.ID;
 }

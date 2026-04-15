@@ -144,6 +144,11 @@ export default class Detail extends BaseController {
                         items.FastConditionContracts.hasNetPriceBelowFloorPrice
                     );
 
+                    const offerID = items.FastConditionContracts?.OfferID || "";
+                    const isHistoricalCCM = offerID.includes("CCM");
+
+                    uiModel.setProperty("/isHistoricalCCM", isHistoricalCCM);
+
                     let showExtensionFields = false;
 
                     if (items?.FastConditionContracts?.ContractType === "Tender") {
