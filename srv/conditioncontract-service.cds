@@ -301,6 +301,7 @@ entity IdentifyExistingContract as select from FastConditionContracts as fcc
             ccm.ProductCode,
             ccm.CCMCustomer.AssortmentReference,
             ccm.CCMCustomer.InstituteID,
+            ccm.EANUPCCode,
             fcc.ContractStartDate as CndnContrValidFrom,
             fcc.ContractEndDate as CndnContrValidTo,
         key fcc.CustomerID as Customer,
