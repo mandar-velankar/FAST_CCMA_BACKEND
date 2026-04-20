@@ -108,7 +108,7 @@
 
                     <form:FormElement label="{i18n>ContractInformationFragment.Extension}" visible="{ui>/showExtensionFields}">
 						<form:fields>
-							<CheckBox enabled="{= ${ui>/ContractInformationForm/editMode} &amp;&amp; !${ui>/hasCancelled}}" selected="{path:'Extension'}"/>
+							<CheckBox enabled="{= ${ui>/ContractInformationForm/editMode} &amp;&amp; !${ui>/hasCancelled} &amp;&amp; !${ui>/isHistoricalCCM}}" selected="{path:'Extension'}"/>
 						</form:fields>
 					</form:FormElement>
 
@@ -118,7 +118,7 @@
 								value="{path: 'ExtensionPeriod'}"
 								min="0"
 								max="12"
-								enabled="{= ${ui>/ContractInformationForm/editMode} &amp;&amp; !${ui>/hasCancelled}}"
+								enabled="{= ${ui>/ContractInformationForm/editMode} &amp;&amp; !${ui>/hasCancelled} &amp;&amp; !${ui>/isHistoricalCCM}}"
 								description="Months" 
 								validationMode="LiveChange"
 							/>

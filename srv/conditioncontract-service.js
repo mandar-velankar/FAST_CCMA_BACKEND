@@ -323,7 +323,7 @@ module.exports = (srv) => {
         
         const prevDay = d => new Date(new Date(d).setDate(new Date(d).getDate() - 1)).toISOString().slice(0, 10);
 
-        const {response, body} = await handlExistingContract(tx,'ES',"ConditionContract",{ExistingContractNumber: contract.ContractNumber,ExpireDate: prevDay(newOffer.ConditionValidityStartDate)});
+        const {response, body} = await handlExistingContract(tx,'ES',"ConditionContract",{ExistingContractNumber: contract.ContractNumber,ExpireDate: prevDay(newOffer.ConditionValidityStartDate), OfferID: contract.OfferID, EANUPCCode: contract.EANUPCCode});
 
         if (response?.status !== 200) {
             const error = new Error(
@@ -870,6 +870,11 @@ module.exports = (srv) => {
                 continue;
             }
 
+            if (Target.endsWith("ConditionContract.ConditionContractType.ExternalDocumentReferenceID")) {
+                setNestedValue(finalResult, Target, `${sourceData.OfferID}_${sourceData.EANUPCCode}`);
+                continue;
+            }
+
             setNestedValue(finalResult, Target, "");
 
         }
@@ -1077,13 +1082,16 @@ module.exports = (srv) => {
             }
 
             if (field === 'SAPID' && Target === 'ConditionContract.ConditionContractType.ExternalDocumentReferenceID') {
-                if(sourceData[0].ContractType.toLowerCase() === 'tender'){
-                    value = "CO-".concat(sourceData[0].Reference.replace(/ /g,'-'));
-                }
-                // Commercial Agreement
-                if(sourceData[0].ContractType.toLowerCase() === 'commercial agreement'){
-                    value = "OF-".concat(sourceData[0].TenderID); 
-                }
+                // if(sourceData[0].ContractType.toLowerCase() === 'tender'){
+                //     value = "CO-".concat(sourceData[0].Reference.replace(/ /g,'-'));
+                // }
+                // // Commercial Agreement
+                // if(sourceData[0].ContractType.toLowerCase() === 'commercial agreement'){
+                //     value = "OF-".concat(sourceData[0].TenderID); 
+                // }
+
+                value = `${sourceData[0].OfferID}_${sourceData[0].EANUPCCode}`
+
                 setNestedValue(finalResult, Target, value);
                 continue;
             }
@@ -1181,13 +1189,16 @@ module.exports = (srv) => {
                 }
 
                 if (field === 'SAPID' && Target === 'ConditionContract.ConditionContractType.ExternalDocumentReferenceID') {
-                    if(row.ContractType.toLowerCase() === 'tender'){
-                        value = "CO-".concat(row.Reference.replace(/ /g,'-'));
-                    }
-                    // Commercial Agreement
-                    if(row.ContractType.toLowerCase() === 'commercial agreement'){
-                        value = "OF-".concat(row.TenderID); 
-                    }
+                    // if(row.ContractType.toLowerCase() === 'tender'){
+                    //     value = "CO-".concat(row.Reference.replace(/ /g,'-'));
+                    // }
+                    // // Commercial Agreement
+                    // if(row.ContractType.toLowerCase() === 'commercial agreement'){
+                    //     value = "OF-".concat(row.TenderID); 
+                    // }
+
+                    value = `${row.OfferID}_${row.EANUPCCode}`;
+
                     // truncate to max 30 characters
                     value = value?.substring(0, 30);
                     
