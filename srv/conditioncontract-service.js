@@ -1974,20 +1974,28 @@ module.exports = (srv) => {
 	
 		// Assign the condition values
 		const YP00 = conditions["YP00"]?.ConditionAmount || 0;
-		const YP04 = conditions["YP04"] ? Math.abs(conditions["YP04"].ConditionRateValue) / 100 : 0;
+        const YP04 = conditions["YP04"]? Math.abs(conditions["YP04"].ConditionAmount) : 0;
+		//const YP04 = conditions["YP04"] ? Math.abs(conditions["YP04"].ConditionRateValue) / 100 : 0;
 		const YP10 = conditions["YP10"]?.ConditionAmount ?? null;
 		const YD02 = conditions["YD02"] ? Math.abs(conditions["YD02"].ConditionRateValue) / 100 : 0;
 		const YD06 = conditions["YD06"] ? Math.abs(conditions["YD06"].ConditionRateValue) / 100 : 0;
 		const YD75 = conditions["YD75"]?.ConditionAmount ?? null;
 		const YD30 = conditions["YD30"]?.ConditionAmount ?? 0;
 
+        /** YP04 coming via OrderSimulate is neither confidential discount nor confidential price. 
+		 * It is the reduction amount from YP00. 
+		 * However we are still using YP04 as a 'ConfidentialDiscount' on CurrentPricing and NewPricing Section on UI, 
+		 * as adding separate field for 'ConfidentialDiscount' could potentially cause regressions*/
         result.YP00 = YP00 ? UoM === 'Pack' ? (YP00 / 10000) : (YP00 / 10000 / packFactor) : 0;
+        YP04 = YP04 ? UoM === 'Pack' ? (YP04 / 10000) : (YP04 / 10000 / packFactor) : 0;
+        result.YP04 = (YP04 / result.YP00);
+		result.ConfidentialPrice = YP04 ? result.YP00 - YP04 : result.YP00;
         const isPVLUpdated = !!(result.YP00 && fastContractPrice?.YP00 !== YP00);
-        const isConfidentialPriceUpdated = !!(YP04 && fastContractPrice?.YP04 !== YP04);
+        const isConfidentialPriceUpdated = !!(YP04 && fastContractPrice?.ConfidentialPrice !== result.ConfidentialPrice);
         
         result.YP00 = isPVLUpdated ? result.YP00 : fastContractPrice.YP00;
-        result.YP04 = isConfidentialPriceUpdated ? YP04 : fastContractPrice.YP04;
-        result.ConfidentialPrice = isConfidentialPriceUpdated ? result.YP00 * (1 - result.YP04) : result.YP00;
+        result.YP04 = isConfidentialPriceUpdated ? result.YP04 : fastContractPrice.YP04;
+        result.ConfidentialPrice = isConfidentialPriceUpdated ? result.ConfidentialPrice : result.YP00;
 
         const useConfidential = result.YP04 !== 0;
         const basePrice = useConfidential ? result.ConfidentialPrice : result.YP00;
@@ -2001,7 +2009,7 @@ module.exports = (srv) => {
 	
         const priceUpdateStatuses = {
             "hasUpdatedPVL": Number(result.YP00) !== Number(fastContractPrice.YP00),
-            "hasUpdatedConfidentialPrice": Number(YP04) !== Number(fastContractPrice.YP04),
+            "hasUpdatedConfidentialPrice": Number(result.ConfidentialPrice) !== Number(fastContractPrice.ConfidentialPrice),
             "hasNetPriceAbovePVL": false,
             "hasNetPriceBelowFloorPrice": false
         }
