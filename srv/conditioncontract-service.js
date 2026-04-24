@@ -388,6 +388,24 @@ module.exports = (srv) => {
 
     async function excludeChildCustomer(tx, contract, newOffer) {
 
+        const customer = await tx.run(SELECT.one.from(CCMCustomer).where({CCMContract_ID: contract.CCMContractID}));
+        const excludedCustomer = await tx.run(SELECT.from(CustomerHierarchy).where({ CCMCustomer_ID: customer.ID,  CustomerID: newOffer.Customer, Excluded: true}));
+
+        if (excludedCustomer.length > 0) {
+            console.log(`Customer ${newOffer.Customer} already excluded for contract ${contract.ContractNumber}`);
+            const inserts = {
+                ContractNumber    : contract.ContractNumber,
+                ContractType      : contract.ContractType,
+                ContractReference : contract.ContractReference,        
+                PayloadType       : 'UpdateExistingInvoiceContract_ExcludeCustomer',  
+                createdAt         : new Date().toISOString(),
+                createdBy         : tx.context.user.id,
+                ErrorMessage      : `Customer ${newOffer.Customer} already excluded for contract ${contract.ContractNumber}`, 
+                CCMContractID     : contract.CCMContractID
+        }
+            await tx.run(INSERT.into(ConditionContractsLog).entries(inserts));
+            return false;
+        }
         const {response, body} = await handleExcludeChildCustomer(tx,'ES',"ConditionContract",{ExistingContractNumber: contract.ContractNumber, customer: newOffer.Customer, validfrom: newOffer.ConditionValidityStartDate, validto:newOffer.ConditionValidityEndDate});
 
         const batchText = response?.data ?? "";
@@ -410,9 +428,9 @@ module.exports = (srv) => {
         const itemGuidMatch = batchText.match(/"itemguid"\s*=\s*guid'([^']+)'/i);
         const itemGUID = itemGuidMatch ? itemGuidMatch[1] : null;
 
-        const customer = await tx.run(SELECT.one.from(CCMCustomer).where({CCMContract_ID: contract.CCMContractID}));
+        
         const inserts = {
-            ContractNumber        : contract.ContractNumber,
+            ContractNumber    : contract.ContractNumber,
             ContractType      : contract.ContractType,
             ContractReference : contract.ContractReference,        
             PayloadType       : 'UpdateExistingInvoiceContract_ExcludeCustomer',         
@@ -420,7 +438,7 @@ module.exports = (srv) => {
             Synchronized      : true,    
             createdAt         : new Date().toISOString(),
             createdBy         : tx.context.user.id,
-            CCMContractID: contract.CCMContractID
+            CCMContractID     : contract.CCMContractID
         }
         await tx.run(INSERT.into(ConditionContractsLog).entries(inserts));
         await tx.run(UPDATE(CustomerHierarchy).with({ Excluded: true}).where({ CCMCustomer_ID: customer.ID,  CustomerID: newOffer.Customer}));
