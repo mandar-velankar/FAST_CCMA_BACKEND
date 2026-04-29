@@ -336,7 +336,11 @@ action   sendFOCToInteractMail(FastCCMContractId : UUID, CCMContractID : UUID, P
 action   terminateCCMContract(FastCCMContractId : UUID, CCMContractID : UUID, ProductCode : String, TerminationDate: Date, CancellationNote: String) returns String;
 action   getSAPSalesOrderSimulation(CCMContractID: UUID) returns String;
 action   ignoreCurrentCCMPrice(CCMContractID: UUID) returns String;
-    action   addNewMaterialNumberToExistingContract(FastCCMContractId : UUID) returns String;
+action   addNewMaterialNumberToExistingContract(FastCCMContractId : UUID) returns String;
+function getCacheStats() returns String;
+function invalidateInstitute() returns String;
+function refreshInstitute() returns String;
+function invalidateAPI() returns String;
 
 entity BrandsView as select from CCMContract {
     key BrandID,
