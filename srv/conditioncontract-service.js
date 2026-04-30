@@ -1876,7 +1876,7 @@ module.exports = (srv) => {
             const dbOps = [];
             const logs = [];
 
-            let invoiceNumbers = [];
+            let createdInvoiceContracts = [];
             let updatedContractsAll = [];
             let excludedMatched = [];
 
@@ -2011,7 +2011,7 @@ module.exports = (srv) => {
             logTime("TOTAL createAllCCMContract", startTime, endTime);
             // Response
             return req.reply(
-                `${invoiceNumbers.length ? `Invoice: ${invoiceNumbers.join(", ")}` : "No Invoice"} + ` +
+                `${createdInvoiceContracts.length ? `Invoice: ${createdInvoiceContracts.join(", ")}` : "No Invoice"} + ` +
                 `${updatedContractsAll.length ? `Updated: ${updatedContractsAll.join(", ")}` : ""} + ` +
                 `${excludedMatched.length ? `Excluded: ${excludedMatched.join(", ")}` : ""} + ` +
                 `${rebateResponses.length} Rebate`
