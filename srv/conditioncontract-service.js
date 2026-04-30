@@ -2175,7 +2175,7 @@ module.exports = (srv) => {
             
             const sourceData = await tx.run(SELECT.one.from(CCMContract).where({ID: CCMContractID}));
             console.log("Process Terminate Contracts");
-            const {response, body} = await handlExistingContract(tx, 'ES', "ConditionContract", {ExistingContractNumber: sourceData.ContractNumber,ExpireDate: TerminationDate});
+            const {response, body} = await handleExistingContract(tx, 'ES', "ConditionContract", {ExistingContractNumber: sourceData.ContractNumber,ExpireDate: TerminationDate});
             
             if (response?.status !== 200) {
                 throw new Error(`Termination of ExistingContract failed for ${sourceData.ContractNumber}`);
@@ -2183,7 +2183,7 @@ module.exports = (srv) => {
 
             console.log(`Contract ${sourceData.ContractNumber} terminated successfully. End date updated to ${TerminationDate} in SAP.`);
             const inserts = {
-                ContractNumber        : sourceData.ContractNumber,
+                ContractNumber    : sourceData.ContractNumber,
                 ContractType      : sourceData.ContractType,
                 ContractReference : sourceData.ContractReference,        
                 PayloadType       : 'TerminateInvoiceContract',         
@@ -2191,7 +2191,7 @@ module.exports = (srv) => {
                 Synchronized      : true,    
                 createdAt         : new Date().toISOString(),
                 createdBy         : req.user.id,
-                CCMContractID: CCMContractID
+                CCMContractID     : CCMContractID
             }
             await tx.run(INSERT.into(ConditionContractsLog).entries(inserts));
             await tx.run(UPDATE(CCMContract).with({ CCMContractEndDate: TerminationDate, CancellationComment: CancellationNote, Cancelled: true}).where({ ID: CCMContractID }));
