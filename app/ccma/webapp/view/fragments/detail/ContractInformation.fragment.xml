@@ -129,11 +129,7 @@
 							<Select id="idOwnerSelect" 
 									enabled="{= ${ui>/ContractInformationForm/editMode}}" 
 									change=".onOwnerChange" 
-									selectedKey="{Owner}"
-									items="{
-											path: 'ui>/owners'
-										}">
-								<core:Item key="{ui>UserName}" text="{ui>UserName}" />
+									selectedKey="{Owner}">
 							</Select>
 						</form:fields>
 					</form:FormElement>
