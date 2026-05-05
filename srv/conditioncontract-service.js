@@ -247,7 +247,7 @@ module.exports = (srv) => {
         }
 
         // CASE 2: Child with existing parent contract
-        const hierarchyCase2 = hierarchyByInstitute.get(InstituteID);
+        const hierarchyCase2 = hierarchyByInstitute.get(String(InstituteID));
         if (hierarchyCase2) {
             const childIDs = new Set(hierarchyCase2.map(h => h.InstituteID));
             const case2Contracts = relevantContracts.filter(
@@ -271,7 +271,7 @@ module.exports = (srv) => {
             }
 
             // CASE 5: Parent with child contracts
-            const hierarchyCase5 = hierarchyByParent.get(InstituteID);
+            const hierarchyCase5 = hierarchyByParent.get(String(InstituteID));
             if (hierarchyCase5) {
                 const childIDs = new Set(hierarchyCase5.map(h => h.InstituteID));
                 const case5Contracts = relevantContracts.filter(
@@ -364,6 +364,10 @@ module.exports = (srv) => {
             const results = await Promise.all(
                 contractActions.map(async ({ contract, action }) => {
                     if (action === "NO_ACTION") {
+                        return null;
+                    }
+
+                    if (!contract?.ContractNumber) {
                         return null;
                     }
 
