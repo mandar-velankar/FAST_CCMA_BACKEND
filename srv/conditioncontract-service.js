@@ -341,73 +341,239 @@ module.exports = (srv) => {
         const invoiceResults = [];
         const updatedContracts = [];
 
+        console.log(`[START] Processing ${processedCases.length} contract cases`);
+        const startTime = moment();
+
+        const updateOperations = [];
+        const creationOperations = [];
+
         for (const item of processedCases) {
-            const { sourceData, case: caseType, contracts } = item;
+            const { sourceData, case: caseType, contracts = [] } = item;
             const newOffer = sourceData[0];
 
-            const uniqueContracts = [
-                ...new Map((contracts || []).map(c => [c.CCMContractID, c])).values()
-            ];
+            const uniqueContracts = Array.from(
+                new Map(contracts.map(c => [c.CCMContractID, c])).values()
+            );
 
-            // No existing contracts → directly create
+            // ===== NO MATCH / UNCLASSIFIED =====
             if (!uniqueContracts.length || ["NO_MATCH", "UNCLASSIFIED"].includes(caseType)) {
-                const res = await createCCMContract(tx, 'ES', "ConditionContract", sourceData);
-                invoiceResults.push(res);
+                creationOperations.push({
+                    type: 'CREATE',
+                    caseType,
+                    sourceData,
+                    excludeCustomers: null
+                });
                 continue;
             }
 
-            const contractActions = uniqueContracts.map(contract => ({
-                contract,
-                action: decideContractAction(contract, newOffer)
-            }));
+            // ===== CASE_5 =====
+            if (caseType === "CASE_5") {
 
-            const results = await Promise.all(
-                contractActions.map(async ({ contract, action }) => {
-                    if (action === "NO_ACTION") {
-                        return null;
-                    }
+                const contractActions = uniqueContracts.map(contract => ({
+                    contract,
+                    action: decideContractAction(contract, newOffer)
+                }));
 
-                    if (!contract?.ContractNumber) {
-                        return null;
-                    }
+                const updateAndCreate = contractActions.filter(a => a.action === "UPDATE_AND_CREATE_NEW");
+                const createOnly = contractActions.filter(a => a.action === "CREATE_NEW");
 
-                    if (["CASE_1", "CASE_2", "CASE_3", "CASE_5"].includes(caseType)) {
-                        if (action === "UPDATE_AND_CREATE_NEW") {
-                            const updated =
-                                caseType === "CASE_2"
-                                    ? await excludeChildCustomer(tx, contract, newOffer)
-                                    : await updateExistingContract(tx, contract, newOffer);
+                // Build exclusion list ONLY from UPDATE_AND_CREATE_NEW
+                let excludeCustomers = [];
 
-                            return updated ? contract.ContractNumber : null;
+                if (updateAndCreate.length > 0) {
+                    const excludeMap = new Map();
+
+                    for (const { contract } of updateAndCreate) {
+                        if (contract?.ContractNumber && contract?.Customer) {
+                            if (!excludeMap.has(contract.Customer)) {
+                                excludeMap.set(contract.Customer, {
+                                    customer: contract.Customer,
+                                    validfrom: `${contract.ConditionValidityStartDate}T00:00:00`,
+                                    validto: `${contract.ConditionValidityEndDate}T00:00:00`
+                                });
+                            }
                         }
                     }
 
-                    return null;
+                    excludeCustomers = Array.from(excludeMap.values());
+                }
+
+                const shouldCreate =
+                    updateAndCreate.length > 0 || createOnly.length > 0;
+
+                if (shouldCreate) {
+                    creationOperations.push({
+                        type: excludeCustomers.length > 0 ? 'CREATE_EXCLUDE' : 'CREATE',
+                        caseType,
+                        sourceData,
+                        excludeCustomers: excludeCustomers.length > 0 ? excludeCustomers : null
+                    });
+                }
+
+                continue;
+            }
+
+            // ===== CASE_1, CASE_2, CASE_3 =====
+            let shouldCreate = false;
+
+            for (const contract of uniqueContracts) {
+                const action = decideContractAction(contract, newOffer);
+
+                if (action !== "NO_ACTION") {
+                    shouldCreate = true;
+
+                    if (action === "UPDATE_AND_CREATE_NEW") {
+                        if (contract?.ContractNumber) {
+                            updateOperations.push({
+                                caseType,
+                                contract,
+                                newOffer
+                            });
+                        }
+                    }
+                }
+            }
+
+            if (shouldCreate) {
+                creationOperations.push({
+                    type: 'CREATE',
+                    caseType,
+                    sourceData,
+                    excludeCustomers: null
+                });
+            }
+        }
+
+        // ===== EXECUTE UPDATES =====
+        if (updateOperations.length > 0) {
+            console.log(`[UPDATES] Executing ${updateOperations.length} contract updates in parallel`);
+
+            const updateResults = await Promise.all(
+                updateOperations.map(op =>
+                    executeContractUpdate(tx, op.caseType, op.contract, op.newOffer)
+                )
+            );
+
+            updateResults
+                .filter(Boolean)
+                .forEach(contractNumber => updatedContracts.push(contractNumber));
+        }
+
+        // ===== EXECUTE CREATIONS =====
+        if (creationOperations.length > 0) {
+            console.log(`[CREATIONS] Executing ${creationOperations.length} contract creations in parallel`);
+
+            const creationResults = await Promise.all(
+                creationOperations.map(op => {
+                    if (op.type === 'CREATE_EXCLUDE') {
+                        return createCCMContractExcludeCustomer(
+                            tx,
+                            "ES",
+                            "ConditionContract",
+                            op.sourceData,
+                            op.excludeCustomers
+                        );
+                    } else {
+                        return createCCMContract(
+                            tx,
+                            "ES",
+                            "ConditionContract",
+                            op.sourceData
+                        );
+                    }
                 })
             );
 
-            // Collect updated contracts
-            results.forEach(r => {
-                if (r) updatedContracts.push(r);
-            });
-
-            // Decide if new contract should be created
-            const shouldCreateNew = contractActions.some(a => a.action !== "NO_ACTION");
-
-            const createPromises = [];
-
-            if (shouldCreateNew) {
-                createPromises.push(createCCMContract(tx, "ES", "ConditionContract", sourceData));
-            }
-
-            const createResults = await Promise.all(createPromises);
-            invoiceResults.push(...createResults);
+            invoiceResults.push(...creationResults.filter(Boolean));
         }
+
+        const endTime = moment();
+        console.log(`[END] Processed ${processedCases.length} cases in ${endTime.diff(startTime, 'milliseconds')}ms`);
+        console.log(`[STATS] Updates: ${updateOperations.length}, Creations: ${creationOperations.length}`);
 
         return { invoiceResults, updatedContracts };
     }
 
+    async function executeContractUpdate(tx, caseType, contract, newOffer) {
+        try {
+            if (!contract?.ContractNumber) {
+                return null;
+            }
+    
+            // CASE_2: Exclude child customer
+            if (caseType === "CASE_2") {
+                const success = await excludeChildCustomer(tx, contract, newOffer);
+                return success ? contract.ContractNumber : null;
+            }
+    
+            // CASE_1, CASE_3, CASE_5: Update existing contract
+            const success = await updateExistingContract(tx, contract, newOffer);
+            return success ? contract.ContractNumber : null;
+    
+        } catch (error) {
+            console.error(`[executeContractUpdate] Failed for contract ${contract?.ContractNumber}:`, error.message);
+            return null;
+        }
+    }
 
+    async function createCCMContractExcludeCustomer(tx, countryCode, resource, sourceData, excludeCustomers) {
+        let body;
+        try {
+            const apiConfig = await getOrCacheAPIConfig(tx, 'ConditionContract', countryCode, resource, 'InvoicePrice');
+    
+            if (!apiConfig) {
+                throw new Error("ERR_MISSING_PARAMETER:API Definition not found");
+            }
+    
+            // Filter mappings in memory instead of DB query
+            const apiBodyMappings = await getOrCacheAPIBody(tx, apiConfig.ID);
+            
+            if (!apiBodyMappings.length) {
+                throw new Error("ERR_MISSING_PARAMETER:API body Mappings not found");
+            }
+    
+            body = buildPayloadFromMappings(sourceData, apiBodyMappings);
+            
+            if (!body) {
+                throw new Error("ERR_MISSING_PARAMETER:API Body not found");
+            }
+
+            //update Payload to exclude customer
+            body = updatePayloadToExcludeCustomers(body, excludeCustomers);
+    
+            const accessToken = await getOrCacheOAuthToken(tx, apiConfig.OAuth_ID, countryCode);
+            const url = `${apiConfig.Host}${apiConfig.BasePath}${apiConfig.ResourcePath}`;
+    
+            return axios({
+                method: 'post',
+                url: url,
+                timeout: 120000,
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                data: body
+            });
+        } catch (error) {
+            error.payload = body;
+            throw error
+        }
+    }
+
+    function updatePayloadToExcludeCustomers(payload, excludeCustomers) {
+        excludeCustomers.forEach(c => {
+            payload.ConditionContract.bvheader.push({
+                FieldCombination: "Y001",
+                ConditionDocument: "",
+                incl_excl: "E",
+                customer: c.customer,
+                validfrom: c.validfrom,
+                validto: c.validto
+            });
+        });
+
+        return payload;
+    }
 
     async function updateExistingContract(tx, contract, newOffer) {
 
