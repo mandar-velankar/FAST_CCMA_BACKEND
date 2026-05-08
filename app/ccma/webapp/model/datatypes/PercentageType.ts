@@ -1,21 +1,29 @@
-import SimpleType from "sap/ui/model/SimpleType";
+import CompositeType from "sap/ui/model/CompositeType";
 import ValidateException from "sap/ui/model/ValidateException";
 import NumberFormat from "sap/ui/core/format/NumberFormat";
-
-const oPercentFormat = NumberFormat.getPercentInstance({
-    minFractionDigits: 2,
-    maxFractionDigits: 2
-});
 
 /**
  * @namespace com.bayer.tender.ccma.model.datatypes
  */
-export default class PercentageType extends SimpleType {
+export default class PercentageType extends CompositeType {
     constructor() {
         super();
     }
 
-    formatValue(value: any): string {
+    formatValue(parts: any[]): string {
+        if (!parts) {
+            return "";
+        }
+        
+        const value = parts[0] ?? 0;
+        const minFractionDigits = parts[1] ?? 2;
+        const maxFractionDigits = parts[2] ?? 2;
+        
+        const oPercentFormat = NumberFormat.getPercentInstance({
+            minFractionDigits: minFractionDigits,
+            maxFractionDigits: maxFractionDigits
+        });
+        
         return oPercentFormat.format(Number(value));
     }
 
