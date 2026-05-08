@@ -1695,7 +1695,7 @@ module.exports = (srv) => {
                 }
 
                 if (field === 'YD02' && Target.endsWith('ConditionRateRatio')) {
-                    value = Math.round(value * 100 * 100) / 100;
+                    value = value * 100;
                 }
 
                 /**
@@ -2947,7 +2947,7 @@ module.exports = (srv) => {
                 }
 
                 if (field === 'YD02' && Target.endsWith('ConditionRateRatio')) {
-                    value = Math.round(value * 100 * 100) / 100;
+                    value = value * 100;
                 }
 
                 if (field === 'YP10' && Target.endsWith('ConditionRateAmount')) {
