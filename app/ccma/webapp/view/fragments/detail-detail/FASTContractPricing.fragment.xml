@@ -81,8 +81,14 @@ type: 'com.bayer.tender.ccma.model.datatypes.CustomCurrencyType'}"
                     >
                         <form:fields>
                             <m:Input
-                                value="{ path: 'YD75', 
-type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'}"
+                                value="{
+                                    parts: [
+                                        { path: 'YD75' },
+                                        { value: '3' },
+                                        { value: '3' }
+                                    ],
+                                    type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'
+                                }"
                                 enabled="false"
                                 visible="{= %{ConditionType} === 'PrecioNeto'}"
                             />
@@ -94,8 +100,14 @@ type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'}"
                     >
                         <form:fields>
                             <m:Input
-                                value="{ path: 'YD02', 
-type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'}"
+                                value="{
+                                    parts: [
+                                        { path: 'YD02' },
+                                        { value: '3' },
+                                        { value: '3' }
+                                    ],
+                                    type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'
+                                }"
                                 enabled="false"
                                 visible="{= %{ConditionType} === 'DescuentoComercial' || %{ConditionType} === 'DescuentoEspecial'}"
                             />
@@ -107,8 +119,14 @@ type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'}"
                     >
                         <form:fields>
                             <m:Input
-                                value="{ path: 'YD06', 
-type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'}"
+                                value="{
+                                    parts: [
+                                        { path: 'YD06' },
+                                        { value: '3' },
+                                        { value: '3' }
+                                    ],
+                                    type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'
+                                }"
                                 enabled="false"
                                 visible="{= %{RoyalDecree} === 'Yes' &amp;&amp; !['Rental','PVL'].includes(%{ConditionType})}"
                             />
