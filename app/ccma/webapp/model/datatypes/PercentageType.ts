@@ -14,10 +14,10 @@ export default class PercentageType extends CompositeType {
         if (!parts) {
             return "";
         }
-        
-        const value = parts[0] ?? 0;
-        const minFractionDigits = parts[1] ?? 2;
-        const maxFractionDigits = parts[2] ?? 2;
+
+        const value = Array.isArray(parts) ? parts[0] : parts ?? 0;
+        const minFractionDigits = Array.isArray(parts) ? parts[1] : 2;
+        const maxFractionDigits = Array.isArray(parts) ? parts[2] : 2;
         
         const oPercentFormat = NumberFormat.getPercentInstance({
             minFractionDigits: minFractionDigits,
