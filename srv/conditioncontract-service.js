@@ -1698,12 +1698,28 @@ module.exports = (srv) => {
                     value = Math.round(value * 100 * 100) / 100;
                 }
 
+                /**
+                 * Fix floating-point precision issues during SAP condition contract synchronization.
+                 *
+                 * Example:
+                 * 8.04 * 10000 may result in 80399.99999999999 instead of 80400
+                 * due to JavaScript IEEE 754 floating-point arithmetic.
+                 *
+                 * This caused SAP OData validation error:
+                 * (/IWCOR/CX_OD_EDM_FACET_ERROR/005056A509B11ED1BDCCCC5E8168819D)
+                 * Value '80399.99999999999' violates facet information 'Scale=9'
+                 * [HTTP/1.1 400 Bad Request]
+                 *
+                 * Number.EPSILON + toFixed(6) removes floating-point artifacts
+                 * while preserving business precision up to 6 decimals.
+                 */
                 if (field === 'YP10' && Target.endsWith('ConditionRateAmount')) {
-                    if (row.UoM === 'Pack') {
-                        value = value * 10000;
-                    } else {
-                        value = value * row.PackFactor * 10000;
-                    }
+
+                    const factor = row.UoM === 'Pack' ? 1 : row.PackFactor;
+
+                    value = Number(
+                        ((value * factor * 10000) + Number.EPSILON).toFixed(6)
+                    );
                 }
 
                 const key = Target.split('.').pop();
