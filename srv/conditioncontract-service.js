@@ -1230,7 +1230,7 @@ module.exports = (srv) => {
                 }
 
                 if (field === 'YD02' && Target.endsWith('ConditionRateRatio')) {
-                    value = value * 100;
+                    value = parseFloat((value * 100).toFixed(3));
                 }
 
                 if (field === 'YP10' && Target.endsWith('ConditionRateAmount')) {
@@ -2336,7 +2336,7 @@ module.exports = (srv) => {
                 }
 
                 if (field === 'YD02' && Target.endsWith('ConditionRateRatio')) {
-                    value = value * 100;
+                    value = parseFloat((value * 100).toFixed(3));
                 }
 
                 if (field === 'YP10' && Target.endsWith('ConditionRateAmount')) {
