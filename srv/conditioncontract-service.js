@@ -1429,7 +1429,7 @@ module.exports = (srv) => {
             }
 
             if (firstRow.MaxDiscount != null) {
-                conditionRecord.ConditionRateRatio = Math.round(firstRow.MaxDiscount * 100 * 100) / 100;
+                conditionRecord.ConditionRateRatio = parseFloat((firstRow.MaxDiscount * 100).toFixed(3));
             }
 
             conditionRecords.push(conditionRecord);
@@ -1440,7 +1440,7 @@ module.exports = (srv) => {
 
         // --- Apply MaxDiscount override on YRS1 ---
         if (sourceData[0].MaxDiscount != null) {
-            yrs1Record.ConditionRateRatio = Math.round(sourceData[0].MaxDiscount * 100 * 100) / 100;
+            yrs1Record.ConditionRateRatio = parseFloat((sourceData[0].MaxDiscount * 100).toFixed(3));
         }
 
         // --- Apply PriceConditionCode override on YRS1 ---
@@ -1474,7 +1474,7 @@ module.exports = (srv) => {
 
                     // --- Apply Discount override on each scale line ---
                     if (sRow.Discount != null) {
-                        scaleObj.ConditionRateRatio = Math.round(sRow.Discount * 100 * 100) / 100;
+                        scaleObj.ConditionRateRatio = parseFloat((sRow.Discount * 100).toFixed(3));
                     }
 
                     // --- Apply PriceConditionCode override on each scale line ---
