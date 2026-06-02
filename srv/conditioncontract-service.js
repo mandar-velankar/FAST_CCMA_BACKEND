@@ -392,6 +392,17 @@ module.exports = (srv) => {
                                     validto: `${contract.ConditionValidityEndDate}T00:00:00`
                                 });
                             }
+
+                            const newType = newOffer?.ContractType;
+                            const existingType = contract?.ContractType;
+
+                            if(newType === "Tender" && existingType === "Commercial Agreement" && contract.ContractNumber) {
+                                updateOperations.push({
+                                    caseType,
+                                    contract,
+                                    newOffer
+                                });
+                            }
                         }
                     }
 
