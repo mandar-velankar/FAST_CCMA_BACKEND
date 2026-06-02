@@ -47,7 +47,11 @@
                         id="idSlctBrand" 
                         change=".setSelectBrand; .setFilter"
                         items="{
-                            path: '/BrandsView'
+                            path: '/BrandsView',
+                            sorter: {
+                                path: 'BrandName',
+                                descending: false
+                            }
                         }"
                     >
                         <core:Item
@@ -63,7 +67,11 @@
                         id="idSelectProduct" 
                         change=".setFilter"
                         items="{
-                            path: '/BrandProductsView'
+                            path: '/BrandProductsView',
+                            sorter: {
+                                path: 'ProductName',
+                                descending: false
+                            }
                         }"
                     >
                         <core:Item

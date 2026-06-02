@@ -1,6 +1,8 @@
 import Controller from "sap/ui/core/mvc/Controller";
 import BaseController from "./BaseController";
 import JSONModel from "sap/ui/model/json/JSONModel";
+import Select from "sap/m/Select";
+import Item from "sap/ui/core/Item";
 import { RowActionItem$PressEvent } from "sap/ui/table/RowActionItem";
 import { Route$PatternMatchedEvent } from "sap/ui/core/routing/Route";
 import Event from "sap/ui/base/Event";
@@ -383,7 +385,20 @@ export default class Detail extends BaseController {
     public onbindOwnersSuccess(res: any): void {
         BusyIndicator.hide();
         const uiModel = this.getModel("ui") as JSONModel;
-        uiModel.setProperty("/owners", res?.value || []);
+        const owners = res?.value || [];
+        uiModel.setProperty("/owners", owners);
+        
+        const ownerSelect = this.byId("idOwnerSelect") as Select;
+        if (ownerSelect) {
+            owners.forEach((owner: any) => {
+                ownerSelect.addItem(new Item({ 
+                    key: owner.UserName, 
+                    text: owner.UserName 
+                }));
+            });
+        } else {
+            console.warn("Owner Select control not found - fragment may not be loaded yet");
+        }
     }
 
     private onbindOwnersFail(error: any): void {

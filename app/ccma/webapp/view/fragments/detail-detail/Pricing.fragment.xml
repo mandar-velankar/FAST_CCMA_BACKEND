@@ -373,8 +373,13 @@
                                 <m:cells>
                                     <m:Text text="{Volume}" />
                                     <m:Text
-                                        text="{ path: 'Discount', 
-            type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'}"
+                                        text="{ 
+                                            parts: [
+                                                {path: 'Discount'},
+                                                { value: '3' },
+                                                { value: '3' }
+                                            ],
+                                            type: 'com.bayer.tender.ccma.model.datatypes.PercentageType'}"
                                     />
                                     <m:Text text="{NetPriceWithoutTax}" />
                                     <m:Text
