@@ -555,7 +555,9 @@ entity CCMContractsExtendedView as
             ccm.ExtensionPeriod,
             ccm.Extension,
             invoice.YP00 as PVL
-    }
+    }where ccm.ContractNumber is not null
+    and trim(ccm.ContractNumber) <> '' and ccm.Synchronized = true
+    and ccm.Expired = false and ccm.Cancelled = false;
 
     entity CCMContractPriceChangeNotificationView as select from FastConditionContracts as fcc 
         inner join CCMContract as ccm on ccm.FastConditionContracts.ID = fcc.ID
