@@ -53,6 +53,7 @@ entity CCMContract: cuid, managed, temporal{
   CCMContractStartDate: Date;
   CCMContractEndDate: Date;
   PreviousContractNumber: String;
+  UpdatedContractNumber: String;
   ContractNumber: String;
   ContractReferene: String;
   Expired: Boolean;
