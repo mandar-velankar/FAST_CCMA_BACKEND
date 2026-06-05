@@ -160,6 +160,9 @@ service ConditionContract @(requires:['f_tndr_cag_admin','f_tndr_cag_ccma_user',
         pcr.RefundDate,
         pcr.PriceConditionCode,
         pcr.MarketIncentiveID,
+        pcr.BrandLevelRappel,
+        pcr.HLEVEL4_CODE,
+        pcr.HLEVEL4_NAME,
         ccm.CCMContractStartDate as ConditionValidityStartDate,
         ccm.CCMContractEndDate as ConditionValidityEndDate,
         ccm.OfferPrice as ConditionRateAmount,
@@ -260,6 +263,9 @@ entity CCMContractRebateFormView                   as
             rebate.RefundDate,
             rebate.PriceConditionCode,
             rebate.MarketIncentiveID,
+            rebate.BrandLevelRappel,
+            rebate.HLEVEL4_CODE,
+            rebate.HLEVEL4_NAME,
             rebate.MarketIncentiveDescription
     }
 
@@ -313,8 +319,9 @@ entity IdentifyExistingContract as select from FastConditionContracts as fcc
             fcc.OfferID,
             fcc.ContractType
 }where ccm.ContractNumber is not null
-  and ccm.Expired = false and ccm.Cancelled = false
-  and ccm.CCMContractEndDate >= CURRENT_DATE;
+    and trim(ccm.ContractNumber) <> ''
+    and ccm.Expired = false and ccm.Cancelled = false
+    and ccm.CCMContractEndDate >= CURRENT_DATE;
 
 entity ExistingContractInfo as select from FastConditionContracts as fcc 
     inner join CCMContract as ccm on ccm.FastConditionContracts.ID = fcc.ID {
@@ -325,7 +332,7 @@ entity ExistingContractInfo as select from FastConditionContracts as fcc
         fcc.ContractEndDate as CndnContrValidTo,
         ccm.CCMContractStartDate as ConditionValidityStartDate,
         ccm.CCMContractEndDate as ConditionValidityEndDate
-}where ccm.ContractNumber is not null and ccm.CCMContractEndDate < CURRENT_DATE and ccm.Cancelled = false and ccm.Expired = false;
+}where ccm.ContractNumber is not null and trim(ccm.ContractNumber) <> '' and ccm.CCMContractEndDate < CURRENT_DATE and ccm.Cancelled = false and ccm.Expired = false;
 
 function getInstituteData() returns String;
 function getESUsers() returns String;
@@ -336,7 +343,11 @@ action   sendFOCToInteractMail(FastCCMContractId : UUID, CCMContractID : UUID, P
 action   terminateCCMContract(FastCCMContractId : UUID, CCMContractID : UUID, ProductCode : String, TerminationDate: Date, CancellationNote: String) returns String;
 action   getSAPSalesOrderSimulation(CCMContractID: UUID) returns String;
 action   ignoreCurrentCCMPrice(CCMContractID: UUID) returns String;
-    action   addNewMaterialNumberToExistingContract(FastCCMContractId : UUID) returns String;
+action   addNewMaterialNumberToExistingContract(FastCCMContractId : UUID) returns String;
+function getCacheStats() returns String;
+function invalidateInstitute() returns String;
+function refreshInstitute() returns String;
+function invalidateAPI() returns String;
 
 entity BrandsView as select from CCMContract {
     key BrandID,
@@ -396,8 +407,9 @@ entity ExistingContractInvoicePrices as select from FastConditionContracts as fc
             ccm.PriceConditionInvoice.RentalPrice,
             ccm.PriceConditionInvoice.AnnualValue,
 }where ccm.ContractNumber is not null
-  and ccm.Expired = false
-  and fcc.ContractEndDate >= CURRENT_DATE;
+    and trim(ccm.ContractNumber) <> ''
+    and ccm.Expired = false
+    and fcc.ContractEndDate >= CURRENT_DATE;
 
 entity CurrentCCMPricingView as select from CCMContract as ccmcontract
     inner join FastConditionContracts as fcc
@@ -463,7 +475,7 @@ entity CCMContractsCreatedNotificationMailJobView as
         fcc.ContractType as Classification
     }
     where ccm.ContractNumber is not null
-      and ccm.ContractNumber <> ''
+      and trim(ccm.ContractNumber) <> ''
       and ccm.Expired = false
       and ccm.Cancelled = false
 
@@ -495,7 +507,7 @@ union select from FastConditionContracts as fcc
         fcc.ContractType as Classification
     }
     where rebate.RebateContractNumber is not null
-      and rebate.RebateContractNumber <> '';
+      and trim(rebate.RebateContractNumber) <> '';
 
 entity CCMContractsExtendedView as
     select from FastConditionContracts as fcc
@@ -632,6 +644,7 @@ entity CCMContractsExtendedView as
     }where fcc.hasNewMaterialNumber = true 
         and ccm.Synchronized = true
         and ccm.ContractNumber is not null
+        and trim(ccm.ContractNumber) <> ''
         and ccm.hasFOC = 'No'
         and ccm.hasRappel = 'No'
         and mat.isNewMaterialNumber = true;
@@ -664,7 +677,7 @@ entity CCMContractsExtendedView as
         fcc.ContractType as Classification
     }
     where ccm.ContractNumber is not null
-      and ccm.ContractNumber <> ''
+      and trim(ccm.ContractNumber) <> ''
       and ccm.Cancelled = true;
 
     
