@@ -368,7 +368,6 @@ module.exports = (srv) => {
 
             // ===== CASE_5 =====
             if (caseType === "CASE_5") {
-
                 const contractActions = uniqueContracts.map(contract => ({
                     contract,
                     action: decideContractAction(contract, newOffer)
@@ -377,31 +376,28 @@ module.exports = (srv) => {
                 const updateAndCreate = contractActions.filter(a => a.action === "UPDATE_AND_CREATE_NEW");
                 const createOnly = contractActions.filter(a => a.action === "CREATE_NEW");
 
-                // Build exclusion list ONLY from UPDATE_AND_CREATE_NEW
                 let excludeCustomers = [];
+                let hasTenderToCommercialUpdate = false;
 
                 if (updateAndCreate.length > 0) {
                     const excludeMap = new Map();
 
                     for (const { contract } of updateAndCreate) {
-                        if (contract?.ContractNumber && contract?.Customer) {
-                            if (!excludeMap.has(contract.Customer)) {
-                                excludeMap.set(contract.Customer, {
-                                    customer: contract.Customer,
-                                    validfrom: `${contract.ConditionValidityStartDate}T00:00:00`,
-                                    validto: `${contract.ConditionValidityEndDate}T00:00:00`
-                                });
-                            }
+                        const newType = newOffer?.ContractType;
+                        const existingType = contract?.ContractType;
 
-                            const newType = newOffer?.ContractType;
-                            const existingType = contract?.ContractType;
-
-                            if(newType === "Tender" && existingType === "Commercial Agreement" && contract.ContractNumber) {
-                                updateOperations.push({
-                                    caseType,
-                                    contract,
-                                    newOffer
-                                });
+                        if (newType === "Tender" && existingType === "Commercial Agreement" && contract.ContractNumber) {
+                            hasTenderToCommercialUpdate = true;
+                            updateOperations.push({ caseType, contract, newOffer });
+                        } else {
+                            if (contract?.ContractNumber && contract?.Customer) {
+                                if (!excludeMap.has(contract.Customer)) {
+                                    excludeMap.set(contract.Customer, {
+                                        customer: contract.Customer,
+                                        validfrom: `${contract.ConditionValidityStartDate}T00:00:00`,
+                                        validto: `${contract.ConditionValidityEndDate}T00:00:00`
+                                    });
+                                }
                             }
                         }
                     }
@@ -409,15 +405,21 @@ module.exports = (srv) => {
                     excludeCustomers = Array.from(excludeMap.values());
                 }
 
-                const shouldCreate =
-                    updateAndCreate.length > 0 || createOnly.length > 0;
+                // Always create when there are relevant actions —
+                // hasTenderToCommercialUpdate means update + create without exclusion
+                const shouldCreate = updateAndCreate.length > 0 || createOnly.length > 0;
 
                 if (shouldCreate) {
                     creationOperations.push({
-                        type: excludeCustomers.length > 0 ? 'CREATE_EXCLUDE' : 'CREATE',
+                        // Tender→Commercial case: update existing + create new, no customer exclusion
+                        type: !hasTenderToCommercialUpdate && excludeCustomers.length > 0
+                            ? 'CREATE_EXCLUDE'
+                            : 'CREATE',
                         caseType,
                         sourceData,
-                        excludeCustomers: excludeCustomers.length > 0 ? excludeCustomers : null
+                        excludeCustomers: !hasTenderToCommercialUpdate && excludeCustomers.length > 0
+                            ? excludeCustomers
+                            : null
                     });
                 }
 
@@ -523,6 +525,20 @@ module.exports = (srv) => {
     
         } catch (error) {
             console.error(`[executeContractUpdate] Failed for contract ${contract?.ContractNumber}:`, error.message);
+            await tx.run(
+                INSERT.into(ConditionContractsLog).entries({
+                    ContractNumber: contract.ContractNumber,
+                    ContractType: contract.ContractType,
+                    ContractReference: caseType,
+                    PayloadType: 'executeContractUpdate_ERROR',
+                    PayloadToSAP: JSON.stringify(error.payload ?? {}),
+                    ErrorMessage: error.message,
+                    Synchronized: false,
+                    createdAt: new Date().toISOString(),
+                    createdBy: tx.context.user.id,
+                    CCMContractID: contract.CCMContractID
+                })
+            );
             return null;
         }
     }
