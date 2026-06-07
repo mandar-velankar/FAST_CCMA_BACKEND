@@ -500,6 +500,7 @@ union select from FastConditionContracts as fcc
         fcc.Division,
         'Rebate' as ContractType: String,
         rebate.RebateContractNumber as ContractNumber,
+        ccm.UpdatedContractNumber as UpdatedContractNumber,
         rebate.FromDate as EffectiveDate,
         rebate.ToDate as ExpiryDate,
         rebate.CreationDate as ContractCreationDate,
