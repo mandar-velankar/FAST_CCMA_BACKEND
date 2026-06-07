@@ -645,7 +645,7 @@ module.exports = (srv) => {
         // Run both updates in parallel but don't block return
         Promise.all([
             tx.run(INSERT.into(ConditionContractsLog).entries(logInsert)),
-            tx.run(UPDATE(CCMContract).with({ CCMContractEndDate: prevDay(newOffer.ConditionValidityStartDate) }).where({ ID: contract.CCMContractID }))
+            tx.run(UPDATE(CCMContract).with({ CCMContractEndDate: prevDay(newOffer.ConditionValidityStartDate), UpdatedContractNumber: contract.ContractNumber }).where({ ID: contract.CCMContractID }))
         ]).catch(err => console.warn('Batch update failed:', err.message));
     
         return true;
@@ -749,7 +749,7 @@ module.exports = (srv) => {
                     throw error;
                 }
         
-                const itemGuidMatch = batchText.match(/"itemguid"\s*=\s*guid'([^']+)'/i);
+                const itemGuidMatch = batchText.match(/<d:itemguid>([^<]+)<\/d:itemguid>/i) ?? batchText.match(/itemguid=guid'([^']+)'/i);
                 const itemGUID = itemGuidMatch ? itemGuidMatch[1] : null;
         
                 // Batch all database operations
@@ -769,6 +769,9 @@ module.exports = (srv) => {
                         CCMCustomer_ID: customer.ID,
                         CustomerID: newOffer.Customer
                     })),
+                    tx.run(UPDATE(CCMContract).with({ UpdatedContractNumber: contract.ContractNumber }).where({
+                        ID: contract.CCMContractID
+                    })),                    
                     itemGUID ? tx.run(INSERT.into(ContractItemGUID).entries({
                         ConditionDocument: contract.ContractNumber,
                         CustomerID: newOffer.Customer,
@@ -850,7 +853,8 @@ module.exports = (srv) => {
                 existingContractInfo,
                 sourceData,
                 rebateSourceData,
-                rebateSettlementData
+                rebateSettlementData,
+                customerHierarchy
             ] = await Promise.all([
                 tx.run(
                     SELECT.from(ExistingContractInfo)
@@ -866,6 +870,9 @@ module.exports = (srv) => {
                 ),
                 tx.run(
                     SELECT.from(SettlementsDate).where({ CCMContractID })
+                ),
+                tx.run(
+                    SELECT.from(CustomerHierarchy).where({ CCMContractID })
                 )
             ]);
     
@@ -937,7 +944,8 @@ module.exports = (srv) => {
                                     fromDate: settle.FromDate,
                                     toDate: settle.ToDate,
                                     SettlementID: settle.SettlementID
-                                }
+                                },
+                                customerHierarchy
                             )
                         )
                 );
@@ -977,14 +985,10 @@ module.exports = (srv) => {
             if (Array.isArray(invoiceResults) && invoiceResults.length > 0) {
 
                 // Fetch once
-                const [contractInfo, customerHierarchy] = await Promise.all([
+                const [contractInfo] = await Promise.all([
                     tx.run(
                         SELECT.one.from(CCMContract)
                             .where({ ID: CCMContractID, ContractNumber: { "!=": null } })
-                    ),
-                    tx.run(
-                        SELECT.from(CustomerHierarchy)
-                            .where({ CCMContractID })
                     )
                 ]);
 
@@ -1051,18 +1055,22 @@ module.exports = (srv) => {
 
                     const excludedCustomers = bvheaders
                         .filter(h => h?.incl_excl === "E" && h?.customer)
-                        .map(h => String(h.customer));
+                        .map(h => ({ customer: String(h.customer), itemGUID: h.itemguid }));
 
                     for (const cust of excludedCustomers) {
-                        const match = hierarchyMap.get(cust);
+                        const match = hierarchyMap.get(cust.customer);
 
                         if (match) {
-                            excludedMatched.push(cust);
+                            excludedMatched.push(cust.customer);
 
                             dbOps.push(
-                                UPDATE(CustomerHierarchy)
-                                    .set({ Excluded: true })
-                                    .where({ ID: match.ID })
+                                UPDATE(CustomerHierarchy).set({ Excluded: true }).where({ ID: match.ID , CustomerID: cust.customer }),
+                                INSERT.into(ContractItemGUID).entries({
+                                    ConditionDocument: contractNumber,
+                                    CustomerID: cust.customer,
+                                    ItemGUID: cust.itemGUID,
+                                    CCMContract_ID: CCMContractID
+                                })
                             );
                         }
                     }
@@ -1191,7 +1199,7 @@ module.exports = (srv) => {
         return payload;
     }
 
-    async function createRebateContract(config, sourceData, rebateSettlementData) {
+    async function createRebateContract(config, sourceData, rebateSettlementData, customerHierarchy) {
         let body;
 
         try {
@@ -1200,7 +1208,7 @@ module.exports = (srv) => {
             body = buildRebatePayloadFromMappings(
                 sourceData,
                 apiBodyMappings,
-                rebateSettlementData
+                customerHierarchy
             );
 
             if (!body) {
@@ -1399,7 +1407,7 @@ module.exports = (srv) => {
     }
 
 
-    function buildRebatePayloadFromMappings(sourceData, apiBodyMappings, rebateSettlementData) {
+    function buildRebatePayloadFromMappings(sourceData, apiBodyMappings, customerHierarchy) {
         const finalResult = {};
         const salesGroupMap = { "Consumer Health": 'CH', Pharma: 'PH', Radiology: 'RD' };
         const scaleTypes = {YAW2: 'D', YAW1: 'A'};
@@ -1614,8 +1622,10 @@ module.exports = (srv) => {
         }
 
         if (sourceData[0].AssortmentReference) {
+            const customerID = customerHierarchy[0]?.CustomerID || "";
             finalResult.ConditionContract.ConditionContractType.CndnContrType = 'YR04';
             finalResult.ConditionContract.ConditionContractType.CndnContrProcVar = 'YR04';
+            finalResult.ConditionContract.ConditionContractType.Customer = customerID;
         }else {
             delete finalResult.ConditionContract.ConditionContractType.Customer;
         }
@@ -2003,13 +2013,15 @@ module.exports = (srv) => {
             ]);
 
             const contractInfoMap = new Map(contractInfos.map(c => [c.ID, c]));
-            const hierarchyMap = new Map();
+            const hierarchyByContract = new Map();
 
             customerHierarchyAll.forEach(h => {
-                if (!hierarchyMap.has(h.CCMContractID)) {
-                    hierarchyMap.set(h.CCMContractID, []);
+                if (!hierarchyByContract.has(h.CCMContractID)) {
+                    hierarchyByContract.set(h.CCMContractID, { list: [], byCustomer: new Map() });
                 }
-                hierarchyMap.get(h.CCMContractID).push(h);
+                const entry = hierarchyByContract.get(h.CCMContractID);
+                entry.list.push(h);
+                entry.byCustomer.set(String(h.CustomerID), h);
             });
             e = moment();
             logTime("Pre-fetch shared DB data ONCE", s, e);
@@ -2049,6 +2061,9 @@ module.exports = (srv) => {
                     rebateSettlementData.map(settle => {
                         const filtered = rebateMap[settle.CCMContractID] || [];
 
+                        //Pass scoped hierarchy list for this contract
+                        const contractHierarchy = hierarchyByContract.get(settle.CCMContractID)?.list || [];
+
                         return createRebateContract(
                             rebateConfig,
                             filtered,
@@ -2056,7 +2071,8 @@ module.exports = (srv) => {
                                 fromDate: settle.FromDate,
                                 toDate: settle.ToDate,
                                 SettlementID: settle.SettlementID
-                            }
+                            },
+                            contractHierarchy
                         );
                     })
                 );
@@ -2102,7 +2118,6 @@ module.exports = (srv) => {
                 updatedContractsAll.push(...updatedContracts);
 
                 const contractInfo = contractInfoMap.get(CCMContractID);
-                const customerHierarchy = hierarchyMap.get(CCMContractID) || [];
 
                 for (const res of invoiceResults) {
                     if (!res) continue;
@@ -2157,22 +2172,32 @@ module.exports = (srv) => {
                         ? res.data.bvheader
                         : [res?.data?.bvheader];
 
-                    const excluded = bvheaders
+                    const excludedCustomers = bvheaders
                         .filter(h => h?.incl_excl === "E" && h?.customer)
-                        .map(h => h.customer);
+                        .map(h => ({ customer: String(h.customer), itemGUID: h.itemguid }));
+                    
+                    const { byCustomer } = hierarchyByContract.get(CCMContractID) ?? { byCustomer: new Map() };
 
-                    excluded.forEach(cust => {
-                        const match = customerHierarchy.find(ch => ch.CustomerID == cust);
+                    for (const cust of excludedCustomers) {
+                        const match = byCustomer.get(cust.customer);
+
                         if (match) {
-                            excludedMatched.push(cust);
+                            excludedMatched.push(cust.customer);
 
                             dbOps.push(
                                 UPDATE(CustomerHierarchy)
                                     .set({ Excluded: true })
-                                    .where({ ID: match.ID })
+                                    .where({ ID: match.ID, CustomerID: cust.customer }),
+
+                                INSERT.into(ContractItemGUID).entries({
+                                    ConditionDocument: contractNumber,
+                                    CustomerID: cust.customer,
+                                    ItemGUID: cust.itemGUID,
+                                    CCMContract_ID: CCMContractID
+                                })
                             );
                         }
-                    });
+                    }
                 }
             }
 
