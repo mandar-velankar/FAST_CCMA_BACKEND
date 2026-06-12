@@ -508,24 +508,24 @@ module.exports = (srv) => {
     }
 
     async function executeContractUpdate(tx, caseType, contract, newOffer) {
-        try {
             if (!contract?.ContractNumber) {
                 return null;
             }
     
-            // CASE_2: Exclude child customer
-            if (caseType === "CASE_2") {
-                const success = await excludeChildCustomer(tx, contract, newOffer);
+            const runUpdate = async () => {
+                if (caseType === "CASE_2") {
+                    const success = await excludeChildCustomer(tx, contract, newOffer);
+                    return success ? contract.ContractNumber : null;
+                }
+                const success = await updateExistingContract(tx, contract, newOffer);
                 return success ? contract.ContractNumber : null;
-            }
+            };
     
-            // CASE_1, CASE_3, CASE_5: Update existing contract
-            const success = await updateExistingContract(tx, contract, newOffer);
-            return success ? contract.ContractNumber : null;
-    
+        try {
+            return await runUpdate();
         } catch (error) {
             console.error(`[executeContractUpdate] Failed for contract ${contract?.ContractNumber}:`, error.message);
-            await tx.run(
+            tx.run(
                 INSERT.into(ConditionContractsLog).entries({
                     ContractNumber: contract.ContractNumber,
                     ContractType: contract.ContractType,
@@ -538,8 +538,8 @@ module.exports = (srv) => {
                     createdBy: tx.context.user.id,
                     CCMContractID: contract.CCMContractID
                 })
-            );
-            return null;
+            ).catch(logErr => console.warn('Failed to write error log for [executeContractUpdate] step:', logErr.message));
+            throw error;
         }
     }
 
