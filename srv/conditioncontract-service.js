@@ -525,6 +525,9 @@ module.exports = (srv) => {
             return await runUpdate();
         } catch (error) {
             console.error(`[executeContractUpdate] Failed for contract ${contract?.ContractNumber}:`, error.message);
+            const operation = caseType === "CASE_2" ? "excluding customer from" : "updating";
+            error.message = `Contract creation was aborted because ${operation} existing contract ${contract.ContractNumber} failed. `
+                            + `Please review the contract in SAP and try again. (Technical detail: ${error.message})`;
             tx.run(
                 INSERT.into(ConditionContractsLog).entries({
                     ContractNumber: contract.ContractNumber,
