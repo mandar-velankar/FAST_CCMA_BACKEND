@@ -350,8 +350,14 @@ export default class Detail extends BaseController {
     }
 
     public onCreateCCMContractSuccess(res: any): void {
-        MessageBox.success(res?.value);
         BusyIndicator.hide();
+
+        MessageBox.success(res?.value, {
+            onClose: () => {
+                // Close detail page / navigate away
+                this.getRouter().navTo("detail", { layout: "TwoColumnsMidExpanded", id: this.id });
+            }
+        });
     }
 
     public onCreateCCMContractFail(res: any): void {
