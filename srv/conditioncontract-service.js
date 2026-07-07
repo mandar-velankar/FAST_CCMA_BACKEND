@@ -238,25 +238,30 @@ module.exports = (srv) => {
 
         const results = [];
 
-        // CASE 1: Single-customer with matching candidate + base
-        const case1Contracts = relevantContracts.filter(
-            c => c.candidateInstitute === InstituteID && c.baseInstitute === InstituteID
-        );
-        if (case1Contracts.length) {
-            results.push({ sourceData, case: "CASE_1", contracts: case1Contracts });
-        }
-
-        // CASE 2: Child with existing parent contract
-        const hierarchyCase2 = hierarchyByInstitute.get(String(InstituteID));
-        if (hierarchyCase2) {
-            const childIDs = new Set(hierarchyCase2.map(h => h.InstituteID));
-            const case2Contracts = relevantContracts.filter(
-                c => c.AssortmentReference !== null && 
-                    c.candidateType === "CHILD" && 
-                    childIDs.has(String(c.candidateInstitute))
+        // CASE_1 and CASE_2 only apply when the incoming offer has NO
+        // AssortmentReference. When AssortmentReference is present, only
+        // CASE_3 / CASE_5 are relevant classifications.
+        if (!AssortmentReference) {
+            // CASE 1: Single-customer with matching candidate + base
+            const case1Contracts = relevantContracts.filter(
+                c => c.candidateInstitute === InstituteID && c.baseInstitute === InstituteID
             );
-            if (case2Contracts.length) {
-                results.push({ sourceData, case: "CASE_2", contracts: case2Contracts });
+            if (case1Contracts.length) {
+                results.push({ sourceData, case: "CASE_1", contracts: case1Contracts });
+            }
+
+            // CASE 2: Child with existing parent contract
+            const hierarchyCase2 = hierarchyByInstitute.get(String(InstituteID));
+            if (hierarchyCase2) {
+                const childIDs = new Set(hierarchyCase2.map(h => h.InstituteID));
+                const case2Contracts = relevantContracts.filter(
+                    c => c.AssortmentReference !== null &&
+                        c.candidateType === "CHILD" &&
+                        childIDs.has(String(c.candidateInstitute))
+                );
+                if (case2Contracts.length) {
+                    results.push({ sourceData, case: "CASE_2", contracts: case2Contracts });
+                }
             }
         }
 
@@ -345,19 +350,116 @@ module.exports = (srv) => {
         const startTime = moment();
 
         const updateOperations = [];
-        const creationOperations = [];
 
+        // Keyed by offer identity so creation only ever happens ONCE per
+        // offer, no matter how many items (same case or different cases)
+        // independently decide a creation is needed for it.
+        const creationByOffer = new Map(); // key: `${CCMContractID}|${OfferID}|${ProductCode}`
+
+        // Precedence order for resolving the same contract appearing under
+        // multiple cases (e.g. matched via SELF and CHILD institute relationships).
+        // Lower number = higher precedence = wins.
+        const CASE_PRECEDENCE = { CASE_1: 1, CASE_2: 2, CASE_3: 3, CASE_5: 4 };
+
+        const getContractKey = (contract) => `${contract.CCMContractID}|${contract.ContractNumber}`;
+        const getOfferKey = (newOffer) => `${newOffer?.CCMContractID}|${newOffer?.OfferID}|${newOffer?.ProductCode}`;
+
+        // ===== PASS 1: determine the winning case for every overlapping contract =====
+        // A contract can appear in more than one processedCases item (same
+        // CCMContractID + ContractNumber under different case classifications,
+        // e.g. matched via SELF and CHILD institute relationships).
+        // Only the highest-precedence case should ever process that contract;
+        // the other case(s) must ignore it entirely.
+        const contractWinningCase = new Map(); // key: `${CCMContractID}|${ContractNumber}` -> caseType
+
+        for (const item of processedCases) {
+            const { case: caseType, contracts = [] } = item;
+
+            if (!CASE_PRECEDENCE[caseType]) {
+                continue; // NO_MATCH / UNCLASSIFIED / unknown types don't participate in precedence
+            }
+
+            for (const contract of contracts) {
+                if (!contract?.CCMContractID || !contract?.ContractNumber) {
+                    continue; // can't establish identity, leave it alone
+                }
+
+                const key = getContractKey(contract);
+                const currentWinner = contractWinningCase.get(key);
+
+                if (!currentWinner || CASE_PRECEDENCE[caseType] < CASE_PRECEDENCE[currentWinner]) {
+                    contractWinningCase.set(key, caseType);
+                }
+            }
+        }
+
+        // Helper: queue a creation, merging with any existing queued creation
+        // for the same offer identity instead of allowing a second CREATE to fire.
+        const queueCreation = (offerKey, op) => {
+            const existing = creationByOffer.get(offerKey);
+
+            if (!existing) {
+                creationByOffer.set(offerKey, op);
+                return;
+            }
+
+            console.log(
+                `[DEDUPE] Merging duplicate creation for offer ${offerKey} ` +
+                `(cases: ${existing.caseType} + ${op.caseType})`
+            );
+
+            // If either side needs a customer exclusion, the merged result must
+            // exclude too — otherwise the surviving op could be a plain CREATE
+            // that recreates a contract the other branch intended to exclude.
+            const mergedExcludeMap = new Map(
+                [...(existing.excludeCustomers || []), ...(op.excludeCustomers || [])]
+                    .map(e => [e.customer, e])
+            );
+
+            creationByOffer.set(offerKey, {
+                ...existing,
+                type: mergedExcludeMap.size > 0 ? 'CREATE_EXCLUDE' : 'CREATE',
+                excludeCustomers: mergedExcludeMap.size > 0 ? Array.from(mergedExcludeMap.values()) : null
+            });
+        };
+
+        // ===== PASS 2: main processing, using the precedence result to filter contracts =====
         for (const item of processedCases) {
             const { sourceData, case: caseType, contracts = [] } = item;
             const newOffer = sourceData[0];
+            const offerKey = getOfferKey(newOffer);
 
-            const uniqueContracts = Array.from(
+            const uniqueContractsAll = Array.from(
                 new Map(contracts.map(c => [c.CCMContractID, c])).values()
             );
 
+            const hadContractsOriginally = uniqueContractsAll.length > 0;
+
+            // Drop any contract that lost precedence to a different case.
+            const uniqueContracts = uniqueContractsAll.filter(contract => {
+                if (!contract?.CCMContractID || !contract?.ContractNumber) {
+                    return true; // no identity to compare, don't touch it
+                }
+                const key = getContractKey(contract);
+                const winner = contractWinningCase.get(key);
+                return !winner || winner === caseType;
+            });
+
+            // If this item originally had contracts but ALL of them were claimed
+            // by a higher-precedence case elsewhere, this item is fully superseded.
+            // It must be skipped outright — NOT routed to the NO_MATCH/UNCLASSIFIED
+            // creation branch, which would otherwise still create a duplicate.
+            if (hadContractsOriginally && uniqueContracts.length === 0) {
+                console.log(
+                    `[DEDUPE] Skipping case ${caseType} for offer ${offerKey} — ` +
+                    `all contracts already claimed by a higher-precedence case`
+                );
+                continue;
+            }
+
             // ===== NO MATCH / UNCLASSIFIED =====
             if (!uniqueContracts.length || ["NO_MATCH", "UNCLASSIFIED"].includes(caseType)) {
-                creationOperations.push({
+                queueCreation(offerKey, {
                     type: 'CREATE',
                     caseType,
                     sourceData,
@@ -405,13 +507,10 @@ module.exports = (srv) => {
                     excludeCustomers = Array.from(excludeMap.values());
                 }
 
-                // Always create when there are relevant actions —
-                // hasTenderToCommercialUpdate means update + create without exclusion
                 const shouldCreate = updateAndCreate.length > 0 || createOnly.length > 0;
 
                 if (shouldCreate) {
-                    creationOperations.push({
-                        // Tender→Commercial case: update existing + create new, no customer exclusion
+                    queueCreation(offerKey, {
                         type: !hasTenderToCommercialUpdate && excludeCustomers.length > 0
                             ? 'CREATE_EXCLUDE'
                             : 'CREATE',
@@ -448,7 +547,7 @@ module.exports = (srv) => {
             }
 
             if (shouldCreate) {
-                creationOperations.push({
+                queueCreation(offerKey, {
                     type: 'CREATE',
                     caseType,
                     sourceData,
@@ -456,6 +555,8 @@ module.exports = (srv) => {
                 });
             }
         }
+
+        const creationOperations = Array.from(creationByOffer.values());
 
         // ===== EXECUTE UPDATES =====
         if (updateOperations.length > 0) {
