@@ -1,0 +1,6 @@
+{
+  "name": "deploy",
+  "engines": {
+    "node": "^22"
+  }
+}
