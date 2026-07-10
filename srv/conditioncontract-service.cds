@@ -19,7 +19,6 @@ service ConditionContract @(requires:['f_tndr_cag_admin','f_tndr_cag_ccma_user',
     entity ContractItemGUID                       as projection on ccma.ContractItemGUID;
     entity ConditionContractsLog                   as projection on ccma.ConditionContractsLog;
     entity CustomerHierarchy                      as projection on ccma.CustomerHierarchy;
-    @readonly entity SpainTenderData              as projection on ccma.SpainTenderData;
 
 
    entity FastConditionContractsView as select from FastConditionContracts as fcc
@@ -688,4 +687,41 @@ entity CCMContractsExtendedView as
         STRING_AGG(mat.MaterialNumber, ',') as ContractMaterialNumbers: String,
         STRING_AGG(ccm.BrandID, ',') as ContractBrandIDs: String
      } group by fcc.ID;
+
+    @readonly entity SpainTenderData as select from FastConditionContracts as fc
+        inner join CCMContract as cc
+            on cc.FastConditionContracts.ID = fc.ID
+        inner join CCMCustomer as ccc
+            on ccc.CCMContract.ID = cc.ID
+        left outer join CustomerHierarchy as cch
+            on cch.CCMContractID = cc.ID
+        inner join CCMMaterial as ccm
+            on ccm.CCMContract.ID = cc.ID
+        inner join PriceConditionInvoice as pi
+            on pi.CCMContract.ID = cc.ID
+    {
+        key fc.ID               as FastConditionContractID,
+        key cc.ID               as CCMContractID,
+            cc.CreationDate,
+            fc.TenderID,
+            fc.OfferID,
+            ccc.CustomerID,
+            ccc.InstituteName,
+            fc.ContractType,
+            fc.OwnerName,
+            fc.SAPID,
+            cc.ContractNumber,
+            cc.ProductName,
+            cc.CCMContractStartDate,
+            cc.CCMContractEndDate,
+            cch.CustomerID      as CustomersInContract,
+            cch.Excluded,
+            cch.AssortmentReference,
+            ccm.ProductCode,
+            ccm.MaterialNumber,
+            pi.ConditionType,
+            pi.PriceConditionCode,
+            pi.YP10             as YP10_YP11,
+            pi.YD02 * 100       as Discount : Double
+    };
 }
