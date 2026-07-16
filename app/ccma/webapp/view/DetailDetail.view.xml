@@ -50,7 +50,7 @@
 				<OverflowToolbar class="sapFDynamicPageAlignContent">
 					
 					<ToolbarSpacer/>
-					<Button text="Terminate" icon="sap-icon://cancel" type="Emphasized" press=".onTerminateCCMContract" enabled="{= ${ui>/hasExistingContract}  &amp;&amp; !${ui>/hasCancelled}}"/>
+					<Button text="Terminate" icon="sap-icon://cancel" type="Emphasized" press=".onTerminateCCMContract" enabled="{= ${ui>/hasExistingContract}  &amp;&amp; !${ui>/hasCancelled} &amp;&amp; !${ui>/hasExpired}}"/>
 					<!-- <Button text="Ignore" icon="sap-icon://decline" type="Emphasized" press=".onIgnorePriceUpdate" enabled="true"/> -->
 					<Button text="Synchronize" icon="sap-icon://synchronize" type="Emphasized" press=".onCreateCCMContract" enabled="{= !${ui>/hasExistingContract}}"/>
 				</OverflowToolbar>
