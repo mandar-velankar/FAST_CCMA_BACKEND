@@ -137,6 +137,7 @@ export default class Detail extends BaseController {
                     uiModel.setProperty("/ProductName", items.ProductName);
                     uiModel.setProperty("/hasExistingContract", items.ContractNumber ? true : false );
                     uiModel.setProperty("/hasCancelled", items.Cancelled);
+                    uiModel.setProperty("/hasExpired", items.Expired);
                     uiModel.setProperty(
                         "/isIgnoreContractPriceBtnEnabled", items.FastConditionContracts.hasNetPriceAbovePVL ? false :
                         items.FastConditionContracts.hasUpdatedPVL || 
