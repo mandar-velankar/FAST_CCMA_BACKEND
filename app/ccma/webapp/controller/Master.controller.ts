@@ -222,7 +222,7 @@ export default class Master extends BaseController {
 			}));
 
 			orFilters.push(new Filter({
-				path: "CCMContract/ContractNumber",
+				path: "ContractNumbers",
 				operator: FilterOperator.Contains,
 				value1: sSearch,
 				caseSensitive: false
