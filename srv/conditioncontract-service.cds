@@ -691,7 +691,8 @@ entity CCMContractsExtendedView as
     {
         key fcc.ID as FastConditionContractID,
         STRING_AGG(mat.MaterialNumber, ',') as ContractMaterialNumbers: String,
-        STRING_AGG(ccm.BrandID, ',') as ContractBrandIDs: String
+        STRING_AGG(ccm.BrandID, ',') as ContractBrandIDs: String,
+        STRING_AGG(ccm.ContractNumber, ',') as ContractNumbers: String
      } group by fcc.ID;
 
     @readonly entity SpainTenderData as select from FastConditionContracts as fc
