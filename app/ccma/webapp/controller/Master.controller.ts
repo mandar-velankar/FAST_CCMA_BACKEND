@@ -222,6 +222,13 @@ export default class Master extends BaseController {
 			}));
 
 			orFilters.push(new Filter({
+				path: "ContractNumbers",
+				operator: FilterOperator.Contains,
+				value1: sSearch,
+				caseSensitive: false
+			}));
+
+			orFilters.push(new Filter({
 				path: "CustomerID",
 				operator: FilterOperator.Contains,
 				value1: sSearch,

@@ -15,15 +15,23 @@ export default class PercentageType extends CompositeType {
             return "";
         }
 
-        const value = Array.isArray(parts) ? parts[0] : parts ?? 0;
-        const minFractionDigits = Array.isArray(parts) ? parts[1] : 2;
-        const maxFractionDigits = Array.isArray(parts) ? parts[2] : 2;
-        
+        let value = Array.isArray(parts) ? parts[0] : parts ?? 0;
+
+        if (typeof value === "string") {
+            value = value.replace(",", ".");
+        }
+
+        const minFractionDigits = Array.isArray(parts) ? Number(parts[1]) : 2;
+        const maxFractionDigits = Array.isArray(parts) ? Number(parts[2]) : 2;
+
         const oPercentFormat = NumberFormat.getPercentInstance({
-            minFractionDigits: minFractionDigits,
-            maxFractionDigits: maxFractionDigits
+            minFractionDigits,
+            maxFractionDigits,
+            groupingEnabled: true,
+            groupingSeparator: ",",
+            decimalSeparator: "."
         });
-        
+
         return oPercentFormat.format(Number(value));
     }
 
