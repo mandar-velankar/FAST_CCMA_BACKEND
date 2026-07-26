@@ -2673,6 +2673,7 @@ module.exports = (srv) => {
 
 		body["SoldToParty"] = customerID;
         body["to_Item"][0]["Material"] = materialNumber;
+        body["to_Partner"][0]["Customer"] = customerID;
         return body;
     }
 
@@ -2849,6 +2850,12 @@ module.exports = (srv) => {
 					"Material": "66040304",
 					"RequestedQuantity": "10000",
 					"to_PricingElement": []
+				}
+			],
+            "to_Partner": [
+				{
+					"PartnerFunction": "WE",
+					"Customer": "900000352"
 				}
 			]
 		}
