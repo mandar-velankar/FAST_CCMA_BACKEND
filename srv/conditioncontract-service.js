@@ -2748,19 +2748,19 @@ module.exports = (srv) => {
             // Handle PricingProcedureStep-specific values
             if (PricingProcedureStep === "330") {
                 const sapTax = parseFloat(ConditionAmount || 0);
-                result.SapTax = sapTax ? (UoM === "Pack" ? (sapTax / 10000) : (sapTax / 10000 / packFactor)) : 0;
+                result.SapTax = sapTax ? (contract.UoM === "Pack" ? (sapTax / 10000) : (sapTax / 10000 / contract.PackFactor)) : 0;
             }
 
 
             if (PricingProcedureStep === "306") {
                 const netPriceWithoutTax = parseFloat(ConditionAmount || 0);
-			    result.NetPriceWithoutTax = netPriceWithoutTax ? (UoM === "Pack" ? (netPriceWithoutTax / 10000) : (netPriceWithoutTax / 10000 / packFactor)) : 0;
+			    result.NetPriceWithoutTax = netPriceWithoutTax ? (contract.UoM === "Pack" ? (netPriceWithoutTax / 10000) : (netPriceWithoutTax / 10000 / contract.PackFactor)) : 0;
             }
 		}
 	
 		// Assign the condition values
 		const YP00 = conditions["YP00"]?.ConditionAmount || 0;
-        const YP04 = conditions["YP04"]? Math.abs(conditions["YP04"].ConditionAmount) : 0;
+        let YP04 = conditions["YP04"]? Math.abs(conditions["YP04"].ConditionAmount) : 0;
 		//const YP04 = conditions["YP04"] ? Math.abs(conditions["YP04"].ConditionRateValue) / 100 : 0;
 		const YP10 = conditions["YP10"]?.ConditionAmount ?? null;
 		const YD02 = conditions["YD02"] ? Math.abs(conditions["YD02"].ConditionRateValue) / 100 : 0;
@@ -2772,8 +2772,8 @@ module.exports = (srv) => {
 		 * It is the reduction amount from YP00. 
 		 * However we are still using YP04 as a 'ConfidentialDiscount' on CurrentPricing and NewPricing Section on UI, 
 		 * as adding separate field for 'ConfidentialDiscount' could potentially cause regressions*/
-        result.YP00 = YP00 ? UoM === 'Pack' ? (YP00 / 10000) : (YP00 / 10000 / packFactor) : 0;
-        YP04 = YP04 ? UoM === 'Pack' ? (YP04 / 10000) : (YP04 / 10000 / packFactor) : 0;
+        result.YP00 = YP00 ? contract.UoM === 'Pack' ? (YP00 / 10000) : (YP00 / 10000 / contract.PackFactor) : 0;
+        YP04 = YP04 ? contract.UoM === 'Pack' ? (YP04 / 10000) : (YP04 / 10000 / contract.PackFactor) : 0;
         result.YP04 = (YP04 / result.YP00);
 		result.ConfidentialPrice = YP04 ? result.YP00 - YP04 : result.YP00;
         const isPVLUpdated = !!(result.YP00 && fastContractPrice?.YP00 !== YP00);
