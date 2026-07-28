@@ -54,17 +54,44 @@ service ConditionContract @(requires:['f_tndr_cag_admin','f_tndr_cag_ccma_user',
                 CCMContract.CCMCustomer.InstituteName,
                 CCMContract.CCMCustomer.InstituteType,
                 CCMContract.CCMCustomer.InstituteID,
-                CCMContract.CCMCustomer.CustomerID
-        };
+                CCMContract.CCMCustomer.CustomerID,
+                STRING_AGG(CCMContract.CCMMaterial.MaterialNumber, ',') as ContractMaterialNumbers: String
+        } group by ID,
+            CCMContract.ProductCode,
+            CCMContract.CountryCode,
+            CCMContract.ProductName,
+            CCMContract.NewMaterialNumber,
+            CCMContract.BrandID,
+            CCMContract.BrandName,
+            CCMContract.OfferPrice,
+            CCMContract.hasRappel,
+            CCMContract.hasFOC,
+            CCMContract.CCMContractStartDate,
+            CCMContract.CCMContractEndDate,
+            CCMContract.ContractNumber,
+            CCMContract.PreviousContractNumber,
+            CCMContract.Synchronized,
+            CCMContract.Notified,
+            CCMContract.Extension,
+            CCMContract.ExtensionPeriod,
+            CCMContract.CreationDate,
+            CCMContract.ID,
+            CCMContract.CCMCustomer.ID,
+            CCMContract.CCMCustomer.InstituteName,
+            CCMContract.CCMCustomer.InstituteType,
+            CCMContract.CCMCustomer.InstituteID,
+            CCMContract.CCMCustomer.CustomerID;
 
     entity CCMContractInformationDetailView       as projection on FastConditionContracts;
 
-    entity CCMContractProductsView                as
-        projection on CCMContract {
+    entity CCMContractProductsView as select from CCMContract as contract
+        left join CCMContractMaterialNumbers as ccmmn on ccmmn.CCMContractID = contract.ID {
             *,
+            key ID,
             FastConditionContracts.ID as FastConditionContractsID,
             CCMCustomer.InstituteName,
-            CCMCustomer.InstituteType
+            CCMCustomer.InstituteType,
+            ccmmn.ContractMaterialNumbers
         };
 
     entity CCMContractInformationDetailDetailView as projection on CCMContract;
@@ -731,4 +758,10 @@ entity CCMContractsExtendedView as
             pi.YP10             as YP10_YP11,
             pi.YD02 * 100       as Discount : Double
     };
+
+    entity CCMContractMaterialNumbers as select from CCMContract as ccm{
+        key ID as CCMContractID,
+        STRING_AGG(CCMMaterial.MaterialNumber, ',') as ContractMaterialNumbers: String
+    }group by 
+        ID;
 }
