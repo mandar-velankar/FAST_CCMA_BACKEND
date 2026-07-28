@@ -88,6 +88,15 @@
                 <Column>
                     <header>
                         <ObjectIdentifier
+                            title="{i18n>ProductsListFragment.MaterialNumbers}"
+                            titleActive="true"
+                            titlePress="onClick"
+                        />
+                    </header>
+                </Column>
+                <Column>
+                    <header>
+                        <ObjectIdentifier
                             title="{i18n>ProductsListFragment.NewMaterialNumber}"
                             titleActive="true"
                             titlePress="onClick"
@@ -142,6 +151,7 @@
                         <Text text="{OfferPrice}" />
                         <Text text="{hasRappel}" />
                         <Text text="{hasFOC}" />
+                        <Text text="{ContractMaterialNumbers}" />
                         <Text text="{NewMaterialNumber}" />
                         <Text text="{ContractNumber}" />
                         <Text text="{PreviousContractNumber}" />
