@@ -55,7 +55,11 @@ service ConditionContract @(requires:['f_tndr_cag_admin','f_tndr_cag_ccma_user',
                 CCMContract.CCMCustomer.InstituteType,
                 CCMContract.CCMCustomer.InstituteID,
                 CCMContract.CCMCustomer.CustomerID,
-                STRING_AGG(CCMContract.CCMMaterial.MaterialNumber, ',') as ContractMaterialNumbers: String
+                STRING_AGG(
+                    CCMContract.CCMMaterial.MaterialNumber || ' - ' || CASE CCMContract.CCMMaterial.ActiveRecord
+                        WHEN 1 THEN 'Active'
+                        ELSE 'Inactive'
+                    END, CHAR(10)) as ContractMaterialNumbers: String
         } group by ID,
             CCMContract.ProductCode,
             CCMContract.CountryCode,
@@ -755,7 +759,11 @@ entity CCMContractsExtendedView as
 
     entity CCMContractMaterialNumbers as select from CCMContract as ccm{
         key ID as CCMContractID,
-        STRING_AGG(CCMMaterial.MaterialNumber, ',') as ContractMaterialNumbers: String
+        STRING_AGG(
+            CCMMaterial.MaterialNumber || ' - ' || CASE CCMMaterial.ActiveRecord
+                WHEN 1 THEN 'Active'
+                ELSE 'Inactive'
+            END, CHAR(10)) as ContractMaterialNumbers: String
     }group by 
         ID;
 }
