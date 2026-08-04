@@ -571,6 +571,13 @@ module.exports = (srv) => {
             updateResults
                 .filter(Boolean)
                 .forEach(contractNumber => updatedContracts.push(contractNumber));
+
+            if (updatedContracts.length > 0) {
+                await tx.run(
+                    UPDATE(CCMContract).with({ UpdatedContractNumber: updatedContracts.join(', ') })
+                        .where({ ID: updateOperations[0].newOffer.CCMContractID })
+                );
+            }
         }
 
         // ===== EXECUTE CREATIONS =====
@@ -749,7 +756,7 @@ module.exports = (srv) => {
         // Run both updates in parallel but don't block return
         Promise.all([
             tx.run(INSERT.into(ConditionContractsLog).entries(logInsert)),
-            tx.run(UPDATE(CCMContract).with({ CCMContractEndDate: prevDay(newOffer.ConditionValidityStartDate), UpdatedContractNumber: contract.ContractNumber }).where({ ID: newOffer.CCMContractID }))
+            tx.run(UPDATE(CCMContract).with({ CCMContractEndDate: prevDay(newOffer.ConditionValidityStartDate), UpdatedContractNumber: contract.ContractNumber }).where({ ID: contract.CCMContractID }))
         ]).catch(err => console.warn('Batch update failed:', err.message));
     
         return true;
@@ -872,10 +879,7 @@ module.exports = (srv) => {
                     tx.run(UPDATE(CustomerHierarchy).with({ Excluded: true }).where({
                         CCMCustomer_ID: customer.ID,
                         CustomerID: newOffer.Customer
-                    })),
-                    tx.run(UPDATE(CCMContract).with({ UpdatedContractNumber: contract.ContractNumber }).where({
-                        ID: newOffer.CCMContractID
-                    })),                    
+                    })),                  
                     itemGUID ? tx.run(INSERT.into(ContractItemGUID).entries({
                         ConditionDocument: contract.ContractNumber,
                         CustomerID: newOffer.Customer,
