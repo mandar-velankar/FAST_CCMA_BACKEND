@@ -749,7 +749,7 @@ module.exports = (srv) => {
         // Run both updates in parallel but don't block return
         Promise.all([
             tx.run(INSERT.into(ConditionContractsLog).entries(logInsert)),
-            tx.run(UPDATE(CCMContract).with({ CCMContractEndDate: prevDay(newOffer.ConditionValidityStartDate), UpdatedContractNumber: contract.ContractNumber }).where({ ID: contract.CCMContractID }))
+            tx.run(UPDATE(CCMContract).with({ CCMContractEndDate: prevDay(newOffer.ConditionValidityStartDate), UpdatedContractNumber: contract.ContractNumber }).where({ ID: newOffer.CCMContractID }))
         ]).catch(err => console.warn('Batch update failed:', err.message));
     
         return true;
@@ -874,7 +874,7 @@ module.exports = (srv) => {
                         CustomerID: newOffer.Customer
                     })),
                     tx.run(UPDATE(CCMContract).with({ UpdatedContractNumber: contract.ContractNumber }).where({
-                        ID: contract.CCMContractID
+                        ID: newOffer.CCMContractID
                     })),                    
                     itemGUID ? tx.run(INSERT.into(ContractItemGUID).entries({
                         ConditionDocument: contract.ContractNumber,
