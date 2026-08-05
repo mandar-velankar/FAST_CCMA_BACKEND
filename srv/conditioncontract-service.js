@@ -571,6 +571,13 @@ module.exports = (srv) => {
             updateResults
                 .filter(Boolean)
                 .forEach(contractNumber => updatedContracts.push(contractNumber));
+
+            if (updatedContracts.length > 0) {
+                await tx.run(
+                    UPDATE(CCMContract).with({ UpdatedContractNumber: updatedContracts.join(', ') })
+                        .where({ ID: updateOperations[0].newOffer.CCMContractID })
+                );
+            }
         }
 
         // ===== EXECUTE CREATIONS =====
@@ -872,10 +879,7 @@ module.exports = (srv) => {
                     tx.run(UPDATE(CustomerHierarchy).with({ Excluded: true }).where({
                         CCMCustomer_ID: customer.ID,
                         CustomerID: newOffer.Customer
-                    })),
-                    tx.run(UPDATE(CCMContract).with({ UpdatedContractNumber: contract.ContractNumber }).where({
-                        ID: contract.CCMContractID
-                    })),                    
+                    })),                  
                     itemGUID ? tx.run(INSERT.into(ContractItemGUID).entries({
                         ConditionDocument: contract.ContractNumber,
                         CustomerID: newOffer.Customer,
