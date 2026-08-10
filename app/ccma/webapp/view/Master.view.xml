@@ -125,6 +125,38 @@
                             text="Cancelled"
                         />
                     </Select>
+                    <Select 
+                        id="idSelectInstituteType" 
+                        change=".setFilter"
+                        items="{
+                            path: '/InstituteTypeView',
+                            sorter: {
+                                path: 'InstituteType',
+                                descending: false
+                            }
+                        }"
+                    >
+                        <core:Item
+                            key="{InstituteType}"
+                            text="{InstituteType}"
+                        />
+                    </Select>
+                    <Select 
+                        id="idSelectInstituteName" 
+                        change=".setFilter"
+                        items="{
+                            path: '/InstituteNameView',
+                            sorter: {
+                                path: 'InstituteName',
+                                descending: false
+                            }
+                        }"
+                    >
+                        <core:Item
+                            key="{InstituteID}"
+                            text="{InstituteName}"
+                        />
+                    </Select>
 
                     <ToolbarSpacer />
                     <SearchField
