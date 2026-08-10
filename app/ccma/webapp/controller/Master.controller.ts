@@ -137,6 +137,8 @@ export default class Master extends BaseController {
 		let countryCode = (this.byId("idSlctCountry") as Select)?.getSelectedKey();
 		let brandID = (this.byId("idSlctBrand") as Select)?.getSelectedKey();
 		let productCode = (this.byId("idSelectProduct") as Select)?.getSelectedKey();
+		let instituteType = (this.byId("idSelectInstituteType") as Select)?.getSelectedKey();
+		let instituteId = (this.byId("idSelectInstituteName") as Select)?.getSelectedKey();
 
 		const selectedKey = this.byId("idslctfilter")?.getSelectedItem()?.getKey()?.toLowerCase();
 
@@ -291,6 +293,26 @@ export default class Master extends BaseController {
 				path: "CCMContract/ProductCode",
 				operator: FilterOperator.EQ,
 				value1: productCode,
+				caseSensitive: false
+			}));
+		}
+
+		//InstituteType filter
+		if (instituteType && instituteType !== "All") {
+			andFilters.push(new Filter({
+				path: "InstituteType",
+				operator: FilterOperator.EQ,
+				value1: instituteType,
+				caseSensitive: false
+			}));
+		}
+
+		//InstituteName filter
+		if (instituteId && instituteId !== "All") {
+			andFilters.push(new Filter({
+				path: "InstituteID",
+				operator: FilterOperator.EQ,
+				value1: instituteId,
 				caseSensitive: false
 			}));
 		}

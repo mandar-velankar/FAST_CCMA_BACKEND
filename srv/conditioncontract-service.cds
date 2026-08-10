@@ -772,4 +772,26 @@ entity CCMContractsExtendedView as
             END, CHAR(10)) as ContractMaterialNumbers: String
     }group by 
         ID;
+
+    entity InstituteTypeView as select from CCMCustomer {
+        key InstituteID,
+        key CustomerID,
+        InstituteType
+    }where InstituteID is not null
+    and CustomerID is not null
+    and InstituteType is not null
+    group by InstituteID,
+        CustomerID,
+        InstituteType;
+
+    entity InstituteNameView as select from CCMCustomer {
+        key InstituteID,
+        key CustomerID,
+        InstituteName
+    }where InstituteID is not null
+    and CustomerID is not null
+    and InstituteName is not null
+    group by InstituteID,
+        CustomerID,
+        InstituteName;
 }
