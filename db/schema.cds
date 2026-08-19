@@ -273,3 +273,8 @@ entity ConditionContractsLog : cuid {
   ErrorMessage     : String;
   CCMContractID: UUID;
 }
+
+entity SchedulerJobConfigCCMA: cuid , managed{
+    JobName : String;
+    JobTime : String;
+}
