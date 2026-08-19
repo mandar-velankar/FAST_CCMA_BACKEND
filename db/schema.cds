@@ -7,6 +7,7 @@ entity FastConditionContracts: cuid, managed {
   CountryCode : String;
   InstituteID  : Integer;
   InstituteName: String;
+  InstituteType: String;
   DistributorID: Integer;
   ContractStartDate: Date;
   ContractEndDate: Date;
