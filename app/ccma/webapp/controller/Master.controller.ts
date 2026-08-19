@@ -18,9 +18,17 @@ import Select from "sap/m/Select";
 import BusyIndicator from "sap/ui/core/BusyIndicator";
 import MessageBox from "sap/m/MessageBox";
 import Table from "sap/m/Table";
+import Dialog from "sap/m/Dialog";
+import Fragment from "sap/ui/core/Fragment";
+import Input from "sap/m/Input";
 type TContract = {
 	ID: string;
 }
+
+type TInstitute = {
+	InstituteID: string;
+	InstituteName: string;
+};
 
 
 /**
@@ -35,6 +43,9 @@ export default class Master extends BaseController {
     oSelCol: string = "ID";
     _oPopover?: any;
     _bKeyboard?: boolean;
+	_oInstituteInput?: Input;
+	dialogInstitute?: Promise<Dialog>;
+	_selectedInstituteId?: string;
 
 	/*eslint-disable @typescript-eslint/no-empty-function*/
 	public onInit() {
@@ -138,7 +149,7 @@ export default class Master extends BaseController {
 		let brandID = (this.byId("idSlctBrand") as Select)?.getSelectedKey();
 		let productCode = (this.byId("idSelectProduct") as Select)?.getSelectedKey();
 		let instituteType = (this.byId("idSelectInstituteType") as Select)?.getSelectedKey();
-		let instituteId = (this.byId("idSelectInstituteName") as Select)?.getSelectedKey();
+		const instituteId = this._selectedInstituteId;
 
 		const selectedKey = this.byId("idslctfilter")?.getSelectedItem()?.getKey()?.toLowerCase();
 
@@ -616,5 +627,131 @@ export default class Master extends BaseController {
 
         MessageBox.error(message);
     }
+
+	public onInstituteValueHelpRequest(event: Event): void {
+		this._oInstituteInput = event.getSource() as Input;
+		this.getInstituteDialog().then(this.onInstituteDialogLoaded.bind(this));
+	}
+
+	public onInstituteDialogLoaded(dialog: Dialog): void {
+		const instituteType = (this.byId("idSelectInstituteType") as Select)?.getSelectedKey();
+		const filters: Filter[] = [];
+
+		if (instituteType && instituteType !== "All") {
+			filters.push(new Filter("InstituteType", FilterOperator.EQ, instituteType));
+		}
+
+		dialog.getBinding("items")?.filter(filters);
+		dialog.open();
+	}
+
+	public getInstituteDialog(): Promise<Dialog> {
+		const oView = this.getView();
+
+		if (!this.dialogInstitute) {
+			this.dialogInstitute = Fragment.load({
+				id: oView.getId(),
+				name: "com.bayer.tender.ccma.view.fragments.master.SelectInstitute",
+				controller: this
+			}).then((oDialog) => {
+				const dialog = oDialog as Dialog;
+				oView.addDependent(dialog);
+				return dialog;
+			});
+		}
+
+		return this.dialogInstitute;
+	}
+
+	public onInstituteInputChange(oEvent: Event): void {
+		const sValue = oEvent.getParameter("value") as string;
+		if (!sValue) {
+			this._selectedInstituteId = undefined;
+			this.setFilter();
+			return;
+		}
+	}
+
+	public onInstituteTypeChange(): void {
+		this._selectedInstituteId = undefined;
+		(this.byId("idSelectInstitute") as Input)?.setValue("");
+		this.setFilter();
+	}
+
+	public handleInstituteSearch(event: Event): void {
+		const sValue = event.getParameter("value") as string;
+		const instituteType = (this.byId("idSelectInstituteType") as Select)?.getSelectedKey();
+		const aFilters: Filter[] = [];
+
+		if (instituteType && instituteType !== "All") {
+			aFilters.push(new Filter("InstituteType", FilterOperator.EQ, instituteType));
+		}
+
+		// Search filters
+		if (sValue) {
+
+				const aSearchFilters: Filter[] = [];
+
+			// If value is numeric → search numeric fields only
+			if (!isNaN(Number(sValue))) {
+
+				aSearchFilters.push(
+					new Filter(
+						"CustomerID",
+						FilterOperator.EQ,
+						Number(sValue)
+					)
+				);
+
+				aSearchFilters.push(
+					new Filter(
+						"InstituteID",
+						FilterOperator.EQ,
+						Number(sValue)
+					)
+				);
+
+			} else {
+
+				// Text fields only
+				aSearchFilters.push(
+					new Filter({
+						path: "InstituteName",
+						operator: FilterOperator.Contains,
+						value1: sValue,
+						caseSensitive: false
+					})
+				);
+
+			}
+
+			// OR condition
+			aFilters.push(
+				new Filter({
+					filters: aSearchFilters,
+					and: false
+				})
+			);
+		}
+
+		event.getSource().getBinding("items").filter(aFilters);
+	}
+
+	public handleInstituteConfirm(oEvent: Event): void {
+		const oSelectedItem = oEvent.getParameter("selectedItem") as any;
+
+		if (!oSelectedItem) {
+			this.setFilter();
+			return;
+		}
+
+		const oInstitute = oSelectedItem.getBindingContext().getObject() as TInstitute;
+
+		this._selectedInstituteId = oInstitute.InstituteID;
+		this._oInstituteInput?.setValue(oInstitute.InstituteName);
+
+		//refresh master table
+		this.setFilter();
+	}
 
 }
