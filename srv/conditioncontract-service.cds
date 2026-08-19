@@ -781,11 +781,13 @@ entity CCMContractsExtendedView as
     entity InstituteNameView as select from CCMCustomer {
         key InstituteID,
         key CustomerID,
-        InstituteName
+        InstituteName,
+        InstituteType
     }where InstituteID is not null
     and CustomerID is not null
     and InstituteName is not null
     group by InstituteID,
         CustomerID,
-        InstituteName;
+        InstituteName,
+        InstituteType;
 }
