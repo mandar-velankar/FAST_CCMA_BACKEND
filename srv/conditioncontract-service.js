@@ -3412,7 +3412,8 @@ module.exports = (srv) => {
 
         data.unshift({
             InstituteID: "All",
-            InstituteName: "All"
+            InstituteName: "All",
+            CustomerID: "All"
         });
     });
 };
