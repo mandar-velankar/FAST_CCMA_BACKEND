@@ -19,6 +19,7 @@ service ConditionContract @(requires:['f_tndr_cag_admin','f_tndr_cag_ccma_user',
     entity ContractItemGUID                       as projection on ccma.ContractItemGUID;
     entity ConditionContractsLog                   as projection on ccma.ConditionContractsLog;
     entity CustomerHierarchy                      as projection on ccma.CustomerHierarchy;
+    entity SchedulerJobConfigCCMA                 as projection on ccma.SchedulerJobConfigCCMA;           
 
 
    entity FastConditionContractsView as select from FastConditionContracts as fcc
