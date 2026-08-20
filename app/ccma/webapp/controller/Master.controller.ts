@@ -699,7 +699,7 @@ export default class Master extends BaseController {
 					new Filter(
 						"CustomerID",
 						FilterOperator.EQ,
-						Number(sValue)
+						sValue
 					)
 				);
 
@@ -707,7 +707,7 @@ export default class Master extends BaseController {
 					new Filter(
 						"InstituteID",
 						FilterOperator.EQ,
-						Number(sValue)
+						sValue
 					)
 				);
 
