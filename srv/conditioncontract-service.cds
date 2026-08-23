@@ -19,6 +19,7 @@ service ConditionContract @(requires:['f_tndr_cag_admin','f_tndr_cag_ccma_user',
     entity ContractItemGUID                       as projection on ccma.ContractItemGUID;
     entity ConditionContractsLog                   as projection on ccma.ConditionContractsLog;
     entity CustomerHierarchy                      as projection on ccma.CustomerHierarchy;
+    entity SchedulerJobConfigCCMA                 as projection on ccma.SchedulerJobConfigCCMA;           
 
 
    entity FastConditionContractsView as select from FastConditionContracts as fcc
@@ -498,7 +499,9 @@ entity CCMContractsCreatedNotificationMailJobView as
         ccm.CreationDate as ContractCreationDate,
         ccm.ContractReferene,
         fcc.TenderID,
-        fcc.ContractType as Classification
+        fcc.ContractType as Classification,
+        ccm.Comments,
+        ccm.NotifiedtoContractOwner
     }
     where ccm.ContractNumber is not null
       and trim(ccm.ContractNumber) <> ''
@@ -531,7 +534,9 @@ union select from FastConditionContracts as fcc
         rebate.CreationDate as ContractCreationDate,
         rebate.SettlementID as ContractReferene,
         fcc.TenderID,
-        fcc.ContractType as Classification
+        fcc.ContractType as Classification,
+        ccm.Comments,
+        ccm.NotifiedtoContractOwner
     }
     where rebate.RebateContractNumber is not null
       and trim(rebate.RebateContractNumber) <> '';
@@ -766,4 +771,28 @@ entity CCMContractsExtendedView as
             END, CHAR(10)) as ContractMaterialNumbers: String
     }group by 
         ID;
+
+    entity InstituteTypeView as select from CCMCustomer {
+        key InstituteID,
+        key CustomerID,
+        InstituteType
+    }where InstituteID is not null
+    and CustomerID is not null
+    and InstituteType is not null
+    group by InstituteID,
+        CustomerID,
+        InstituteType;
+
+    entity InstituteNameView as select from CCMCustomer {
+        key InstituteID,
+        key CustomerID,
+        InstituteName,
+        InstituteType
+    }where InstituteID is not null
+    and CustomerID is not null
+    and InstituteName is not null
+    group by InstituteID,
+        CustomerID,
+        InstituteName,
+        InstituteType;
 }

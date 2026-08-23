@@ -7,6 +7,7 @@ entity FastConditionContracts: cuid, managed {
   CountryCode : String;
   InstituteID  : Integer;
   InstituteName: String;
+  InstituteType: String;
   DistributorID: Integer;
   ContractStartDate: Date;
   ContractEndDate: Date;
@@ -63,6 +64,8 @@ entity CCMContract: cuid, managed, temporal{
   Extension: Boolean;
   ExtensionPeriod: String;
   CreationDate: Date;
+  NotifiedtoContractOwner: Boolean default false;
+  Comments: String;
   Cancelled: Boolean default false;
   CancellationComment: String;
   CCMCustomer: Composition of CCMCustomer on CCMCustomer.CCMContract = $self;
@@ -271,4 +274,9 @@ entity ConditionContractsLog : cuid {
   createdBy         : String;
   ErrorMessage     : String;
   CCMContractID: UUID;
+}
+
+entity SchedulerJobConfigCCMA: cuid , managed{
+    JobName : String;
+    JobTime : String;
 }

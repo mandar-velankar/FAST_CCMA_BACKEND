@@ -3388,4 +3388,36 @@ module.exports = (srv) => {
             return `Error: ${error.message}`;
         }
     });
+
+    srv.after("READ", "InstituteTypeView", (data) => {
+        if (data && data.length > 0) {
+            const deduped = Array.from(
+                new Map(data.map(item => [item.InstituteType, item])).values()
+            );
+
+            // clear original array and push deduped items back
+            data.splice(0, data.length, ...deduped);
+        }
+
+        data.unshift({
+            InstituteType: "All"
+        });
+    });
+
+    srv.after("READ", "InstituteNameView", (data) => {
+        if (data && data.length > 0) {
+            const deduped = Array.from(
+                new Map(data.map(item => [item.InstituteName, item])).values()
+            );
+
+            // clear original array and push deduped items back
+            data.splice(0, data.length, ...deduped);
+        }
+
+        data.unshift({
+            InstituteID: "All",
+            InstituteName: "All",
+            CustomerID: "All"
+        });
+    });
 };

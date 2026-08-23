@@ -33,6 +33,7 @@
                     />
                     <Select
                         id="idSlctCountry"
+                        width="10rem"
                         selectedKey="{ui>/SelectedCountry}"
                         items="{ path: 'ui>/UserCountries' }"
                         change=".onCountriesReceived"
@@ -66,6 +67,7 @@
                     <Select 
                         id="idSelectProduct" 
                         change=".setFilter"
+                        width="12rem"
                         items="{
                             path: '/BrandProductsView',
                             sorter: {
@@ -79,7 +81,11 @@
                             text="{ProductName}"
                         />
                     </Select>
-                    <Select id="idslctfilter" change=".setFilter" selectedKey="{ui>/selectedContractStatus}">
+                    <Label
+						text="Contract Status"
+						labelFor="idSelectedContractStatus"
+					/>
+                    <Select id="idslctfilter" change=".setFilter" width="12rem" selectedKey="{ui>/selectedContractStatus}">
                         <core:Item
                             key=""
                             text="All"
@@ -125,6 +131,37 @@
                             text="Cancelled"
                         />
                     </Select>
+                    <Label
+						text="Institute Type"
+						labelFor="idSelectInstituteType"
+					/>
+                    <Select 
+                        id="idSelectInstituteType" 
+                        change=".onInstituteTypeChange"
+                        items="{
+                            path: '/InstituteTypeView',
+                            sorter: {
+                                path: 'InstituteType',
+                                descending: false
+                            }
+                        }"
+                    >
+                        <core:Item
+                            key="{InstituteType}"
+                            text="{InstituteType}"
+                        />
+                    </Select>
+					<Label
+						text="Institute Name"
+						labelFor="idSelectInstitute"
+					/>
+					<Input
+						id="idSelectInstitute"
+						width="12rem"
+						showValueHelp="true"
+						valueHelpRequest=".onInstituteValueHelpRequest"
+						change=".onInstituteInputChange"
+						editable="true"/>
 
                     <ToolbarSpacer />
                     <SearchField
