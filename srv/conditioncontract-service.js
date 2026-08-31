@@ -307,7 +307,11 @@ module.exports = (srv) => {
 
         // Case 1: Existing = Tender, New = Tender
         if (existingType === "Tender" && newType === "Tender") {
-            return "CREATE_NEW";
+            if (newStart <= existingEnd) {
+                return "UPDATE_AND_CREATE_NEW"; 
+            } else {
+                return "CREATE_NEW";
+            }
         }
 
         // Case 2: Existing = Commercial Agreement, New = Tender
@@ -345,6 +349,9 @@ module.exports = (srv) => {
     async function processContractsForCreation(tx, processedCases) {
         const invoiceResults = [];
         const updatedContracts = [];
+        const blockedNotices = []; 
+        const excludeNotices = [];
+        const notifyOps = []; 
 
         console.log(`[START] Processing ${processedCases.length} contract cases`);
         const startTime = moment();
@@ -475,6 +482,10 @@ module.exports = (srv) => {
                     action: decideContractAction(contract, newOffer)
                 }));
 
+                contractActions
+                    .filter(a => a.action === "NO_ACTION")
+                    .forEach(a => blockedNotices.push(buildBlockedMessage(a.contract)));
+
                 const updateAndCreate = contractActions.filter(a => a.action === "UPDATE_AND_CREATE_NEW");
                 const createOnly = contractActions.filter(a => a.action === "CREATE_NEW");
 
@@ -496,6 +507,9 @@ module.exports = (srv) => {
                                 if (!excludeMap.has(contract.Customer)) {
                                     excludeMap.set(contract.Customer, {
                                         customer: contract.Customer,
+                                        CCMContractID: contract.CCMContractID,
+                                        contractType: contract.ContractType,
+                                        contractNumber: contract.ContractNumber,
                                         validfrom: `${contract.ConditionValidityStartDate}T00:00:00`,
                                         validto: `${contract.ConditionValidityEndDate}T00:00:00`
                                     });
@@ -530,6 +544,11 @@ module.exports = (srv) => {
 
             for (const contract of uniqueContracts) {
                 const action = decideContractAction(contract, newOffer);
+
+                if (action === "NO_ACTION") {
+                    blockedNotices.push(buildBlockedMessage(contract));
+                    continue;
+                }
 
                 if (action !== "NO_ACTION") {
                     shouldCreate = true;
@@ -605,6 +624,82 @@ module.exports = (srv) => {
                 })
             );
 
+            creationOperations.forEach((op, idx) => {
+                const newContractNumber = creationResults[idx]?.data?.ConditionContract;
+                if (op.excludeCustomers?.length && newContractNumber) {
+                    op.excludeCustomers.forEach(ec => {
+                        excludeNotices.push(buildExcludedMessage(
+                            { ContractNumber: ec.contractNumber, Customer: ec.customer },
+                            newContractNumber
+                        ));
+                    });
+                }
+            });
+
+            // ===== NOTIFY CONTRACT OWNER: Comments + flag on every touched CCMContract row =====
+
+            // (a) New contract rows — every creation, plain or exclude
+            creationOperations.forEach((op, idx) => {
+                const newContractNumber = creationResults[idx]?.data?.ConditionContract;
+                if (!newContractNumber) return;
+
+                const newOffer = op.sourceData[0];
+                const contractType = newOffer?.ContractType;
+
+                const newContractComment = op.type === 'CREATE_EXCLUDE'
+                    ? buildCreateExcludeComment(newContractNumber, contractType, op.excludeCustomers)
+                    : buildCreateComment(newContractNumber, contractType);
+
+                if (newOffer?.CCMContractID) {
+                    notifyOps.push(
+                        UPDATE(CCMContract)
+                            .with({ NotifiedtoContractOwner: true, Comments: newContractComment })
+                            .where({ ID: newOffer.CCMContractID })
+                    );
+                }
+
+                // (b) Existing excluded contract rows, CASE_5 CREATE_EXCLUDE path
+                if (op.type === 'CREATE_EXCLUDE') {
+                    op.excludeCustomers.forEach(ec => {
+                        if (!ec.CCMContractID) return;
+                        notifyOps.push(
+                            UPDATE(CCMContract)
+                                .with({
+                                    NotifiedtoContractOwner: true,
+                                    Comments: buildExcludeComment(ec, newContractNumber, contractType)
+                                })
+                                .where({ ID: ec.CCMContractID })
+                        );
+                    });
+                }
+            });
+
+            // (c) Existing updated/excluded-via-CASE_2 contract rows
+            for (const op of updateOperations) {
+                if (!updatedContracts.includes(op.contract.ContractNumber)) continue;
+
+                const matchingCreation = creationOperations.findIndex(
+                    c => getOfferKey(c.sourceData[0]) === getOfferKey(op.newOffer)
+                );
+                const newContractNumber = matchingCreation !== -1
+                    ? creationResults[matchingCreation]?.data?.ConditionContract
+                    : null;
+                if (!newContractNumber) continue;
+
+                notifyOps.push(
+                    UPDATE(CCMContract)
+                        .with({
+                            NotifiedtoContractOwner: true,
+                            Comments: buildUpdateComment(op, newContractNumber)
+                        })
+                        .where({ ID: op.contract.CCMContractID })
+                );
+            }
+
+            if (notifyOps.length) {
+                await Promise.all(notifyOps.map(q => tx.run(q)));
+            }
+
             invoiceResults.push(...creationResults.filter(Boolean));
         }
 
@@ -612,7 +707,7 @@ module.exports = (srv) => {
         console.log(`[END] Processed ${processedCases.length} cases in ${endTime.diff(startTime, 'milliseconds')}ms`);
         console.log(`[STATS] Updates: ${updateOperations.length}, Creations: ${creationOperations.length}`);
 
-        return { invoiceResults, updatedContracts };
+        return { invoiceResults, updatedContracts, blockedNotices, excludeNotices };
     }
 
     async function executeContractUpdate(tx, caseType, contract, newOffer) {
@@ -1061,7 +1156,7 @@ module.exports = (srv) => {
             e = moment();
             logTime("Prepare Rebate Contracts", s, e);
 
-            let invoicePromise = Promise.resolve({ invoiceResults: [], updatedContracts: [] });
+            let invoicePromise = Promise.resolve({ invoiceResults: [], updatedContracts: [], blockedNotices: [], excludeNotices: [] });
 
             if (!isPVLContract) {
                 console.log("Preprocess + Process Invoice...");
@@ -1078,14 +1173,13 @@ module.exports = (srv) => {
             //const invoicePromise = createCCMContract(tx, 'ES', "ConditionContract", sourceData);
             console.log("Parallel Execution...");
             s = moment();
-            const [{ invoiceResults, updatedContracts}, rebateResponses] = await Promise.all([invoicePromise, rebatePromise]);
+            const [{ invoiceResults, updatedContracts, blockedNotices = [], excludeNotices = []}, rebateResponses] = await Promise.all([invoicePromise, rebatePromise]);
             e = moment();
             logTime("Parallel Execution (SAP Calls)", s, e);            
 
             console.log("Process Results...");
             s = moment();            
             let createdInvoiceContracts = [];
-            let excludedMatched = [];
 
             const dbOps = [];
             const logs = [];
@@ -1169,8 +1263,6 @@ module.exports = (srv) => {
                         const match = hierarchyMap.get(cust.customer);
 
                         if (match) {
-                            excludedMatched.push(cust.customer);
-
                             dbOps.push(
                                 UPDATE(CustomerHierarchy).set({ Excluded: true }).where({ ID: match.ID , CustomerID: cust.customer }),
                                 INSERT.into(ContractItemGUID).entries({
@@ -1234,11 +1326,12 @@ module.exports = (srv) => {
 
             let updatedMsg = updatedContracts.length ? `Updated Contracts: ${updatedContracts.join(", ")}` : "";
 
-            let excludedMsg = excludedMatched.length ? `Following customers were excluded while creating contract: ${excludedMatched.join(", ")}` : "";
-
             let rebateMsg = `${rebateResponses.length} Rebate Contract${rebateResponses.length !== 1 ? "s" : ""}`;
 
-            const successMessage = [invoiceMsg, excludedMsg, updatedMsg, rebateMsg].filter(Boolean).join(" + ");
+            const blockedMsg = blockedNotices.join(" | ");
+            const excludeDetailMsg = excludeNotices.join(" | ");
+
+            const successMessage = [invoiceMsg, excludeDetailMsg, blockedMsg, updatedMsg, rebateMsg].filter(Boolean).join(" + ");
 
             endTime = moment();
             console.log("TOTAL createCCMContract END:", endTime.format());
@@ -3420,4 +3513,38 @@ module.exports = (srv) => {
             CustomerID: "All"
         });
     });
+
+    function buildBlockedMessage(contract) {
+        return `There is existing Active tender assortment contract# ${contract.ContractNumber} for customer# ${contract.Customer}. Hence, Contract is not created.`;
+    }
+
+    function buildExcludedMessage(existingContract, newContractNumber) {
+        return `There is existing Active commercial assortment contract# ${existingContract.ContractNumber} for customer# ${existingContract.Customer}. `
+            + `Hence, excluding the customer in assortment contract and created the new contract# ${newContractNumber}`;
+    }
+
+    function buildUpdateComment(op, newContractNumber) {
+        if (op.caseType === "CASE_2") {
+            return `Customer ${op.newOffer.Customer} excluded from existing ${op.contract.ContractType} contract# ${op.contract.ContractNumber} `
+                + `due to new ${op.newOffer.ContractType} contract# ${newContractNumber} creation.`;
+        }
+        return `Existing ${op.contract.ContractType} contract# ${op.contract.ContractNumber} updated/end-dated `
+            + `due to new ${op.newOffer.ContractType} contract# ${newContractNumber} creation.`;
+    }
+
+    function buildExcludeComment(existingContract, newContractNumber, newOfferType) {
+        return `There is existing Active ${existingContract.contractType?.toLowerCase()} assortment contract# ${existingContract.contractNumber} `
+            + `for customer# ${existingContract.customer}. Hence, excluded the customer and created new ${newOfferType} contract# ${newContractNumber}.`;
+    }
+
+    function buildCreateComment(newContractNumber, contractType) {
+        return `New ${contractType} contract# ${newContractNumber} created.`;
+    }
+
+    function buildCreateExcludeComment(newContractNumber, contractType, excludeCustomers) {
+        const custPart = excludeCustomers
+            .map(ec => `customer# ${ec.customer} (excluded from existing ${ec.contractType?.toLowerCase() ?? ''} contract# ${ec.contractNumber})`)
+            .join(", ");
+        return `New ${contractType} contract# ${newContractNumber} created. Following customer(s) excluded: ${custPart}.`;
+    }
 };
