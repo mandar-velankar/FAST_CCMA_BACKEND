@@ -65,7 +65,7 @@ entity CCMContract: cuid, managed, temporal{
   ExtensionPeriod: String;
   CreationDate: Date;
   NotifiedtoContractOwner: Boolean default false;
-  Comments: String;
+  Comments: LargeString;
   Cancelled: Boolean default false;
   CancellationComment: String;
   CCMCustomer: Composition of CCMCustomer on CCMCustomer.CCMContract = $self;
