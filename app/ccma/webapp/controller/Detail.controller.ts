@@ -19,6 +19,7 @@ import Fragment from "sap/ui/core/Fragment";
 import Dialog from "sap/m/Dialog";
 import ColumnListItem from "sap/m/ColumnListItem";
 import Text from "sap/m/Text";
+import * as formatter from "com/bayer/tender/ccma/model/formatter";
 type TDetailRouteParameters = {
     id: string;
     layout: string;
@@ -35,6 +36,7 @@ export default class Detail extends BaseController {
     oSelCol?: string;
     _oPopover?: any;
     _bKeyboard?: boolean;
+    public formatter = formatter;
 
     public onInit() {
         this.getRouter().getRoute("detail")?.attachPatternMatched(this.onMatched, this);

@@ -40,6 +40,22 @@
                         />
                     </header>
                 </Column>
+                  <Column>
+                    <header>
+                        <ObjectIdentifier
+                            title="{i18n>ProductsListFragment.ActualSKU}"
+                            titleActive="true"
+                        />
+                    </header>
+                </Column>
+                  <Column>
+                    <header>
+                        <ObjectIdentifier
+                            title="{i18n>ProductsListFragment.PreviousSKU}"
+                            titleActive="true"
+                        />
+                    </header>
+                </Column>
                 <Column>
                     <header>
                         <ObjectIdentifier
@@ -85,7 +101,7 @@
                         />
                     </header>
                 </Column>
-                <Column>
+                <!-- <Column>
                     <header>
                         <ObjectIdentifier
                             title="{i18n>ProductsListFragment.MaterialNumbers}"
@@ -93,7 +109,7 @@
                             titlePress="onClick"
                         />
                     </header>
-                </Column>
+                </Column> -->
                 <Column>
                     <header>
                         <ObjectIdentifier
@@ -130,6 +146,8 @@
                 >
                     <cells>
                         <Text text="{ProductName}" />
+                        <Text text="{ path: 'ContractMaterialNumbers', formatter: '.formatter.formatActiveMaterials' }" />
+                        <Text text="{path: 'ContractMaterialNumbers', formatter: '.formatter.formatInactiveMaterials'}" />
                         <Text
                             text="{
 									path: 'CCMContractStartDate',
@@ -151,7 +169,7 @@
                         <Text text="{OfferPrice}" />
                         <Text text="{hasRappel}" />
                         <Text text="{hasFOC}" />
-                        <Text text="{ContractMaterialNumbers}" />
+                        <!-- <Text text="{ContractMaterialNumbers}" /> -->
                         <Text text="{NewMaterialNumber}" />
                         <Text text="{ContractNumber}" />
                         <Text text="{PreviousContractNumber}" />
