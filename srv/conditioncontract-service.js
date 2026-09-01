@@ -490,7 +490,7 @@ module.exports = (srv) => {
                 const createOnly = contractActions.filter(a => a.action === "CREATE_NEW");
 
                 let excludeCustomers = [];
-                let hasTenderToCommercialUpdate = false;
+                let hasCommercialAgreementUpdate = false;
 
                 if (updateAndCreate.length > 0) {
                     const excludeMap = new Map();
@@ -499,8 +499,8 @@ module.exports = (srv) => {
                         const newType = newOffer?.ContractType;
                         const existingType = contract?.ContractType;
 
-                        if (newType === "Tender" && existingType === "Commercial Agreement" && contract.ContractNumber) {
-                            hasTenderToCommercialUpdate = true;
+                        if (["Tender", "Commercial Agreement"].includes(newType)  && existingType === "Commercial Agreement" && contract.ContractNumber) { //not exclude but end the existing CA
+                            hasCommercialAgreementUpdate = true;
                             updateOperations.push({ caseType, contract, newOffer });
                         } else {
                             if (contract?.ContractNumber && contract?.Customer) {
@@ -525,12 +525,12 @@ module.exports = (srv) => {
 
                 if (shouldCreate) {
                     queueCreation(offerKey, {
-                        type: !hasTenderToCommercialUpdate && excludeCustomers.length > 0
+                        type: !hasCommercialAgreementUpdate && excludeCustomers.length > 0
                             ? 'CREATE_EXCLUDE'
                             : 'CREATE',
                         caseType,
                         sourceData,
-                        excludeCustomers: !hasTenderToCommercialUpdate && excludeCustomers.length > 0
+                        excludeCustomers: !hasCommercialAgreementUpdate && excludeCustomers.length > 0
                             ? excludeCustomers
                             : null
                     });
