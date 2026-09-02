@@ -285,41 +285,26 @@ export function formatHighlight(hasActiveContracts: string) {
     return "Warning";
 }
 
-export function formatActiveMaterials(sValue: string) {
+export function formatActiveMaterials(sValue: string): string {
     if (!sValue) {
         return "";
     }
 
-    var aParts = sValue.split(" - ");
-    var aResult = [];
-
-    for (var i = 0; i < aParts.length; i += 2) {
-        var sMaterial = aParts[i] ? aParts[i].trim() : "";
-        var sStatus = aParts[i + 1] ? aParts[i + 1].trim().toLowerCase() : "";
-
-        if (sStatus === "active") {
-            aResult.push(sMaterial);
-        }
-    }
-
-    return aResult.join(", ");
+    return sValue
+        .split(/\r?\n/)
+        .filter((item: string) => item.trim().toLowerCase().endsWith("- active"))
+        .map((item: string) => item.replace(/\s*-\s*active$/i, "").trim())
+        .join(", ");
 }
-export function formatInactiveMaterials(sValue: string) {
+
+export function formatInactiveMaterials(sValue: string): string {
     if (!sValue) {
         return "";
     }
 
-    var aParts = sValue.split(" - ");
-    var aResult = [];
-
-    for (var i = 0; i < aParts.length; i += 2) {
-        var sMaterial = aParts[i] ? aParts[i].trim() : "";
-        var sStatus = aParts[i + 1] ? aParts[i + 1].trim().toLowerCase() : "";
-
-        if (sStatus === "inactive") {
-            aResult.push(sMaterial);
-        }
-    }
-
-    return aResult.join(", ");
+    return sValue
+        .split(/\r?\n/)
+        .filter((item: string) => item.trim().toLowerCase().endsWith("- inactive"))
+        .map((item: string) => item.replace(/\s*-\s*inactive$/i, "").trim())
+        .join(", ");
 }
