@@ -552,15 +552,20 @@ export default class Master extends BaseController {
 	public async onUpdateCCMContracts(): Promise<void> {
 		const fastContractsTable = this.byId("idContractsMasterTable") as Table;  
 		const fastContracts = fastContractsTable.getItems().map(item => item?.getBindingContext()?.getObject());
+		const visibleContractIds = [...new Set(
+			fastContracts
+				.map((contract: any) => contract?.ID)
+				.filter((id: any): id is string => Boolean(id))
+		)];
 
-		if (fastContracts && Array.isArray(fastContracts) && fastContracts.length === 0) {
+		if (visibleContractIds.length === 0) {
 			MessageBox.error("No Contracts with new Material Number found");
 			return;
 		}
 
 		BusyIndicator.show();
 
-		const promises = fastContracts.map(async (contract: any) => {
+		try {
 			const contextBinding = this.getModel()?.bindContext(
 				"/addNewMaterialNumberToExistingContract(...)"
 			);
@@ -569,20 +574,11 @@ export default class Master extends BaseController {
 				throw new Error("Context binding failed");
 			}
 
-			contextBinding.setParameter("FastCCMContractId", contract?.ID);
-
-			return contextBinding.execute().then(() => {
-				const oActionContext = contextBinding.getBoundContext();
-				return oActionContext?.getObject();
-			});
-		});
-
-		try {
-			const results = await Promise.all(promises);
-			// Handle overall success here
-			this.onUpdateCCMContractsSuccess(results);
+			contextBinding.setParameter("FastCCMContractIds", visibleContractIds.join(","));
+			await contextBinding.execute();
+			const actionResult = contextBinding.getBoundContext()?.getObject();
+			this.onUpdateCCMContractsSuccess(actionResult);
 		} catch (error) {
-			// Handle overall failure here
 			this.onUpdateCCMContractsFail(error);
 		} finally {
 			BusyIndicator.hide();
@@ -593,15 +589,17 @@ export default class Master extends BaseController {
     public onUpdateCCMContractsSuccess(res: any): void {
 		const table = this._oList;
 		const messages: CompositeMessageType[] = [];
-		res.forEach((item: any, index:number) => {
-			const parsedContracts = JSON.parse(item.value);
-			parsedContracts.forEach((pc: any) => {
-				messages.push({
-					type: pc.success ? 'Success' : 'Error',
-					title: pc.message,
-					description: pc.message,
-					counter: index+1
-				});
+		const responseValue = Array.isArray(res) ? res[0]?.value : res?.value;
+		const parsedContracts = typeof responseValue === "string"
+			? JSON.parse(responseValue)
+			: responseValue;
+
+		(parsedContracts || []).forEach((pc: any, index: number) => {
+			messages.push({
+				type: pc.success ? 'Success' : 'Error',
+				title: pc.message,
+				description: pc.message,
+				counter: index + 1
 			});
 		});
 

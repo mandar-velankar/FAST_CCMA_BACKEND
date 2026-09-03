@@ -3052,13 +3052,28 @@ module.exports = (srv) => {
     srv.getSAPSalesOrderSimulationRequestBody = getSAPSalesOrderSimulationRequestBody;
 
     srv.on("addNewMaterialNumberToExistingContract", async (req) => {
+        let sourceData = [];
+
         try {
-            const {FastCCMContractId} = req.data;
+            const requestedIds = typeof req.data?.FastCCMContractIds === 'string'
+                ? [...new Set(req.data.FastCCMContractIds.split(',').map(id => id.trim()).filter(Boolean))]
+                : [];
+
+            if (requestedIds.length === 0) {
+                return req.reject(400, "At least one Fast condition contract ID is required");
+            }
+
             const tx = cds.tx(req);
-            const contracts = await tx.run(SELECT.from(CCMContract).where({FastConditionContracts_ID: FastCCMContractId}));
-            const sourceData = await tx.run(SELECT.from(ContractNewMaterialNumberPayloadView).where({
-                CCMContractID: {in: contracts.map(contract => contract.ID)}, FastConditionContractID: FastCCMContractId
-            }));
+            const contracts = await tx.run(
+                SELECT.from(CCMContract).where({
+                    FastConditionContracts_ID: { in: requestedIds }
+                })
+            );
+            sourceData = await tx.run(
+                SELECT.from(ContractNewMaterialNumberPayloadView).where({
+                    FastConditionContractID: { in: requestedIds }
+                })
+            );
             const contractNumbers = [
                 ...new Set(
                     sourceData
@@ -3067,18 +3082,33 @@ module.exports = (srv) => {
                 )
             ];
 
-            const sapResponses = [];
-
-            if (Array.isArray(sourceData) && sourceData.length === 0) req.reject(403, "No Maetrials found");
-
-            for (let cn of contractNumbers) {
-                const filteredSourceData = sourceData.filter(sd => sd.ContractNumber === cn);
-                const sapResponse = await addNewMaterNumberToExistingContract(tx, 'ES', "ConditionContract", filteredSourceData);
-                if (!sapResponse) req.reject(403, "No response received from SAP");
-                sapResponses.push(sapResponse.data);
+            if (sourceData.length === 0) {
+                return req.reject(404, "No new materials found for the requested contracts");
             }
 
-            const result = await prepareContractUpdateResponse(sapResponses, FastCCMContractId, contracts);
+            const sapResponses = [];
+            for (const contractNumber of contractNumbers) {
+                const operationSourceData = sourceData.filter(
+                    row => row.ContractNumber === contractNumber
+                );
+
+                const sapResponse = await addNewMaterNumberToExistingContract(
+                    tx,
+                    'ES',
+                    "ConditionContract",
+                    operationSourceData,
+                    req.user.id
+                );
+                if (!sapResponse) return req.reject(502, "No response received from SAP");
+                sapResponses.push(sapResponse);
+            }
+
+            const result = await prepareContractUpdateResponse(
+                sapResponses,
+                requestedIds,
+                contracts,
+                tx
+            );
             
 
             return req.reply(JSON.stringify(result));
@@ -3124,17 +3154,31 @@ module.exports = (srv) => {
                 console.error("Unhandled Error:", error);
             }
             error.message = userMessage;
-            logError(error);
+            if (!error.materialNumberLogPersisted && sourceData.length > 0) {
+                await persistMaterialNumberLog(
+                    sourceData,
+                    error.payload,
+                    req.user.id,
+                    false,
+                    error.message
+                );
+            } else if (sourceData.length === 0) {
+                logError(error);
+            }
             return req.reject(statusCode, userMessage);
         }
     })
 
-    async function addNewMaterNumberToExistingContract (tx, countryCode, resource, sourceData) {
+    async function addNewMaterNumberToExistingContract (tx, countryCode, resource, sourceData, userId) {
         let body;
         try {
             const apiConfig = await tx.run(SELECT.one.from(APIDefinition).where({ Provider: 'ConditionContract', CountryCode: countryCode, Resource: resource, Name: 'AddNewMaterialNumbersToExistingContracts' }));
+            if (!apiConfig) {
+                throw new Error("ERR_MISSING_PARAMETER:API Definition not found");
+            }
+
             const apiBodyMappings = await tx.run(SELECT.from(APIBody).where({ APIDefinition_ID: apiConfig.ID }));
-            if (!apiBodyMappings) {
+            if (!Array.isArray(apiBodyMappings) || apiBodyMappings.length === 0) {
                 throw new Error("ERR_MISSING_PARAMETER:API body Mappings not found");
             }
             body = buildNewMaterialNumberPayloadFromMappings(sourceData, apiBodyMappings);
@@ -3145,18 +3189,36 @@ module.exports = (srv) => {
             const url = `${apiConfig.Host}${apiConfig.BasePath}${apiConfig.ResourcePath}`;
 
             const oauthCredentials = await getBearerToken(oauthAuth);
-            return axios({
+            const response = await axios({
                 method: 'post',
                 url: url,
+                timeout: 120000,
                 headers: {
                     'Authorization': `Bearer ${oauthCredentials.data.access_token}`,
                     'Content-Type': 'application/json'
                 },
                 data: JSON.stringify(body)
             });
+
+            await persistMaterialNumberLog(
+                sourceData,
+                body,
+                userId,
+                true,
+                null
+            );
+
+            return { response, body };
         } catch (error) {
             error.payload = body;
-            throw error
+            error.materialNumberLogPersisted = await persistMaterialNumberLog(
+                sourceData,
+                body,
+                userId,
+                false,
+                getMaterialOperationErrorMessage(error)
+            );
+            throw error;
         }
     }
 
@@ -3351,41 +3413,109 @@ module.exports = (srv) => {
 
 
 
-    async function prepareContractUpdateResponse (sapResponseData, FastCCMContractId, contracts) {
-        const promises = [];
-        const parsedBatchResponses = [];
+    function serializePayload(payload) {
+        if (payload === undefined || payload === null) return null;
+        return typeof payload === 'string' ? payload : JSON.stringify(payload);
+    }
 
-        for (let sapResponse of sapResponseData) {
-            const batchResponses = parseSapODataV4Batch(sapResponse);
-            parsedBatchResponses.push(batchResponses);
+    function getMaterialOperationErrorMessage(error) {
+        const sapError = error?.response?.data;
+        return sapError?.error?.message?.value ||
+            sapError?.error?.innererror?.errordetails?.[0]?.message ||
+            sapError?.fault?.faultstring ||
+            sapError?.Exception_Details?.Exception_Message ||
+            (typeof sapError === 'string' ? sapError : null) ||
+            error?.message ||
+            "An error occurred while adding the material to SAP.";
+    }
+
+    function buildMaterialNumberLogEntry(row, contract, payload, userId, synchronized, errorMessage) {
+        return {
+            ContractNumber: row?.ContractNumber || contract?.ContractNumber,
+            ContractType: row?.ContractType || contract?.ContractType,
+            ContractReference: contract?.ContractReferene || row?.Reference,
+            PayloadType: synchronized
+                ? 'AddNewMaterialNumberToExistingContract'
+                : 'AddNewMaterialNumberToExistingContract_ERROR',
+            PayloadToSAP: serializePayload(payload),
+            Synchronized: synchronized,
+            createdAt: new Date().toISOString(),
+            createdBy: userId,
+            ErrorMessage: errorMessage || null,
+            CCMContractID: row?.CCMContractID || contract?.ID
+        };
+    }
+
+    async function persistMaterialNumberLog(rows, payload, userId, synchronized, errorMessage) {
+        if (!Array.isArray(rows) || rows.length === 0) return false;
+
+        const entries = [buildMaterialNumberLogEntry(
+            rows[0],
+            null,
+            payload,
+            userId,
+            synchronized,
+            errorMessage
+        )];
+
+        try {
+            await cds.spawn(async tx => {
+                await tx.run(INSERT.into(ConditionContractsLog).entries(entries));
+            });
+            return true;
+        } catch (logError) {
+            console.warn('Failed to write material-number log:', logError.message);
+            return false;
         }
+    }
+
+    async function prepareContractUpdateResponse(sapResponses, fastContractIds, contracts, tx) {
+        const parsedBatchResponses = sapResponses.map(sapResponse =>
+            parseSapODataV4Batch(sapResponse.response?.data)
+        );
         const flatParsedBatchResponses = parsedBatchResponses.flat();
-        const allRequestsSucceded = flatParsedBatchResponses.every(el => el.success);
+        const dbOperations = [];
 
-        if (allRequestsSucceded) {
-            promises.push(UPDATE(FastConditionContracts).with({ hasNewMaterialNumber: false }).where({ ID: FastCCMContractId }));
+        if (flatParsedBatchResponses.length > 0 && flatParsedBatchResponses.every(response => response.success)) {
+            dbOperations.push(
+                UPDATE(FastConditionContracts)
+                    .with({ hasNewMaterialNumber: false })
+                    .where({ ID: { in: fastContractIds } })
+            );
         }
 
-        for (let br of flatParsedBatchResponses) {
-            if (br.success) {
-                const existingContract = contracts.find(contract => contract.ContractNumber === br?.body?.ConditionContract);
-                
-                br.message = `Material: ${br?.body?.Product} added to the contract: ${br?.body?.ConditionContract}`;
+        for (const response of flatParsedBatchResponses) {
+            if (!response.success) continue;
 
-                contracts.forEach(ctr => {
-                    if (ctr.ID === existingContract.ID) {
-                        ctr.NewMaterialNumber = ctr.NewMaterialNumber.split(',').filter(el => el != br?.body?.Product).join(',');
-                    }
-                })
-                promises.push(UPDATE(CCMMaterial).with({ isNewMaterialNumber: false }).where({ CCMContract_ID: existingContract.ID, MaterialNumber:  br?.body?.Product}));
-            }
+            const existingContract = contracts.find(contract =>
+                contract.ContractNumber === response?.body?.ConditionContract
+            );
+            if (!existingContract) continue;
+
+            response.message = `Material: ${response?.body?.Product} added to the contract: ${response?.body?.ConditionContract}`;
+            existingContract.NewMaterialNumber = String(existingContract.NewMaterialNumber || '')
+                .split(',')
+                .map(material => material.trim())
+                .filter(material => material && material !== String(response?.body?.Product))
+                .join(',');
+
+            dbOperations.push(
+                UPDATE(CCMMaterial)
+                    .with({ isNewMaterialNumber: false })
+                    .where({
+                        CCMContract_ID: existingContract.ID,
+                        MaterialNumber: response?.body?.Product
+                    }),
+                UPDATE(CCMContract)
+                    .with({ NewMaterialNumber: existingContract.NewMaterialNumber })
+                    .where({ ID: existingContract.ID })
+            );
         }
 
-        promises.push(contracts.map(ctr => {
-            return UPDATE(CCMContract).with({ NewMaterialNumber: ctr.NewMaterialNumber }).where({ ID: ctr.ID });
-        }))
+        if (dbOperations.length > 0) {
+            await Promise.all(dbOperations.map(operation => tx.run(operation)));
+        }
 
-        await Promise.all(promises.flat());
         return flatParsedBatchResponses;
     }
 
