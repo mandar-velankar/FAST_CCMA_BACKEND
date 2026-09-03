@@ -3196,6 +3196,17 @@ module.exports = (srv) => {
                 data: JSON.stringify(body)
             });
 
+            const batchResponses = parseSapODataV4Batch(response?.data);
+            const failedResponse = batchResponses.find(batchResponse => !batchResponse.success);
+            if (failedResponse) {
+                const sapError = new Error(
+                    failedResponse.message || 'SAP rejected the material request'
+                );
+                sapError.code = failedResponse.statusCode || 502;
+                sapError.payload = body;
+                throw sapError;
+            }
+
             await persistMaterialNumberLog(
                 sourceData,
                 body,
@@ -3466,10 +3477,20 @@ module.exports = (srv) => {
     }
 
     async function prepareContractUpdateResponse(sapResponses, fastContractIds, contracts, tx) {
-        const parsedBatchResponses = sapResponses.map(sapResponse =>
-            parseSapODataV4Batch(sapResponse.response?.data)
-        );
-        const flatParsedBatchResponses = parsedBatchResponses.flat();
+        const flatParsedBatchResponses = [];
+        for (const sapResponse of sapResponses) {
+            const batchResponses = parseSapODataV4Batch(sapResponse.response?.data);
+            const failedResponse = batchResponses.find(response => !response.success);
+            if (failedResponse) {
+                const sapError = new Error(
+                    failedResponse.message || 'SAP rejected the material request'
+                );
+                sapError.code = failedResponse.statusCode || 502;
+                sapError.payload = sapResponse.body;
+                throw sapError;
+            }
+            flatParsedBatchResponses.push(...batchResponses);
+        }
         const dbOperations = [];
 
         if (flatParsedBatchResponses.length > 0 && flatParsedBatchResponses.every(response => response.success)) {
@@ -3481,8 +3502,6 @@ module.exports = (srv) => {
         }
 
         for (const response of flatParsedBatchResponses) {
-            if (!response.success) continue;
-
             const existingContract = contracts.find(contract =>
                 contract.ContractNumber === response?.body?.ConditionContract
             );
