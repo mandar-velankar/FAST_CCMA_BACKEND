@@ -307,7 +307,11 @@ module.exports = (srv) => {
 
         // Case 1: Existing = Tender, New = Tender
         if (existingType === "Tender" && newType === "Tender") {
-            return "CREATE_NEW";
+            if (newStart <= existingEnd) {
+                return "UPDATE_AND_CREATE_NEW"; 
+            } else {
+                return "CREATE_NEW";
+            }
         }
 
         // Case 2: Existing = Commercial Agreement, New = Tender
@@ -345,6 +349,9 @@ module.exports = (srv) => {
     async function processContractsForCreation(tx, processedCases) {
         const invoiceResults = [];
         const updatedContracts = [];
+        const blockedNotices = []; 
+        const excludeNotices = [];
+        const notifyOps = []; 
 
         console.log(`[START] Processing ${processedCases.length} contract cases`);
         const startTime = moment();
@@ -475,11 +482,15 @@ module.exports = (srv) => {
                     action: decideContractAction(contract, newOffer)
                 }));
 
+                contractActions
+                    .filter(a => a.action === "NO_ACTION")
+                    .forEach(a => blockedNotices.push(buildBlockedMessage(a.contract)));
+
                 const updateAndCreate = contractActions.filter(a => a.action === "UPDATE_AND_CREATE_NEW");
                 const createOnly = contractActions.filter(a => a.action === "CREATE_NEW");
 
                 let excludeCustomers = [];
-                let hasTenderToCommercialUpdate = false;
+                let hasCommercialAgreementUpdate = false;
 
                 if (updateAndCreate.length > 0) {
                     const excludeMap = new Map();
@@ -488,14 +499,17 @@ module.exports = (srv) => {
                         const newType = newOffer?.ContractType;
                         const existingType = contract?.ContractType;
 
-                        if (newType === "Tender" && existingType === "Commercial Agreement" && contract.ContractNumber) {
-                            hasTenderToCommercialUpdate = true;
+                        if (["Tender", "Commercial Agreement"].includes(newType)  && existingType === "Commercial Agreement" && contract.ContractNumber) { //not exclude but end the existing CA
+                            hasCommercialAgreementUpdate = true;
                             updateOperations.push({ caseType, contract, newOffer });
                         } else {
                             if (contract?.ContractNumber && contract?.Customer) {
                                 if (!excludeMap.has(contract.Customer)) {
                                     excludeMap.set(contract.Customer, {
                                         customer: contract.Customer,
+                                        CCMContractID: contract.CCMContractID,
+                                        contractType: contract.ContractType,
+                                        contractNumber: contract.ContractNumber,
                                         validfrom: `${contract.ConditionValidityStartDate}T00:00:00`,
                                         validto: `${contract.ConditionValidityEndDate}T00:00:00`
                                     });
@@ -511,12 +525,12 @@ module.exports = (srv) => {
 
                 if (shouldCreate) {
                     queueCreation(offerKey, {
-                        type: !hasTenderToCommercialUpdate && excludeCustomers.length > 0
+                        type: !hasCommercialAgreementUpdate && excludeCustomers.length > 0
                             ? 'CREATE_EXCLUDE'
                             : 'CREATE',
                         caseType,
                         sourceData,
-                        excludeCustomers: !hasTenderToCommercialUpdate && excludeCustomers.length > 0
+                        excludeCustomers: !hasCommercialAgreementUpdate && excludeCustomers.length > 0
                             ? excludeCustomers
                             : null
                     });
@@ -530,6 +544,11 @@ module.exports = (srv) => {
 
             for (const contract of uniqueContracts) {
                 const action = decideContractAction(contract, newOffer);
+
+                if (action === "NO_ACTION") {
+                    blockedNotices.push(buildBlockedMessage(contract));
+                    continue;
+                }
 
                 if (action !== "NO_ACTION") {
                     shouldCreate = true;
@@ -605,6 +624,82 @@ module.exports = (srv) => {
                 })
             );
 
+            creationOperations.forEach((op, idx) => {
+                const newContractNumber = creationResults[idx]?.data?.ConditionContract;
+                if (op.excludeCustomers?.length && newContractNumber) {
+                    op.excludeCustomers.forEach(ec => {
+                        excludeNotices.push(buildExcludedMessage(
+                            { ContractNumber: ec.contractNumber, Customer: ec.customer },
+                            newContractNumber
+                        ));
+                    });
+                }
+            });
+
+            // ===== NOTIFY CONTRACT OWNER: Comments + flag on every touched CCMContract row =====
+
+            // (a) New contract rows — every creation, plain or exclude
+            creationOperations.forEach((op, idx) => {
+                const newContractNumber = creationResults[idx]?.data?.ConditionContract;
+                if (!newContractNumber) return;
+
+                const newOffer = op.sourceData[0];
+                const contractType = newOffer?.ContractType;
+
+                const newContractComment = op.type === 'CREATE_EXCLUDE'
+                    ? buildCreateExcludeComment(newContractNumber, contractType, op.excludeCustomers)
+                    : buildCreateComment(newContractNumber, contractType);
+
+                if (newOffer?.CCMContractID) {
+                    notifyOps.push(
+                        UPDATE(CCMContract)
+                            .with({ NotifiedtoContractOwner: true, Comments: newContractComment })
+                            .where({ ID: newOffer.CCMContractID })
+                    );
+                }
+
+                // (b) Existing excluded contract rows, CASE_5 CREATE_EXCLUDE path
+                if (op.type === 'CREATE_EXCLUDE') {
+                    op.excludeCustomers.forEach(ec => {
+                        if (!ec.CCMContractID) return;
+                        notifyOps.push(
+                            UPDATE(CCMContract)
+                                .with({
+                                    NotifiedtoContractOwner: true,
+                                    Comments: buildExcludeComment(ec, newContractNumber, contractType)
+                                })
+                                .where({ ID: ec.CCMContractID })
+                        );
+                    });
+                }
+            });
+
+            // (c) Existing updated/excluded-via-CASE_2 contract rows
+            for (const op of updateOperations) {
+                if (!updatedContracts.includes(op.contract.ContractNumber)) continue;
+
+                const matchingCreation = creationOperations.findIndex(
+                    c => getOfferKey(c.sourceData[0]) === getOfferKey(op.newOffer)
+                );
+                const newContractNumber = matchingCreation !== -1
+                    ? creationResults[matchingCreation]?.data?.ConditionContract
+                    : null;
+                if (!newContractNumber) continue;
+
+                notifyOps.push(
+                    UPDATE(CCMContract)
+                        .with({
+                            NotifiedtoContractOwner: true,
+                            Comments: buildUpdateComment(op, newContractNumber)
+                        })
+                        .where({ ID: op.contract.CCMContractID })
+                );
+            }
+
+            if (notifyOps.length) {
+                await Promise.all(notifyOps.map(q => tx.run(q)));
+            }
+
             invoiceResults.push(...creationResults.filter(Boolean));
         }
 
@@ -612,7 +707,7 @@ module.exports = (srv) => {
         console.log(`[END] Processed ${processedCases.length} cases in ${endTime.diff(startTime, 'milliseconds')}ms`);
         console.log(`[STATS] Updates: ${updateOperations.length}, Creations: ${creationOperations.length}`);
 
-        return { invoiceResults, updatedContracts };
+        return { invoiceResults, updatedContracts, blockedNotices, excludeNotices };
     }
 
     async function executeContractUpdate(tx, caseType, contract, newOffer) {
@@ -1061,7 +1156,7 @@ module.exports = (srv) => {
             e = moment();
             logTime("Prepare Rebate Contracts", s, e);
 
-            let invoicePromise = Promise.resolve({ invoiceResults: [], updatedContracts: [] });
+            let invoicePromise = Promise.resolve({ invoiceResults: [], updatedContracts: [], blockedNotices: [], excludeNotices: [] });
 
             if (!isPVLContract) {
                 console.log("Preprocess + Process Invoice...");
@@ -1078,14 +1173,13 @@ module.exports = (srv) => {
             //const invoicePromise = createCCMContract(tx, 'ES', "ConditionContract", sourceData);
             console.log("Parallel Execution...");
             s = moment();
-            const [{ invoiceResults, updatedContracts}, rebateResponses] = await Promise.all([invoicePromise, rebatePromise]);
+            const [{ invoiceResults, updatedContracts, blockedNotices = [], excludeNotices = []}, rebateResponses] = await Promise.all([invoicePromise, rebatePromise]);
             e = moment();
             logTime("Parallel Execution (SAP Calls)", s, e);            
 
             console.log("Process Results...");
             s = moment();            
             let createdInvoiceContracts = [];
-            let excludedMatched = [];
 
             const dbOps = [];
             const logs = [];
@@ -1169,8 +1263,6 @@ module.exports = (srv) => {
                         const match = hierarchyMap.get(cust.customer);
 
                         if (match) {
-                            excludedMatched.push(cust.customer);
-
                             dbOps.push(
                                 UPDATE(CustomerHierarchy).set({ Excluded: true }).where({ ID: match.ID , CustomerID: cust.customer }),
                                 INSERT.into(ContractItemGUID).entries({
@@ -1234,11 +1326,12 @@ module.exports = (srv) => {
 
             let updatedMsg = updatedContracts.length ? `Updated Contracts: ${updatedContracts.join(", ")}` : "";
 
-            let excludedMsg = excludedMatched.length ? `Following customers were excluded while creating contract: ${excludedMatched.join(", ")}` : "";
-
             let rebateMsg = `${rebateResponses.length} Rebate Contract${rebateResponses.length !== 1 ? "s" : ""}`;
 
-            const successMessage = [invoiceMsg, excludedMsg, updatedMsg, rebateMsg].filter(Boolean).join(" + ");
+            const blockedMsg = blockedNotices.join(" | ");
+            const excludeDetailMsg = excludeNotices.join(" | ");
+
+            const successMessage = [invoiceMsg, excludeDetailMsg, blockedMsg, updatedMsg, rebateMsg].filter(Boolean).join(" + ");
 
             endTime = moment();
             console.log("TOTAL createCCMContract END:", endTime.format());
@@ -2959,13 +3052,28 @@ module.exports = (srv) => {
     srv.getSAPSalesOrderSimulationRequestBody = getSAPSalesOrderSimulationRequestBody;
 
     srv.on("addNewMaterialNumberToExistingContract", async (req) => {
+        let sourceData = [];
+
         try {
-            const {FastCCMContractId} = req.data;
+            const requestedIds = typeof req.data?.FastCCMContractIds === 'string'
+                ? [...new Set(req.data.FastCCMContractIds.split(',').map(id => id.trim()).filter(Boolean))]
+                : [];
+
+            if (requestedIds.length === 0) {
+                return req.reject(400, "At least one Fast condition contract ID is required");
+            }
+
             const tx = cds.tx(req);
-            const contracts = await tx.run(SELECT.from(CCMContract).where({FastConditionContracts_ID: FastCCMContractId}));
-            const sourceData = await tx.run(SELECT.from(ContractNewMaterialNumberPayloadView).where({
-                CCMContractID: {in: contracts.map(contract => contract.ID)}, FastConditionContractID: FastCCMContractId
-            }));
+            const contracts = await tx.run(
+                SELECT.from(CCMContract).where({
+                    FastConditionContracts_ID: { in: requestedIds }
+                })
+            );
+            sourceData = await tx.run(
+                SELECT.from(ContractNewMaterialNumberPayloadView).where({
+                    FastConditionContractID: { in: requestedIds }
+                })
+            );
             const contractNumbers = [
                 ...new Set(
                     sourceData
@@ -2974,18 +3082,33 @@ module.exports = (srv) => {
                 )
             ];
 
-            const sapResponses = [];
-
-            if (Array.isArray(sourceData) && sourceData.length === 0) req.reject(403, "No Maetrials found");
-
-            for (let cn of contractNumbers) {
-                const filteredSourceData = sourceData.filter(sd => sd.ContractNumber === cn);
-                const sapResponse = await addNewMaterNumberToExistingContract(tx, 'ES', "ConditionContract", filteredSourceData);
-                if (!sapResponse) req.reject(403, "No response received from SAP");
-                sapResponses.push(sapResponse.data);
+            if (sourceData.length === 0) {
+                return req.reject(404, "No new materials found for the requested contracts");
             }
 
-            const result = await prepareContractUpdateResponse(sapResponses, FastCCMContractId, contracts);
+            const sapResponses = [];
+            for (const contractNumber of contractNumbers) {
+                const operationSourceData = sourceData.filter(
+                    row => row.ContractNumber === contractNumber
+                );
+
+                const sapResponse = await addNewMaterNumberToExistingContract(
+                    tx,
+                    'ES',
+                    "ConditionContract",
+                    operationSourceData,
+                    req.user.id
+                );
+                if (!sapResponse) return req.reject(502, "No response received from SAP");
+                sapResponses.push(sapResponse);
+            }
+
+            const result = await prepareContractUpdateResponse(
+                sapResponses,
+                requestedIds,
+                contracts,
+                tx
+            );
             
 
             return req.reply(JSON.stringify(result));
@@ -3031,17 +3154,31 @@ module.exports = (srv) => {
                 console.error("Unhandled Error:", error);
             }
             error.message = userMessage;
-            logError(error);
+            if (!error.materialNumberLogPersisted && sourceData.length > 0) {
+                await persistMaterialNumberLog(
+                    sourceData,
+                    error.payload,
+                    req.user.id,
+                    false,
+                    error.message
+                );
+            } else if (sourceData.length === 0) {
+                logError(error);
+            }
             return req.reject(statusCode, userMessage);
         }
     })
 
-    async function addNewMaterNumberToExistingContract (tx, countryCode, resource, sourceData) {
+    async function addNewMaterNumberToExistingContract (tx, countryCode, resource, sourceData, userId) {
         let body;
         try {
             const apiConfig = await tx.run(SELECT.one.from(APIDefinition).where({ Provider: 'ConditionContract', CountryCode: countryCode, Resource: resource, Name: 'AddNewMaterialNumbersToExistingContracts' }));
+            if (!apiConfig) {
+                throw new Error("ERR_MISSING_PARAMETER:API Definition not found");
+            }
+
             const apiBodyMappings = await tx.run(SELECT.from(APIBody).where({ APIDefinition_ID: apiConfig.ID }));
-            if (!apiBodyMappings) {
+            if (!Array.isArray(apiBodyMappings) || apiBodyMappings.length === 0) {
                 throw new Error("ERR_MISSING_PARAMETER:API body Mappings not found");
             }
             body = buildNewMaterialNumberPayloadFromMappings(sourceData, apiBodyMappings);
@@ -3052,18 +3189,47 @@ module.exports = (srv) => {
             const url = `${apiConfig.Host}${apiConfig.BasePath}${apiConfig.ResourcePath}`;
 
             const oauthCredentials = await getBearerToken(oauthAuth);
-            return axios({
+            const response = await axios({
                 method: 'post',
                 url: url,
+                timeout: 120000,
                 headers: {
                     'Authorization': `Bearer ${oauthCredentials.data.access_token}`,
                     'Content-Type': 'application/json'
                 },
                 data: JSON.stringify(body)
             });
+
+            const batchResponses = parseSapODataV4Batch(response?.data);
+            const failedResponse = batchResponses.find(batchResponse => !batchResponse.success);
+            if (failedResponse) {
+                const sapError = new Error(
+                    failedResponse.message || 'SAP rejected the material request'
+                );
+                sapError.code = failedResponse.statusCode || 502;
+                sapError.payload = body;
+                throw sapError;
+            }
+
+            await persistMaterialNumberLog(
+                sourceData,
+                body,
+                userId,
+                true,
+                null
+            );
+
+            return { response, body };
         } catch (error) {
             error.payload = body;
-            throw error
+            error.materialNumberLogPersisted = await persistMaterialNumberLog(
+                sourceData,
+                body,
+                userId,
+                false,
+                getMaterialOperationErrorMessage(error)
+            );
+            throw error;
         }
     }
 
@@ -3258,41 +3424,117 @@ module.exports = (srv) => {
 
 
 
-    async function prepareContractUpdateResponse (sapResponseData, FastCCMContractId, contracts) {
-        const promises = [];
-        const parsedBatchResponses = [];
+    function serializePayload(payload) {
+        if (payload === undefined || payload === null) return null;
+        return typeof payload === 'string' ? payload : JSON.stringify(payload);
+    }
 
-        for (let sapResponse of sapResponseData) {
-            const batchResponses = parseSapODataV4Batch(sapResponse);
-            parsedBatchResponses.push(batchResponses);
+    function getMaterialOperationErrorMessage(error) {
+        const sapError = error?.response?.data;
+        return sapError?.error?.message?.value ||
+            sapError?.error?.innererror?.errordetails?.[0]?.message ||
+            sapError?.fault?.faultstring ||
+            sapError?.Exception_Details?.Exception_Message ||
+            (typeof sapError === 'string' ? sapError : null) ||
+            error?.message ||
+            "An error occurred while adding the material to SAP.";
+    }
+
+    function buildMaterialNumberLogEntry(row, contract, payload, userId, synchronized, errorMessage) {
+        return {
+            ContractNumber: row?.ContractNumber || contract?.ContractNumber,
+            ContractType: row?.ContractType || contract?.ContractType,
+            ContractReference: contract?.ContractReferene || row?.Reference,
+            PayloadType: synchronized
+                ? 'AddNewMaterialNumberToExistingContract'
+                : 'AddNewMaterialNumberToExistingContract_ERROR',
+            PayloadToSAP: serializePayload(payload),
+            Synchronized: synchronized,
+            createdAt: new Date().toISOString(),
+            createdBy: userId,
+            ErrorMessage: errorMessage || null,
+            CCMContractID: row?.CCMContractID || contract?.ID
+        };
+    }
+
+    async function persistMaterialNumberLog(rows, payload, userId, synchronized, errorMessage) {
+        if (!Array.isArray(rows) || rows.length === 0) return false;
+
+        const entries = [buildMaterialNumberLogEntry(
+            rows[0],
+            null,
+            payload,
+            userId,
+            synchronized,
+            errorMessage
+        )];
+
+        try {
+            await cds.spawn(async tx => {
+                await tx.run(INSERT.into(ConditionContractsLog).entries(entries));
+            });
+            return true;
+        } catch (logError) {
+            console.warn('Failed to write material-number log:', logError.message);
+            return false;
         }
-        const flatParsedBatchResponses = parsedBatchResponses.flat();
-        const allRequestsSucceded = flatParsedBatchResponses.every(el => el.success);
+    }
 
-        if (allRequestsSucceded) {
-            promises.push(UPDATE(FastConditionContracts).with({ hasNewMaterialNumber: false }).where({ ID: FastCCMContractId }));
-        }
-
-        for (let br of flatParsedBatchResponses) {
-            if (br.success) {
-                const existingContract = contracts.find(contract => contract.ContractNumber === br?.body?.ConditionContract);
-                
-                br.message = `Material: ${br?.body?.Product} added to the contract: ${br?.body?.ConditionContract}`;
-
-                contracts.forEach(ctr => {
-                    if (ctr.ID === existingContract.ID) {
-                        ctr.NewMaterialNumber = ctr.NewMaterialNumber.split(',').filter(el => el != br?.body?.Product).join(',');
-                    }
-                })
-                promises.push(UPDATE(CCMMaterial).with({ isNewMaterialNumber: false }).where({ CCMContract_ID: existingContract.ID, MaterialNumber:  br?.body?.Product}));
+    async function prepareContractUpdateResponse(sapResponses, fastContractIds, contracts, tx) {
+        const flatParsedBatchResponses = [];
+        for (const sapResponse of sapResponses) {
+            const batchResponses = parseSapODataV4Batch(sapResponse.response?.data);
+            const failedResponse = batchResponses.find(response => !response.success);
+            if (failedResponse) {
+                const sapError = new Error(
+                    failedResponse.message || 'SAP rejected the material request'
+                );
+                sapError.code = failedResponse.statusCode || 502;
+                sapError.payload = sapResponse.body;
+                throw sapError;
             }
+            flatParsedBatchResponses.push(...batchResponses);
+        }
+        const dbOperations = [];
+
+        if (flatParsedBatchResponses.length > 0 && flatParsedBatchResponses.every(response => response.success)) {
+            dbOperations.push(
+                UPDATE(FastConditionContracts)
+                    .with({ hasNewMaterialNumber: false })
+                    .where({ ID: { in: fastContractIds } })
+            );
         }
 
-        promises.push(contracts.map(ctr => {
-            return UPDATE(CCMContract).with({ NewMaterialNumber: ctr.NewMaterialNumber }).where({ ID: ctr.ID });
-        }))
+        for (const response of flatParsedBatchResponses) {
+            const existingContract = contracts.find(contract =>
+                contract.ContractNumber === response?.body?.ConditionContract
+            );
+            if (!existingContract) continue;
 
-        await Promise.all(promises.flat());
+            response.message = `Material: ${response?.body?.Product} added to the contract: ${response?.body?.ConditionContract}`;
+            existingContract.NewMaterialNumber = String(existingContract.NewMaterialNumber || '')
+                .split(',')
+                .map(material => material.trim())
+                .filter(material => material && material !== String(response?.body?.Product))
+                .join(',');
+
+            dbOperations.push(
+                UPDATE(CCMMaterial)
+                    .with({ isNewMaterialNumber: false })
+                    .where({
+                        CCMContract_ID: existingContract.ID,
+                        MaterialNumber: response?.body?.Product
+                    }),
+                UPDATE(CCMContract)
+                    .with({ NewMaterialNumber: existingContract.NewMaterialNumber })
+                    .where({ ID: existingContract.ID })
+            );
+        }
+
+        if (dbOperations.length > 0) {
+            await Promise.all(dbOperations.map(operation => tx.run(operation)));
+        }
+
         return flatParsedBatchResponses;
     }
 
@@ -3420,4 +3662,38 @@ module.exports = (srv) => {
             CustomerID: "All"
         });
     });
+
+    function buildBlockedMessage(contract) {
+        return `There is existing Active tender assortment contract# ${contract.ContractNumber} for customer# ${contract.Customer}. Hence, Contract is not created.`;
+    }
+
+    function buildExcludedMessage(existingContract, newContractNumber) {
+        return `There is existing Active commercial assortment contract# ${existingContract.ContractNumber} for customer# ${existingContract.Customer}. `
+            + `Hence, excluding the customer in assortment contract and created the new contract# ${newContractNumber}`;
+    }
+
+    function buildUpdateComment(op, newContractNumber) {
+        if (op.caseType === "CASE_2") {
+            return `Customer ${op.newOffer.Customer} excluded from existing ${op.contract.ContractType} contract# ${op.contract.ContractNumber} `
+                + `due to new ${op.newOffer.ContractType} contract# ${newContractNumber} creation.`;
+        }
+        return `Existing ${op.contract.ContractType} contract# ${op.contract.ContractNumber} updated/end-dated `
+            + `due to new ${op.newOffer.ContractType} contract# ${newContractNumber} creation.`;
+    }
+
+    function buildExcludeComment(existingContract, newContractNumber, newOfferType) {
+        return `There is existing Active ${existingContract.contractType?.toLowerCase()} assortment contract# ${existingContract.contractNumber} `
+            + `for customer# ${existingContract.customer}. Hence, excluded the customer and created new ${newOfferType} contract# ${newContractNumber}.`;
+    }
+
+    function buildCreateComment(newContractNumber, contractType) {
+        return `New ${contractType} contract# ${newContractNumber} created.`;
+    }
+
+    function buildCreateExcludeComment(newContractNumber, contractType, excludeCustomers) {
+        const custPart = excludeCustomers
+            .map(ec => `customer# ${ec.customer} (excluded from existing ${ec.contractType?.toLowerCase() ?? ''} contract# ${ec.contractNumber})`)
+            .join(", ");
+        return `New ${contractType} contract# ${newContractNumber} created. Following customer(s) excluded: ${custPart}.`;
+    }
 };
