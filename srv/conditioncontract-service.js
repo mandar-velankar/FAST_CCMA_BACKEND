@@ -1611,9 +1611,7 @@ module.exports = (srv) => {
     function buildRebatePayloadFromMappings(sourceData, apiBodyMappings, customerHierarchy) {
         const finalResult = {};
         const salesGroupMap = { "Consumer Health": 'CH', Pharma: 'PH', Radiology: 'RD' };
-        const scaleTypes = {YAW2: 'D', YAW1: 'A'};
-
-        // split static vs dynamic
+            // split static vs dynamic
         const staticMappings = apiBodyMappings.filter(m => !m.Source.startsWith('ContractRebatePayloadView.'));
         const dynamicMappings = apiBodyMappings.filter(m => m.Source.startsWith('ContractRebatePayloadView.'));
 
@@ -1659,11 +1657,6 @@ module.exports = (srv) => {
             // --- Force YRA1 ---
             conditionRecord.ConditionType = 'YRA1';
 
-            // --- Apply PriceConditionCode to YRA1 ---
-            if (firstRow.PriceConditionCode) {
-                conditionRecord.PricingScaleType = scaleTypes[firstRow.PriceConditionCode] || firstRow.PriceConditionCode;
-            }
-
             if (firstRow.MaxDiscount != null) {
                 conditionRecord.ConditionRateRatio = parseFloat((firstRow.MaxDiscount * 100).toFixed(3));
             }
@@ -1677,11 +1670,6 @@ module.exports = (srv) => {
         // --- Apply MaxDiscount override on YRS1 ---
         if (sourceData[0].MaxDiscount != null) {
             yrs1Record.ConditionRateRatio = parseFloat((sourceData[0].MaxDiscount * 100).toFixed(3));
-        }
-
-        // --- Apply PriceConditionCode override on YRS1 ---
-        if (sourceData[0].PriceConditionCode) {
-            yrs1Record.PricingScaleType = scaleTypes[sourceData[0].PriceConditionCode] || sourceData[0].PriceConditionCode;
         }
 
         if (yrs1Record.PricingScaleType === 'D') {
@@ -1712,12 +1700,6 @@ module.exports = (srv) => {
                     if (sRow.Discount != null) {
                         scaleObj.ConditionRateRatio = parseFloat((sRow.Discount * 100).toFixed(3));
                     }
-
-                    // --- Apply PriceConditionCode override on each scale line ---
-                    if (sRow.PriceConditionCode) {
-                        scaleObj.PricingScaleType = scaleTypes[sRow.PriceConditionCode] || sRow.PriceConditionCode;
-                    }
-
                     return scaleObj;
                 })
             }
