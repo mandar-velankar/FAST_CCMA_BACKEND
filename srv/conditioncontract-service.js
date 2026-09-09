@@ -346,6 +346,26 @@ module.exports = (srv) => {
         return "CREATE_NEW";
     }
 
+    function decideCase5ContractAction(existingContract, newOffer) {
+        const existingType = existingContract?.ContractType;
+        const newType = newOffer?.ContractType;
+
+        // CASE 5 special rule:
+        // Sold-to Tender + assortment Commercial Agreement
+        // must use UPDATE_AND_CREATE_NEW when the contracts overlap.
+        if (existingType === "Tender" && newType === "Commercial Agreement") {
+            const existingEnd = existingContract?.ConditionValidityEndDate;
+            const newStart = newOffer?.ConditionValidityStartDate;
+
+            return newStart <= existingEnd
+                ? "UPDATE_AND_CREATE_NEW"
+                : "CREATE_NEW";
+        }
+
+        // All other CASE 5 combinations use the existing generic rules.
+        return decideContractAction(existingContract, newOffer);
+    }
+
     async function processContractsForCreation(tx, processedCases) {
         const invoiceResults = [];
         const updatedContracts = [];
@@ -370,6 +390,10 @@ module.exports = (srv) => {
 
         const getContractKey = (contract) => `${contract.CCMContractID}|${contract.ContractNumber}`;
         const getOfferKey = (newOffer) => `${newOffer?.CCMContractID}|${newOffer?.OfferID}|${newOffer?.ProductCode}`;
+
+        // Offers with a direct assortment Tender -> Commercial Agreement
+        // overlap resulting in NO_ACTION must ignore all other overlapping cases.
+        const assortmentNoActionOffers = new Set();
 
         // ===== PASS 1: determine the winning case for every overlapping contract =====
         // A contract can appear in more than one processedCases item (same
@@ -397,6 +421,31 @@ module.exports = (srv) => {
                 if (!currentWinner || CASE_PRECEDENCE[caseType] < CASE_PRECEDENCE[currentWinner]) {
                     contractWinningCase.set(key, caseType);
                 }
+            }
+        }
+
+        // ===== DIRECT ASSORTMENT NO_ACTION BLOCK =====
+        // If a direct assortment match (CASE_3) has a Tender -> Commercial Agreement
+        // overlap resulting in NO_ACTION, the entire offer is blocked.
+        // Any CASE_5 or other overlapping contracts for the same offer must be ignored.
+        for (const item of processedCases) {
+            if (item.case !== "CASE_3") {
+                continue;
+            }
+
+            const newOffer = item.sourceData?.[0];
+
+            const hasAssortmentNoAction = item.contracts?.some(
+                contract => decideContractAction(contract, newOffer) === "NO_ACTION"
+            );
+
+            if (hasAssortmentNoAction) {
+                assortmentNoActionOffers.add(getOfferKey(newOffer));
+
+                console.log(
+                    `[BLOCKED] Offer ${getOfferKey(newOffer)} has a direct assortment ` +
+                    `Tender -> Commercial Agreement NO_ACTION. All other overlapping cases will be ignored.`
+                );
             }
         }
 
@@ -442,6 +491,25 @@ module.exports = (srv) => {
 
             const hadContractsOriginally = uniqueContractsAll.length > 0;
 
+            // A direct assortment Tender -> Commercial Agreement NO_ACTION
+            // blocks the entire offer. Ignore CASE_5 and any other overlaps.
+            if (assortmentNoActionOffers.has(offerKey)) {
+                if (caseType === "CASE_3") {
+                    uniqueContractsAll.forEach(contract => {
+                        if (contract?.CCMContractID) {
+                            blockedNotices.push(buildBlockedMessage(contract));
+                        }
+                    });
+                }
+
+                console.log(
+                    `[BLOCKED] Skipping case ${caseType} for offer ${offerKey} ` +
+                    `because of direct assortment Tender -> Commercial Agreement NO_ACTION`
+                );
+
+                continue;
+            }
+
             // Drop any contract that lost precedence to a different case.
             const uniqueContracts = uniqueContractsAll.filter(contract => {
                 if (!contract?.CCMContractID || !contract?.ContractNumber) {
@@ -479,7 +547,7 @@ module.exports = (srv) => {
             if (caseType === "CASE_5") {
                 const contractActions = uniqueContracts.map(contract => ({
                     contract,
-                    action: decideContractAction(contract, newOffer)
+                    action: decideCase5ContractAction(contract, newOffer)
                 }));
 
                 contractActions
