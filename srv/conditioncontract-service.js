@@ -1740,7 +1740,7 @@ module.exports = (srv) => {
             yrs1Record.ConditionRateRatio = parseFloat((sourceData[0].MaxDiscount * 100).toFixed(3));
         }
 
-        if (yrs1Record.PricingScaleType === 'D') {
+        if (sourceData[0].PriceConditionCode === 'YAW2') {
             yrs1Record.ConditionType = "YRSI";
         }
 
