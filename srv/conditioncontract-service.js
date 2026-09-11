@@ -697,7 +697,7 @@ module.exports = (srv) => {
                 if (op.excludeCustomers?.length && newContractNumber) {
                     op.excludeCustomers.forEach(ec => {
                         excludeNotices.push(buildExcludedMessage(
-                            { ContractNumber: ec.contractNumber, Customer: ec.customer },
+                            { ContractNumber: ec.contractNumber, Customer: ec.customer, ContractType: ec.contractType },
                             newContractNumber
                         ));
                     });
@@ -1740,7 +1740,7 @@ module.exports = (srv) => {
             yrs1Record.ConditionRateRatio = parseFloat((sourceData[0].MaxDiscount * 100).toFixed(3));
         }
 
-        if (yrs1Record.PricingScaleType === 'D') {
+        if (sourceData[0].PriceConditionCode === 'YAW2') {
             yrs1Record.ConditionType = "YRSI";
         }
 
@@ -3710,11 +3710,11 @@ module.exports = (srv) => {
     });
 
     function buildBlockedMessage(contract) {
-        return `There is existing Active tender assortment contract# ${contract.ContractNumber} for customer# ${contract.Customer}. Hence, Contract is not created.`;
+        return `There is existing Active ${contract.ContractType} contract# ${contract.ContractNumber} for customer# ${contract.Customer}. Hence, Contract is not created.`;
     }
 
     function buildExcludedMessage(existingContract, newContractNumber) {
-        return `There is existing Active commercial assortment contract# ${existingContract.ContractNumber} for customer# ${existingContract.Customer}. `
+        return `There is existing Active ${existingContract.ContractType} contract# ${existingContract.ContractNumber} for customer# ${existingContract.Customer}. `
             + `Hence, excluding the customer in assortment contract and created the new contract# ${newContractNumber}`;
     }
 
