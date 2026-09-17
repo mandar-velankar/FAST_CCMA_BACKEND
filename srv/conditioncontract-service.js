@@ -1823,7 +1823,7 @@ module.exports = (srv) => {
             ConditionDocument: "",
             incl_excl: "I",
             ...(isBrandLevelRappel
-                ? { ProductHierarchy1: sourceData[0].HLEVEL4_CODE }
+                ? { ProductHierarchy: sourceData[0].HLEVEL4_CODE }
                 : { EANUPCCode: sourceData[0].EANUPCCode }
             )
         });
