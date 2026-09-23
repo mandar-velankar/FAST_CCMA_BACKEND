@@ -765,7 +765,8 @@ entity CCMContractsExtendedView as
             pi.ConditionType,
             pi.PriceConditionCode,
             pi.YP10             as YP10_YP11,
-            pi.YD02 * 100       as Discount : Double
+            pi.YD02 * 100       as Discount : Double,
+            fc.Division
     };
 
     entity CCMContractMaterialNumbers as select from CCMContract as ccm{
