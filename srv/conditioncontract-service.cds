@@ -698,6 +698,7 @@ entity CCMContractsExtendedView as
         ccm.ID as CCMContractID,
         fcc.CountryCode,
         ccm.modifiedBy as CWID,
+        ccm.modifiedAt,
         fcc.Owner,
         fcc.OwnerEmail as UserEmail,
         fcc.OwnerName,
